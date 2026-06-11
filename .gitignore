@@ -1,0 +1,17 @@
+# Dataset (raw and compiled data — too large for git)
+Dataset/
+
+# Jupyter
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.env
+.venv/
+
+# OS
+.DS_Store
+Thumbs.db
