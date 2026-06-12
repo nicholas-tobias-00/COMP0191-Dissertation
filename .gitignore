@@ -1,5 +1,8 @@
-# Dataset (raw and compiled data — too large for git)
-Dataset/
+# Data (raw and compiled data — too large for git)
+data/
+
+# Conda environment
+.conda/
 
 # Jupyter
 .ipynb_checkpoints/
