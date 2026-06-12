@@ -114,22 +114,22 @@ All data lives in `data/` (gitignored).
 
 ```
 notebooks/
-  01_data_compilation/    COMPLETE — compiles Consolidated → Compiled (23 files)
-  02_eda/                 IN PROGRESS — skeleton only
-  03_gap_filling/         PLANNED — replications + gap-filling baseline
+  01_data_compilation/    COMPLETE — compiles Consolidated -> Compiled (23 files)
+  02_eda/                 COMPLETE — full EDA, 12 figures in results/figures/
+  03_gap_filling/         PLANNED — R-01 through R-04 replications
   04_feature_engineering/ PLANNED
   05_benchmarking/        PLANNED
   06_interpretability_uq/ PLANNED
   07_scenario_analysis/   PLANNED
 src/
-  data/                   loaders for compiled CSVs
+  data/
+    consolidate_hourly.py COMPLETE — resamples all data to 1h; writes data/Hourly/
   features/               aggregation, lag construction, quality filtering
   models/                 model wrappers
   evaluation/             metrics, plotting
-results/                  benchmarks.csv (append-only) + figures
+results/                  benchmarks.csv (append-only) + figures/
 prompts/                  session templates
 DECISIONS.md
-REPLICATIONS.md
 ```
 
 ---
@@ -147,23 +147,30 @@ REPLICATIONS.md
 
 ## Current status
 
-- **Phase:** EDA complete → gap-filling preparation
-- **Completed:** 
-  - Data compilation pipeline (`01_data_compilation`) — all 23 compiled files verified
-  - `02_eda` — full EDA complete; 12 figures saved to `results/figures/`
-- **Key EDA findings:**
-  - Target column confirmed: `FCH4_1_1_1 [Tower 2]` (flux, nmol m⁻² s⁻¹); QC: `FCH4_SSITC_TEST_1_1_1 [Tower 2]`
-  - Tower 2: 12.1% valid; Tower 4: 44.6% valid; Tower 9: 25.6% valid
-  - 1,675-day gap in Tower 2 (May 2019–Jan 2024) — ERA5 fallback insufficient alone
-  - FCH4 range (QC-filtered): mean 33.5, range −1559 to +6161 nmol m⁻² s⁻¹
-  - Soil moisture: 15 catchments, best 83% availability (Catchment 8)
-  - Livestock: mean 82 cattle, 143 sheep, 139 lambs/day (2017–2025)
-  - Field events: 2,147 records; fertiliser application dominant
+- **Phase:** Gap-filling preparation
 - **Completed:**
+  - `01_data_compilation` — 23 compiled files in `data/Compiled/`
   - `02_eda` — full EDA; 12 figures in `results/figures/`
-  - `src/data/consolidate_hourly.py` — all compiled data resampled to 1-hour resolution; `data/Hourly/` written
-- **Hourly output summary:** `consolidated_hourly.csv` = 70,153 rows × 449 cols, 39.4% NaN overall
-- **Next phase:** Gap-filling replications (`03_gap_filling`) — start with R-01 Irvin et al. (2021) RF benchmark on Tower 4 FCH4
+  - `src/data/consolidate_hourly.py` — `data/Hourly/consolidated_hourly.csv` (70,153 rows × 449 cols, 39.4% NaN)
+- **Key EDA findings:**
+  - FCH4 flux range (Tower 4, QC-filtered): mean 33.5, range −1559 to +6161 nmol m⁻² s⁻¹
+  - Tower 2: 12.1% valid (1,675-day gap May 2019–Jan 2024); Tower 4: 44.6%; Tower 9: 25.6%
+  - Soil moisture: 15 catchments, best 83% availability; Flow: best 84%
+  - Livestock: mean 82 cattle / 143 sheep / 139 lambs per day (2017–2025)
+- **Next phase:** Gap-filling replications (`03_gap_filling`) — R-01 first
+
+## Replications
+
+| ID | Paper | Target metrics | Status | Notebook |
+|---|---|---|---|---|
+| R-01 | Irvin et al. (2021) — FLUXNET-CH4 RF/XGBoost gap-filling | R² ~0.7–0.8; soil temp most important | planned | `03_gap_filling/` |
+| R-02 | Kim et al. (2020) — RF vs ANN vs SVM vs MDS + PCA | RF best; PCA degrades; lags matter more for CH₄ | planned | `03_gap_filling/` |
+| R-03 | Zhu et al. (2023a) — UK managed pastures gap-filling | RFR beats MDS for gaps >12 days; ERA5 validated | planned | `03_gap_filling/` |
+| R-04 | Partridge et al. (2024) — NWFP GreenFeed Gradient Boosting | r=0.619, RMSE=51.8 g/day (animal-scale baseline) | planned | `03_gap_filling/` |
+
+_Update Status to `in-progress` / `complete` / `abandoned` as work proceeds. Log results in `results/benchmarks.csv`._
+
+---
 
 ## Next task
 

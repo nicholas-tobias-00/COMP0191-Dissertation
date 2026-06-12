@@ -52,8 +52,7 @@ Error / unexpected behaviour:
 ## Template 4 — End-of-session checklist
 
 Before committing, run through:
-- [ ] Updated `CONTEXT.md` → Current status and Next task fields
+- [ ] Updated `CONTEXT.md` → Current status, Replications table, and Next task fields
 - [ ] Added any new decisions to `DECISIONS.md`
-- [ ] Updated `REPLICATIONS.md` status if a replication progressed
 - [ ] Appended new rows to `results/benchmarks.csv` if a model was evaluated
 - [ ] Committed with a meaningful message
