@@ -4,6 +4,9 @@ data/
 # Conda environment
 .conda/
 
+# Documents (PDFs, presentations — tracked locally, not in git)
+documents/
+
 # Jupyter
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
