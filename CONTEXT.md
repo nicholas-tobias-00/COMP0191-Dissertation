@@ -50,8 +50,9 @@ _Read at the start of every session. Update "Current status" and "Next task" at 
 
 ## Methodology overview
 
-**Primary target:** `FCH4_1_1_1 [Tower 2]` in `greenhouse.csv` — half-hourly EC CH₄ flux (nmol m⁻² s⁻¹). Quality flag: `FCH4_SSITC_TEST_1_1_1 [Tower 2]` (0=best, 1=acceptable, 2=reject). Note: `CH4_1_1_1` is mole fraction (nmol/mol), NOT flux.  
-**Complementary features:** Soil moisture, temperature, rainfall from `measurements.csv`; management events from `Field_Event_Data_Format_1.csv`; livestock location counts from `Animal_location_counts_*.csv`
+**Primary target:** `FCH4_1_1_1 [Tower 4]` — EC CH₄ flux (nmol m⁻² s⁻¹), 44.6% valid, best coverage. Complementary: Tower 2 (12.1%) and Tower 9 (25.6%). Quality flag pattern: `FCH4_SSITC_TEST_1_1_1 [Tower N]` (0=best, 1=ok, 2=reject). Note: `CH4_1_1_1` is mole fraction (nmol/mol), NOT flux — do not confuse.  
+**Best starting point for modelling:** `data/Hourly/consolidated_hourly.csv` — all sources resampled to 1h, outer-joined on a common DatetimeIndex.  
+**Complementary features:** Soil moisture + flow from `measurements.csv`; management events from `Field_Event_Data_Format_1.csv`; livestock location counts from `Animal_location_counts_*.csv`
 
 **EC tower data availability (from EDA 2026-06-12):**
 - All three towers are confirmed active (D-11, resolved).
@@ -85,28 +86,27 @@ _Read at the start of every session. Update "Current status" and "Next task" at 
 
 ## Data summary
 
-All data lives in `data/` (gitignored).
+All data lives in `data/` (gitignored). Use `data/Hourly/` as the starting point for modelling.
 
-| Location | Contents |
-|---|---|
-| `data/Consolidated/` | Raw annual CSVs from NWFP portal |
-| `data/Compiled/` | Merged multi-year files from `notebooks/01_data_compilation/` |
-
-**Key compiled files:**
-
-| File | Description | Frequency |
+| Layer | Path | How to regenerate |
 |---|---|---|
-| `greenhouse.csv` | EC fluxes: CH₄, CO₂, H₂O, H, LE (Tower 2, 2018–present) | 30-min |
-| `measurements.csv` | Water flow + soil moisture across ≤15 catchments | 15-min |
-| `livestock_weight_long.csv` | Cattle + sheep + lamb weighings | Event |
-| `livestock_condition_score_long.csv` | Body condition scores | Event |
-| `Animal_location_counts_*.csv` | Head-count per field per species | Daily |
-| `Field_Event_Data_Format_1.csv` | Fertiliser, spraying, reseeding events | Event |
+| Raw annual slices | `data/Consolidated/` | Download from NWFP portal |
+| Multi-year compiled | `data/Compiled/` | Run `notebooks/01_data_compilation/` |
+| **1-hour consolidated** | **`data/Hourly/`** | **`python src/data/consolidate_hourly.py`** |
 
-**Data quality notes:**
-- `greenhouse_` and `measurements_` columns carry sibling quality-flag columns (`"Acceptable"`, `"Not set"`). Always filter before analysis.
-- EC data has persistent sensor gaps — ERA5 reanalysis substitution validated for this (Zhu et al. 2023a).
-- High sparsity in sensor columns is normal.
+**Hourly outputs (primary modelling inputs):**
+
+| File | Rows | Cols | NaN% | Notes |
+|---|---|---|---|---|
+| `greenhouse_hourly.csv` | 61,345 | 147 | 30.6% | FCH4 + CO₂ + H + LE + met, all towers |
+| `measurements_hourly.csv` | 70,153 | 239 | 49.9% | Flow + soil moisture per catchment |
+| `livestock_hourly.csv` | 70,129 | 63 | 0.0% | Head counts per location, all species |
+| `consolidated_hourly.csv` | 70,153 | 449 | 39.4% | All sources outer-joined |
+
+**Data notes:**
+- In `data/Compiled/`: quality-flag string columns (`"Acceptable"`/`"Not set"`) and `"Quality Last Modified"` timestamp columns are present — filter before use.
+- In `data/Hourly/`: non-numeric columns are already dropped by `consolidate_hourly.py`.
+- EC data has persistent sensor gaps (especially Tower 2) — ERA5 fallback validated for UK managed pastures (Zhu et al. 2023a, D-08).
 
 ---
 
