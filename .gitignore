@@ -21,3 +21,9 @@ __pycache__/
 # OS
 .DS_Store
 Thumbs.db
+
+# Development
+CLAUDE.md
+CONTEXT.md
+DECISIONS.md
+REPLICATIONS.md
