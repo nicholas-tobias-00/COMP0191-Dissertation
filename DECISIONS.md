@@ -75,11 +75,11 @@ _Log every methodological choice here — one entry per decision. Never delete e
 
 ---
 
-### D-11 — 2026-06-12 — Scope (OPEN — requires supervisor input)
-**Decision:** Tower selection for primary FCH4 flux target — Tower 2 (project spec) vs Tower 4 (best coverage).  
-**Rationale:** EDA revealed three EC towers with CH₄ flux data: Tower 2 (12.1% valid half-hours, 1,675-day gap May 2019–Jan 2024), Tower 4 (44.6% valid), Tower 9 (25.6% valid). The project specification references Tower 2, but the 1,675-day gap makes it unsuitable for a train (2018–2021) / test (2022–2023) temporal split as planned. Tower 4 has 3.7× more data and may span the full 2018–2023 period.  
-**Alternatives considered:** (a) Tower 2 only — limited temporal scope, likely only 2018–2019 usable; (b) Tower 4 as primary — best data but may differ in footprint/location; (c) Multi-tower ensemble — more complex, may need spatial alignment; (d) All towers combined — needs careful handling of overlapping periods.  
-**Status:** OPEN — to discuss with Prof. Paul Harris before starting gap-filling.
+### D-11 — 2026-06-12 — Scope (RESOLVED)
+**Decision:** Use all three EC towers (Tower 2, Tower 4, Tower 9) as sources of FCH4 flux. Tower 4 is the de-facto primary target given its 44.6% coverage; Tower 2 (12.1%) and Tower 9 (25.6%) serve as complementary sources. All three FCH4 columns are retained in `greenhouse_hourly.csv` and `consolidated_hourly.csv`.  
+**Rationale:** EDA confirmed: Tower 2 = 12.1% valid (1,675-day gap May 2019–Jan 2024), Tower 4 = 44.6% valid, Tower 9 = 25.6% valid. All three towers are operationally active (confirmed by supervisor / project team). Multi-tower approach maximises the usable data span and allows cross-tower comparison.  
+**Alternatives considered:** Tower 2 only — data too sparse post-2019 to support 2018–2023 temporal split. Tower 4 only — leaves usable Tower 2 and Tower 9 data on the table.  
+**Implication:** Temporal split and gap-filling replications should target Tower 4 as primary, with Tower 2 and 9 as validation/extension datasets.
 
 ---
 

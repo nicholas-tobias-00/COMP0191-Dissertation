@@ -53,15 +53,15 @@ _Read at the start of every session. Update "Current status" and "Next task" at 
 **Primary target:** `FCH4_1_1_1 [Tower 2]` in `greenhouse.csv` — half-hourly EC CH₄ flux (nmol m⁻² s⁻¹). Quality flag: `FCH4_SSITC_TEST_1_1_1 [Tower 2]` (0=best, 1=acceptable, 2=reject). Note: `CH4_1_1_1` is mole fraction (nmol/mol), NOT flux.  
 **Complementary features:** Soil moisture, temperature, rainfall from `measurements.csv`; management events from `Field_Event_Data_Format_1.csv`; livestock location counts from `Animal_location_counts_*.csv`
 
-**⚠️ Critical data availability finding (from EDA 2026-06-12):**
-- Tower 2 FCH4: only **12.1% coverage** (12,086 QC-passed half-hours). Massive gap from **2019-05-31 to 2024-01-01** (1,675 days).
-- Tower 4 FCH4 (`FCH4_1_1_1 [Tower 4]`): **44.6% coverage** (54,695 half-hours) — substantially better.
-- Tower 9 FCH4: 25.6% coverage.
-- **Decision needed with supervisor**: whether to switch primary target to Tower 4 (see D-11).
+**EC tower data availability (from EDA 2026-06-12):**
+- All three towers are confirmed active (D-11, resolved).
+- Tower 2 (`FCH4_1_1_1 [Tower 2]`): 12.1% valid — 1,675-day gap May 2019–Jan 2024.
+- Tower 4 (`FCH4_1_1_1 [Tower 4]`): **44.6% valid** — primary modelling target.
+- Tower 9 (`FCH4_1_1_1 [Tower 9]`): 25.6% valid — complementary source.
+- All three FCH4 columns retained in consolidated hourly output.
 
-**Temporal split — requires revision pending tower selection:**
-- If Tower 2 only: data runs 2018–mid-2019 then resumes late 2023; train/test split will differ from original plan
-- If Tower 4: fuller temporal coverage — closer to original 2018–2021 train, 2022–2023 test plan
+**Temporal split (Tower 4 primary):**
+- Train: 2018–2021 | Test: 2022–2023 | Held-out: 2024 (original plan viable with Tower 4)
 
 **Evaluation metrics:**
 - Regression: RMSE, MAE
@@ -159,11 +159,15 @@ REPLICATIONS.md
   - Soil moisture: 15 catchments, best 83% availability (Catchment 8)
   - Livestock: mean 82 cattle, 143 sheep, 139 lambs/day (2017–2025)
   - Field events: 2,147 records; fertiliser application dominant
-- **Next phase:** Supervisor discussion on tower selection (D-11), then gap-filling (`03_gap_filling`) — start with Irvin et al. (2021) RF benchmark on Tower 4 data
+- **Completed:**
+  - `02_eda` — full EDA; 12 figures in `results/figures/`
+  - `src/data/consolidate_hourly.py` — all compiled data resampled to 1-hour resolution; `data/Hourly/` written
+- **Hourly output summary:** `consolidated_hourly.csv` = 70,153 rows × 449 cols, 39.4% NaN overall
+- **Next phase:** Gap-filling replications (`03_gap_filling`) — start with R-01 Irvin et al. (2021) RF benchmark on Tower 4 FCH4
 
 ## Next task
 
-> Discuss tower selection with Prof. Paul Harris — Tower 2 (12.1% coverage, project spec) vs Tower 4 (44.6% coverage). Pending answer, begin R-01 gap-filling on the selected tower.
+> Begin R-01 gap-filling replication: implement Irvin et al. (2021) RF/XGBoost pipeline on `FCH4_1_1_1 [Tower 4]` using `consolidated_hourly.csv` as the feature source.
 
 ---
 _Last updated: 2026-06-12_

@@ -1,5 +1,5 @@
 # Data (raw and compiled data — too large for git)
-data/
+/data/
 
 # Conda environment
 .conda/
