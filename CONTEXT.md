@@ -50,13 +50,18 @@ _Read at the start of every session. Update "Current status" and "Next task" at 
 
 ## Methodology overview
 
-**Primary target:** Half-hourly EC CH₄ flux (`greenhouse.csv` — column to be confirmed during EDA)  
+**Primary target:** `FCH4_1_1_1 [Tower 2]` in `greenhouse.csv` — half-hourly EC CH₄ flux (nmol m⁻² s⁻¹). Quality flag: `FCH4_SSITC_TEST_1_1_1 [Tower 2]` (0=best, 1=acceptable, 2=reject). Note: `CH4_1_1_1` is mole fraction (nmol/mol), NOT flux.  
 **Complementary features:** Soil moisture, temperature, rainfall from `measurements.csv`; management events from `Field_Event_Data_Format_1.csv`; livestock location counts from `Animal_location_counts_*.csv`
 
-**Temporal split (indicative):**
-- Train: 2018–2021
-- Test: 2022–2023
-- Held-out: 2024
+**⚠️ Critical data availability finding (from EDA 2026-06-12):**
+- Tower 2 FCH4: only **12.1% coverage** (12,086 QC-passed half-hours). Massive gap from **2019-05-31 to 2024-01-01** (1,675 days).
+- Tower 4 FCH4 (`FCH4_1_1_1 [Tower 4]`): **44.6% coverage** (54,695 half-hours) — substantially better.
+- Tower 9 FCH4: 25.6% coverage.
+- **Decision needed with supervisor**: whether to switch primary target to Tower 4 (see D-11).
+
+**Temporal split — requires revision pending tower selection:**
+- If Tower 2 only: data runs 2018–mid-2019 then resumes late 2023; train/test split will differ from original plan
+- If Tower 4: fuller temporal coverage — closer to original 2018–2021 train, 2022–2023 test plan
 
 **Evaluation metrics:**
 - Regression: RMSE, MAE
@@ -142,14 +147,23 @@ REPLICATIONS.md
 
 ## Current status
 
-- **Phase:** EDA
-- **Completed:** Data compilation pipeline (`01_data_compilation`) — all 23 compiled files verified
-- **In progress:** `02_eda` — skeleton only (two `head()` calls on raw files; needs full analysis on compiled data)
-- **Next phase:** Gap-filling replications (`03_gap_filling`) — start with Irvin et al. (2021) RF benchmark
+- **Phase:** EDA complete → gap-filling preparation
+- **Completed:** 
+  - Data compilation pipeline (`01_data_compilation`) — all 23 compiled files verified
+  - `02_eda` — full EDA complete; 12 figures saved to `results/figures/`
+- **Key EDA findings:**
+  - Target column confirmed: `FCH4_1_1_1 [Tower 2]` (flux, nmol m⁻² s⁻¹); QC: `FCH4_SSITC_TEST_1_1_1 [Tower 2]`
+  - Tower 2: 12.1% valid; Tower 4: 44.6% valid; Tower 9: 25.6% valid
+  - 1,675-day gap in Tower 2 (May 2019–Jan 2024) — ERA5 fallback insufficient alone
+  - FCH4 range (QC-filtered): mean 33.5, range −1559 to +6161 nmol m⁻² s⁻¹
+  - Soil moisture: 15 catchments, best 83% availability (Catchment 8)
+  - Livestock: mean 82 cattle, 143 sheep, 139 lambs/day (2017–2025)
+  - Field events: 2,147 records; fertiliser application dominant
+- **Next phase:** Supervisor discussion on tower selection (D-11), then gap-filling (`03_gap_filling`) — start with Irvin et al. (2021) RF benchmark on Tower 4 data
 
 ## Next task
 
-> _[One sentence — update this before committing at end of each session]_
+> Discuss tower selection with Prof. Paul Harris — Tower 2 (12.1% coverage, project spec) vs Tower 4 (44.6% coverage). Pending answer, begin R-01 gap-filling on the selected tower.
 
 ---
 _Last updated: 2026-06-12_
