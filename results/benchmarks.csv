@@ -1,1 +1,31 @@
-date,replication_id,notebook,model,target_variable,split,metric,value,paper_value,notes
+replication,model,tower,permutation,split,R2,RMSE,MAE,n_train,n_test,date,notes
+R-01,RF,Tower4,0,test_2022-2023,-0.0311,119.63,60.71,7714,2849,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower4,0,test_2022-2023,-0.1262,125.03,67.58,7714,2849,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower4,1,test_2022-2023,0.174,121.27,59.95,7714,2845,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower4,1,test_2022-2023,0.1251,124.8,68.08,7714,2845,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower4,2,test_2022-2023,-0.2561,118.18,62.95,7714,2844,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower4,2,test_2022-2023,-0.4386,126.47,70.71,7714,2844,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower4,3,test_2022-2023,0.1816,135.04,64.2,7714,6644,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower4,3,test_2022-2023,0.1317,139.09,72.22,7714,6644,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower4,4,test_2022-2023,0.1443,132.33,62.45,7714,2843,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower4,4,test_2022-2023,0.0865,136.73,70.89,7714,2843,2026-06-13,Irvin2021; SM=Catchment4; SoilT=Tower9(proxy); Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower9,0,test_2022-2023,-0.0272,122.05,58.76,3981,2348,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower9,0,test_2022-2023,-0.1298,128.0,62.61,3981,2348,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower9,1,test_2022-2023,0.1272,143.37,65.48,3981,2360,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower9,1,test_2022-2023,0.143,142.06,67.17,3981,2360,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower9,2,test_2022-2023,-0.0307,116.17,56.37,3981,2340,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower9,2,test_2022-2023,-0.1702,123.78,61.74,3981,2340,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower9,3,test_2022-2023,0.1108,153.2,63.71,3981,2346,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower9,3,test_2022-2023,0.1538,149.45,63.33,3981,2346,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower9,4,test_2022-2023,-0.0352,123.51,57.56,3981,2341,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,XGBoost,Tower9,4,test_2022-2023,-0.089,126.68,59.42,3981,2341,2026-06-13,Irvin2021; SM=Catchment9; SoilT=Tower9; Standard: train 2018-2021 / test 2022-2023
+R-01,RF,Tower2,0,test_2019-2019,-14.8659,132.94,94.23,2985,384,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,XGBoost,Tower2,0,test_2019-2019,-47.5838,232.63,192.99,2985,384,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,RF,Tower2,1,test_2019-2019,-18.6659,147.88,116.39,2985,389,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,XGBoost,Tower2,1,test_2019-2019,-57.2461,254.5,210.18,2985,389,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,RF,Tower2,2,test_2019-2019,-21.8124,166.22,133.88,2985,440,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,XGBoost,Tower2,2,test_2019-2019,-63.8391,280.23,237.06,2985,440,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,RF,Tower2,3,test_2019-2019,-15.1688,141.15,108.08,2985,628,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,XGBoost,Tower2,3,test_2019-2019,-55.9369,264.88,220.72,2985,628,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,RF,Tower2,4,test_2019-2019,-16.9362,161.31,123.57,2985,379,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019
+R-01,XGBoost,Tower2,4,test_2019-2019,-48.19,267.14,224.29,2985,379,2026-06-13,Irvin2021; SM=Catchment2; SoilT=Tower9(proxy); D-15 custom: train 2018 / test Jan-May 2019

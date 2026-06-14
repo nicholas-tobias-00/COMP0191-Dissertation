@@ -97,6 +97,18 @@ DECISIONS.md                    # Log of all methodological decisions
 - **Quality flag:** `FCH4_SSITC_TEST_1_1_1 [Tower N]` — 0=best, 1=acceptable, 2=reject
 - **Note:** `CH4_1_1_1 [Tower N]` is mole fraction (nmol/mol), NOT flux — do not confuse
 
+### Spatial alignment rule (CRITICAL — D-18)
+
+**Tower N = Catchment N.** Each tower's model must use only its own catchment's data:
+
+| Tower | Soil moisture column | Met/flux columns |
+|---|---|---|
+| Tower 2 | `Soil Moisture @ 10cm Depth (%) [Catchment 2]` | `* [Tower 2]` |
+| Tower 4 | `Soil Moisture @ 10cm Depth (%) [Catchment 4 After  2013/08/13]` | `* [Tower 4]` |
+| Tower 9 | `Soil Moisture @ 10cm Depth (%) [Catchment 9]` | `* [Tower 9]` |
+
+**Never average soil moisture across catchments from different towers.** Shortwave radiation column is `SWIN_1_1_1 [Tower N]` (not `SW_IN_`). Soil temperature exception: if `TS_1_1_1 [Tower N]` < 20% available, cross-tower use is permitted (document in DECISIONS.md).
+
 ### Quality filtering
 
 `measurements_` and `greenhouse_` columns carry sibling quality-flag columns:
