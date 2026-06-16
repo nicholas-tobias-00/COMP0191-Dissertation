@@ -196,4 +196,35 @@ RF median R²=0.145 (RMSE=121.2, MAE=62.4 nmol m⁻² s⁻¹); XGBoost median R�
 
 ---
 
+### D-25 — 2026-06-16 — Data (FCO₂ quality control)
+**Decision:** Apply a two-pass QC to CO₂ flux (`FC_1_1_1 [Tower N]`) before using or reconstructing it: SSITC flag ∈ {0,1}, then a physical plausibility filter of **[−100, 100] µmol m⁻² s⁻¹**.
+**Rationale:** After SSITC filtering, FC's 1st–99th percentile is ≈ [−28, +26] µmol m⁻² s⁻¹ but a tail of gross instrument spikes remains (|FC| up to ~3×10⁵; ~125–190 points beyond ±100 per tower). Managed-grassland NEE rarely exceeds a few tens of µmol m⁻² s⁻¹, so [−100, 100] is a generous bound that removes only clear artefacts. Mirrors the FCH₄ plausibility approach (D-13).
+**Used by:** `src/data/fco2_gapfill.py` (the 03b CO₂-augmentation experiment).
+
+---
+
+### D-26 — 2026-06-16 — Methods (CO₂-augmented gap-filling experiment, 03b)
+**Decision:** Build a `03b_gap_filling_CO2` experiment that (1) reconstructs FCO₂ from meteorological-only drivers using the R-02 RFm approach, then (2) re-runs R-01/R-02/R-03 with the **observed-where-available** gap-filled FCO₂ as a CH₄ feature. FCO₂ reconstruction is precomputed once to `data/Hourly/fco2_gapfilled.csv` (Towers 2/4/9); the three notebooks load it. Results tagged `R-01-CO2`/`R-02-CO2`/`R-03-CO2`.
+**Rationale:** D-22 established that LE/H/FC co-fail with FCH₄, so excluding them gives the realistic-but-poor benchmark. This experiment tests the converse: if FCO₂ is *reconstructed from independent met drivers* it becomes available during a gap, converting a co-failed variable into a usable predictor. FCO₂ itself gap-fills well (RFm test R² ≈ 0.745/0.746 at Towers 4/9; 0.197 at Tower 2 with only 2018 data).
+**Outcome:** Adding gap-filled FCO₂ to the met-only RFm (R-02-CO2) moves Tower 4 from negative to **positive** R² (vs-gap −0.128 → +0.156; m-gap −0.160 → +0.111) while the no-FC controls (RF3, MDS) are unchanged — a clean causal demonstration that **FC is the single most informative FCH₄ predictor**. R-03-CO2 ANN reaches +0.12…+0.17 at Tower 4 (best model overall). For models that already had raw FC (R-01, R-03 trees), QC'ing it removes a spurious co-artefact signal, so short-gap RF drops. Tower 9 gains little; Tower 2 improves but stays negative (split design, D-19).
+**Caveat (chosen design):** "observed-where-available" means FCO₂ is the real observed value at FCH₄-gap points, re-introducing the co-observation issue (D-22) — so 03b results are an **upper bound**, not operational. The strict operational variant would use `FC_recon` everywhere; deferred. Lagged FCO₂ is a legitimate (non-co-failed) feature for forecasting (R-05+).
+
+---
+
+### D-27 — 2026-06-16 — Features (livestock footprint, P1)
+**Decision:** Build livestock features from own-catchment head counts (`cattle_/sheep_/lamb_Catchment N`, Tower N = Catchment N, D-18; shed/housed columns excluded): per-species counts, a combined **LSU** (cattle 1.0, sheep 0.1, lamb 0.05), a grazing-presence binary, and 24 h / 7 d lags.
+**Rationale:** At a grazed pasture the EC CH₄ signal is dominated by animals in the footprint (Felber et al. 2015: ×100 over bare-soil flux); this was the dominant missing driver across R-01→03b. Counts are 100 % populated with real presence variation (~32 % of hours at Tower 4).
+**Outcome:** Validated — `_lsu` is the **#1 SHAP feature** at Tower 4 (mean|SHAP| 28.2, ~2× FCO₂); adding P1 lifts Tower 4 short-gap R² +0.156 → +0.256. Tower 9 (data-poor) does not benefit.
+**Caveat:** livestock counts are **daily** (no GPS collars, unlike Felber) and "footprint" is approximated by own-catchment + wind features (no site geometry available).
+
+---
+
+### D-28 — 2026-06-16 — Features (management events, P2) + spatial mapping
+**Decision:** Build hourly management-event features (`src/features/build_management_features.py` → `data/Hourly/management_features.csv`) as exponential-decay time-since-event recency per channel (fertN +rate, manure, cut, lime, cultiv; τ = 14/30/21/90/30 d) at **site-level** and **tower-area** scope. Field→catchment mapping = **complete 15-catchment table from `NWFP_UG_Design_Develop.pdf`, Appendix D** (see `CATCHMENT_FIELDS` in the script). Tower management area = its own catchment (D-18): **Tower 4 = Catchment 4 = {NW005 Bottom Burrows, NW006 Burrows}**; **Tower 9 = Catchment 9 = {NW013 Dairy South, NW039 Dairy Corner}**. Tower 2 = Red farmlet (arable from 2019) — deferred.
+**Revision (2026-06-16):** an initial draft scoped Tower 4 to the *whole Green farmlet* {NW005/6/9/16/17/45/46/47} — but Appendix D shows those span Catchments 4/5/6/12/13. Corrected to Catchment 4 only (events 495 → 124). Tower 9 was already correct. Re-ran; **conclusions unchanged** (livestock still #1; P2 still weakest/overfitting). Appendix D also provides per-catchment fenced areas (Cat 4 = 7.75 ha, Cat 9 = 7.75 ha) for future stocking-density features.
+**Rationale:** Slurry/fertiliser/cutting cause transient CH₄/N₂O pulses; the user guide provides the only available spatial structure (no geometry/area files exist).
+**Outcome:** As implemented (12 columns), management features **overfit**: mild R² loss at Tower 4 and a **collapse at Tower 9** (R² → −0.86) driven by small training sets + management-timing distribution shift (Red-farmlet conversion). **Recommendation:** prune to 2–3 tower-specific recency channels and use a non-cumulative (leave-one-group-in) ablation; drop site-level + `fertN_rate`.
+
+---
+
 _[Add new entries below this line]_

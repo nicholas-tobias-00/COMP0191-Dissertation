@@ -121,6 +121,7 @@ notebooks/
   01_data_compilation/    COMPLETE — compiles Consolidated -> Compiled (23 files)
   02_eda/                 COMPLETE — full EDA + Section 6 modelling readiness; figures in results/figures/
   03_gap_filling/         COMPLETE — R-01 through R-03 replications + gap_filling_summary.md (R-04 dropped)
+  03b_gap_filling_CO2/    COMPLETE — R-01/02/03-CO2: gap-filled FCO2 as a CH4 feature (D-26)
   04_feature_engineering/ PLANNED
   05_benchmarking/        PLANNED
   06_interpretability_uq/ PLANNED
@@ -163,6 +164,10 @@ DECISIONS.md
   - `03_gap_filling/R03_Kim2020_RF_ANN_SVM_MDS_PCA.ipynb` — R-03 complete, Towers 4 and 9
   - `03_gap_filling/R03_results.md` — detailed per-tower results, model comparison, Kim findings tested
   - `03_gap_filling/gap_filling_summary.md` — three-way synthesis (datasets/columns, R² evaluation, metrics, root-cause analysis)
+  - `03_gap_filling/gap_filling_flowcharts_and_features.md` — per-replication process flowcharts + full feature dictionary (columns, descriptions, custom-vs-raw)
+  - `src/data/fco2_gapfill.py` + `data/Hourly/fco2_gapfilled.csv` — RFm reconstruction of FCO2 from met drivers (Towers 2/4/9); recon test R²≈0.745/0.746 (T4/T9), 0.20 (T2)
+  - `03b_gap_filling_CO2/` — R-01/02/03-CO2 notebooks + R0X_CO2_results.md + co2_augmented_summary.md (CO2-augmentation experiment, D-25/D-26)
+  - `04_feature_engineering/` — `fch4_drivers_and_features_review.md` (driver review), `F01_feature_ablation_RFm.ipynb` + `F01_results.md` + `feature_engineering_summary.md`; `src/features/build_management_features.py` (D-27/D-28)
 - **Key EDA findings:**
   - FCH4 flux range (Tower 4, QC-filtered): mean 33.5, range −1559 to +6161 nmol m⁻² s⁻¹
   - Tower 2: 12.1% valid (1,675-day gap May 2019–Jan 2024); Tower 4: 44.6%; Tower 9: 25.6%
@@ -198,7 +203,9 @@ DECISIONS.md
   - 240 R-03 rows in benchmarks.csv (470 total)
   - Full details in `notebooks/03_gap_filling/R03_results.md`
 - **Cross-replication synthesis (`gap_filling_summary.md`):** Headline R² driven by feature realism (D-22), not algorithm: R-01/R-03 include LE/H/FC → Tower 4 ~+0.14; R-02 excludes them → all negative. Realistic met-only ceiling is near-zero/negative. Algorithm choice is not the bottleneck; management-event features are the next lever.
-- **Next phase:** Feature engineering (management events) / Tower 2 split redesign / benchmarking
+- **CO₂-augmentation experiment (`03b_gap_filling_CO2/`, D-26):** FCO₂ reconstructs from met at R²≈0.75 (T4/T9). Adding gap-filled FCO₂ to met-only RFm (R-02-CO2) moves Tower 4 negative→**positive** (vs −0.128→+0.156; m −0.160→+0.111) with RF3/MDS controls unchanged — proving **FC is the key FCH₄ predictor** (confirms D-22). R-03-CO2 ANN reaches +0.12–0.17 at T4 (best overall). Caveat: observed-FC-at-gaps = upper bound, not operational. Full results in `co2_augmented_summary.md`.
+- **Feature-engineering ablation (`04_feature_engineering/F01`, D-27/D-28):** P1 **livestock is the #1 FCH₄ driver** at Tower 4 — `_lsu` is the top SHAP feature (28.2, ~2× FCO₂); +P1 lifts Tower 4 short-gap R² **+0.156 → +0.256** (biggest single jump in the programme). Confirms Felber 2015 / the driver review. Beyond livestock, diminishing returns; **P2 management overfits** (collapses data-poor Tower 9 to −0.86). Best so far: Tower 4 = BASE+livestock(+wind); Tower 9 data-bound. Full results in `F01_results.md` / `feature_engineering_summary.md`.
+- **Next phase:** Prune management features + leave-one-group-in ablation; carry livestock into forecasting (`05_benchmarking`); Tower 2 split redesign
 
 ## Replications
 
@@ -218,12 +225,13 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 
 ## Next task
 
-**Gap-filling replication phase complete (R-01–R-03); R-04 dropped.** The cross-replication synthesis (`gap_filling_summary.md`) shows algorithm choice is not the bottleneck — feature realism and non-stationarity are. Next steps, in priority order:
+**Replications (R-01–R-03) + CO₂-aug (03b) + feature-eng ablation (F-01) done; R-04 dropped.** Key arc: met-only ≈ −0.13 → +FCO₂ +0.156 → +livestock **+0.256** (Tower 4 short gaps). Livestock is the #1 driver (SHAP). Next steps, in priority order:
 
-1. **Management event features (highest-value lever)** — add livestock density, cutting, and fertiliser events to attack the non-stationarity driving negative R² across all replications. This is the next phase (`04_feature_engineering`).
-2. **Tower 2 split redesign** — D-15 custom split (2018 train / Jan–May 2019 test) causes seasonal mismatch (R²=−16.9). Redesign using leave-one-season-out CV within pre-gap window, or download 2024 data for a genuine post-gap test set.
-3. **ERA5 for driver_era** — complete Zhu replication's third driver set; also fills ~48% missing SWIN (D-14).
-4. **SVM hyperparameter search** — R-03 SVM shows systematic negative MBE (≈−22 nmol m⁻² s⁻¹); test C ∈ {0.1, 1.0, 10.0} to address underprediction.
+1. **Refine feature set (F-02)** — prune P2 management to 2–3 tower-specific recency channels (current 12-col version overfits, collapses Tower 9); re-run as **leave-one-group-in** ablation so P3–P6 aren't masked by P2's damage.
+2. **Begin forecasting (`05_benchmarking`)** — carry livestock + FCO₂ features forward (lagged livestock is a legitimate non-co-failed predictor); baselines → RF/XGB → LSTM/TFT, temporal CV.
+3. **Tower 9 / data-poor handling** — regularize, pool towers, or get more data; Tower 9 is feature-fragile (2,288 train rows).
+4. **(Optional) Operational FCO₂ variant** — re-run 03b with `FC_recon` everywhere (strict, leak-free).
+5. **Tower 2 split redesign** (D-15/D-19); **ERA5 driver_era** (D-14); **SVM C-search** (R-03).
 
 ---
-_Last updated: 2026-06-16 (gap_filling_summary.md three-way synthesis created; R-04 dropped; R03_results.md feature counts corrected to 15/23)_
+_Last updated: 2026-06-16 (F-01 feature-engineering ablation complete: src/features/build_management_features.py + F01 notebook + F01_results.md + feature_engineering_summary.md; D-27/D-28 added; benchmarks.csv 1290 rows. Finding: livestock = #1 FCH₄ driver, Tower 4 short-gap R² → +0.256)_

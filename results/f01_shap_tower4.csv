@@ -1,0 +1,47 @@
+feature,mean_abs_shap
+_lsu,28.3557334595008
+FC_1_1_1 [Tower 4],14.740136926169612
+TS_1_1_1 [Tower 9],9.111512323741454
+cattle_Catchment 4 After  2013/08/13,5.539047734635774
+PPFD_1_1_1 [Tower 4],4.727583221378427
+Soil Temperature @ 15cm Depth (oC) [Catchment 4 After  2013/08/13],4.474409572635627
+_wd_cos,4.197643466256918
+_prod_proxy,3.816585230773143
+_wd_sin,3.715515855517748
+SWIN_1_1_1 [Tower 4],3.175930522341482
+mgmt_site_cultiv_recency,2.5300178920718266
+_swc_ante7d,1.7439387187897901
+lamb_Catchment 4 After  2013/08/13,1.5603639050526092
+RN_1_1_1 [Tower 4],1.558632673933769
+SHF_1_1_1 [Tower 4],1.3881679585521867
+USTAR_0_0_1 [Tower 4],1.3812534820244715
+mgmt_site_lime_recency,1.0966665126571895
+mgmt_site_fertN_recency,0.9888226017615506
+WS_0_0_1 [Tower 4],0.9805513536400521
+_doy_cos,0.9346625982479678
+_hour_cos,0.8893331592670822
+VPD_0_0_1 [Tower 4],0.8859478338253056
+TA_0_0_1 [Tower 4],0.8430902032591874
+Ammonium (mg/l) [Catchment 4 After  2013/08/13],0.7948561816927006
+mgmt_site_fertN_rate,0.7926782513869648
+Soil Moisture @ 10cm Depth (%) [Catchment 4 After  2013/08/13],0.7036738540809524
+mgmt_t4_cut_recency,0.66893045151063
+_hour_sin,0.6445791016910779
+mgmt_site_manure_recency,0.6155850851638367
+_precip_7d,0.5876473590288449
+mgmt_site_cut_recency,0.5633494946184668
+_doy_sin,0.5607939495274749
+_precip_30d,0.5580754815027057
+_cattle_lag24,0.5549260241043688
+mgmt_t4_fertN_recency,0.42972878907150985
+mgmt_t4_fertN_rate,0.4210418056289086
+mgmt_t4_lime_recency,0.40599303589042995
+Conductivity (uS/cm) [Catchment 4 After  2013/08/13],0.38605683614254765
+_lsu_lag168,0.3795282870944272
+Nitrite and Nitrate (mg/l) [Catchment 4 After  2013/08/13],0.37026324310303843
+mgmt_t4_manure_recency,0.32760011330108246
+Dissolved Oxygen (%) [Catchment 4 After  2013/08/13],0.2551111159647523
+sheep_Catchment 4 After  2013/08/13,0.1687570207988945
+Precipitation (mm) [Catchment 4 After  2013/08/13],0.023254089123914932
+_graze,0.011650057552103568
+mgmt_t4_cultiv_recency,0.0

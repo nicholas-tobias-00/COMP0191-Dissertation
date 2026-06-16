@@ -187,7 +187,8 @@ R-03 short-gap RF matches R-01 RF almost exactly (+0.136 vs +0.144) — both use
 
 ## 10  Next steps
 
-- **R-04:** Propose next replication (Dengel et al. or similar — temporal modelling, LSTM, or seasonal decomposition)
+- **R-04 dropped** — GreenFeed is animal-scale, not EC flux. Gap-filling replication phase complete.
+- **CO₂-augmentation done** (`../03b_gap_filling_CO2/`): gap-filled FCO₂ as a CH₄ feature; ANN reaches +0.12–0.17 at Tower 4 (see `co2_augmented_summary.md`).
 - **Tower 2 split redesign** (D-15/D-19): Leave-one-season-out CV or download 2024 NWFP data
 - **ERA5 driver_era** (R-02 extension): Fill ~48% missing SWIN with ERA5 downscaling
 - **SVM hyperparameter search**: Test C ∈ {0.1, 1.0, 10.0} to address systematic underprediction bias

@@ -234,10 +234,16 @@ Across all three replications, **algorithm choice is clearly not the bottleneck*
 
 ---
 
+## Follow-up experiment
+
+The **CO₂-augmentation experiment** (`../03b_gap_filling_CO2/co2_augmented_summary.md`) directly tests the D-22 root cause: it gap-fills FCO₂ from met drivers and feeds it back as a CH₄ feature. Result — adding FCO₂ to the met-only RFm moves Tower 4 from negative to positive R² (controls unchanged), confirming FC is the decisive predictor.
+
+---
+
 ## Source documents
 
 - `notebooks/03_gap_filling/R01_results.md` — Irvin replication, all three towers
 - `notebooks/03_gap_filling/R02_results.md` — Zhu replication, MDS vs RF gap-length analysis
 - `notebooks/03_gap_filling/R03_results.md` — Kim replication, lag/PCA/SVM/ANN
-- `results/benchmarks.csv` — append-only ledger (470 rows: 30 R-01, 200 R-02, 240 R-03)
+- `results/benchmarks.csv` — append-only ledger; base replications = 470 rows (30 R-01, 200 R-02, 240 R-03). Total 940 incl. the CO₂-augmented runs (R-0X-CO2).
 - `DECISIONS.md` — D-13, D-15, D-16, D-18, D-22, D-23, D-24 referenced above
