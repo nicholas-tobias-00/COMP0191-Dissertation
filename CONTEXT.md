@@ -120,7 +120,7 @@ All data lives in `data/` (gitignored). Use `data/Hourly/` as the starting point
 notebooks/
   01_data_compilation/    COMPLETE — compiles Consolidated -> Compiled (23 files)
   02_eda/                 COMPLETE — full EDA + Section 6 modelling readiness; figures in results/figures/
-  03_gap_filling/         PLANNED — R-01 through R-04 replications
+  03_gap_filling/         COMPLETE — R-01 through R-03 replications + gap_filling_summary.md (R-04 dropped)
   04_feature_engineering/ PLANNED
   05_benchmarking/        PLANNED
   06_interpretability_uq/ PLANNED
@@ -151,13 +151,18 @@ DECISIONS.md
 
 ## Current status
 
-- **Phase:** Gap-filling replications (R-01 complete all towers, R-02 next)
+- **Phase:** Gap-filling replication phase COMPLETE (R-01 through R-03, Towers 4+9). R-04 dropped (GreenFeed is animal-scale, not EC flux — not a valid gap-filling comparison).
 - **Completed:**
   - `01_data_compilation` — 23 compiled files in `data/Compiled/`
   - `02_eda` — full EDA + Section 6 modelling readiness check; figures in `results/figures/`
   - `src/data/consolidate_hourly.py` — `data/Hourly/consolidated_hourly.csv` (70,153 rows × 449 cols, 39.4% NaN)
   - `03_gap_filling/R01_Irvin2021_RF_XGBoost.ipynb` — R-01 complete, all three towers (see below)
   - `03_gap_filling/R01_results.md` — detailed per-tower results, interpretation, and next steps
+  - `03_gap_filling/R02_Zhu2023a_RF_MDS.ipynb` — R-02 complete, Towers 4 and 9
+  - `03_gap_filling/R02_results.md` — detailed per-tower results, MDS vs RF gap-length analysis
+  - `03_gap_filling/R03_Kim2020_RF_ANN_SVM_MDS_PCA.ipynb` — R-03 complete, Towers 4 and 9
+  - `03_gap_filling/R03_results.md` — detailed per-tower results, model comparison, Kim findings tested
+  - `03_gap_filling/gap_filling_summary.md` — three-way synthesis (datasets/columns, R² evaluation, metrics, root-cause analysis)
 - **Key EDA findings:**
   - FCH4 flux range (Tower 4, QC-filtered): mean 33.5, range −1559 to +6161 nmol m⁻² s⁻¹
   - Tower 2: 12.1% valid (1,675-day gap May 2019–Jan 2024); Tower 4: 44.6%; Tower 9: 25.6%
@@ -178,18 +183,33 @@ DECISIONS.md
   - Tower 4 (test 2022–2023, n_train=7,714): RF R²=+0.144, RMSE=121.3, MAE=62.5; XGB R²=+0.086, RMSE=126.5, MAE=70.7
   - Tower 9 (test 2022–2023, n_train=3,981): RF R²=−0.027, RMSE=123.5, MAE=58.8; XGB R²=−0.089, RMSE=128.0, MAE=62.6
   - Tower 2 (D-15 custom, train 2018 / test Jan–May 2019, n_train=2,985): RF R²=−16.9, XGB R²=−55.9 — split design failure (seasonal mismatch; see D-19)
-  - Tower 4 is the only tower with positive R²; Tower 9 is near-null; Tower 2 D-15 split needs redesign
   - Full details in `notebooks/03_gap_filling/R01_results.md`
-- **Next phase:** R-02 gap-filling replication (Kim et al. 2020) — Towers 4 and 9
+- **R-02 results (5 reps × 5 scenarios, median):**
+  - **Tower 4** (n_train_driver3=10,862, n_train_driverm=7,285): RF3 R²≈−0.13, RFm R²≈−0.13, MDS R²≈−0.20, XGBm R²≈−0.35 (median across scenarios)
+  - **Tower 9** (n_train_driver3=4,048, n_train_driverm=2,288): RFm R²≈−0.10 (best), RF3≈−0.16, MDS deteriorates to −0.58 for l (12-day) gaps, XGBm≈−0.14
+  - All R² negative: consistent with Zhu's finding of R² < 0.10 at managed pastures; our values worse because LE/H/FC excluded (D-22) vs R-01 which included them
+  - Paper's main finding confirmed: RF > MDS for long (288h) gaps at Tower 9 (RF3 −0.182 vs MDS −0.584)
+  - MDS nearly unbiased (MBE ≈ 0); ML models show 10–40 nmol m⁻² s⁻¹ positive bias (Tower 4)
+  - Full details in `notebooks/03_gap_filling/R02_results.md`
+- **R-03 results (5 reps × 4 scenarios, median):**
+  - **Tower 4**: RF best at short gaps (R²=+0.136); **ANN best at medium/long/xlong** (R²=+0.091/+0.077/+0.057); RF_lag slightly worse than RF; RF_PCA7 better than RF_lag at medium/long (reverses Kim's PCA finding); SVM underperforms (R²≈0, strong negative MBE)
+  - **Tower 9**: RF_lag best at short/medium (R²=+0.152/+0.160); RF_PCA7 best at long/xlong (R²=+0.111/+0.056); ANN catastrophic at xlong (R²=−0.518 — small-sample artefact); MDS worst at all scenarios
+  - Kim's RF≥ANN finding partially confirmed; lag feature finding confirmed at T9, not at T4; PCA-degrades-ML finding NOT confirmed (site-specific at NWFP)
+  - 240 R-03 rows in benchmarks.csv (470 total)
+  - Full details in `notebooks/03_gap_filling/R03_results.md`
+- **Cross-replication synthesis (`gap_filling_summary.md`):** Headline R² driven by feature realism (D-22), not algorithm: R-01/R-03 include LE/H/FC → Tower 4 ~+0.14; R-02 excludes them → all negative. Realistic met-only ceiling is near-zero/negative. Algorithm choice is not the bottleneck; management-event features are the next lever.
+- **Next phase:** Feature engineering (management events) / Tower 2 split redesign / benchmarking
 
 ## Replications
 
 | ID | Paper | Target metrics | Status | Notebook |
 |---|---|---|---|---|
 | R-01 | Irvin et al. (2021) — FLUXNET-CH4 RF/XGBoost gap-filling | Paper: RF R²=0.79, XGB~0.65–0.67 (17 wetland sites). **T4: RF R²=0.144, XGB R²=0.086; T9: RF R²=−0.027, XGB R²=−0.089; T2: RF R²=−16.9 (split design failure)**. See R01_results.md. | complete | `03_gap_filling/R01_Irvin2021_RF_XGBoost.ipynb` |
-| R-02 | Kim et al. (2020) — RF vs ANN vs SVM vs MDS + PCA | RF best; PCA degrades; lags matter more for CH₄ | planned | `03_gap_filling/` |
-| R-03 | Zhu et al. (2023a) — UK managed pastures gap-filling | RFR beats MDS for gaps >12 days; ERA5 validated | planned | `03_gap_filling/` |
-| R-04 | Partridge et al. (2024) — NWFP GreenFeed Gradient Boosting | r=0.619, RMSE=51.8 g/day (animal-scale baseline) | planned | `03_gap_filling/` |
+| R-02 | Zhu et al. (2023a) — UK managed pastures gap-filling | RFR beats MDS for gaps >12 days; ERA5 validated. **T4: RFm R²≈−0.13; T9: RFm R²≈−0.10 (best); MDS −0.58 for l-gaps (T9). All methods negative R². Paper finding confirmed.** | complete | `03_gap_filling/R02_Zhu2023a_RF_MDS.ipynb` |
+| R-03 | Kim et al. (2020) — RF vs ANN vs SVM vs MDS + PCA | RF best short; ANN best medium/long (T4); RF_lag best short/medium (T9); PCA degrades NOT confirmed. Full results in R03_results.md. | complete | `03_gap_filling/R03_Kim2020_RF_ANN_SVM_MDS_PCA.ipynb` |
+| ~~R-04~~ | ~~Partridge et al. (2024) — NWFP GreenFeed Gradient Boosting~~ | Dropped — GreenFeed is animal-scale breath sampling, not EC flux; not a valid gap-filling comparison. | dropped | — |
+
+Synthesis across R-01–R-03: `notebooks/03_gap_filling/gap_filling_summary.md`.
 
 Each replication is run **per tower** (Tower 2, 4, 9 independently). Start with Tower 4 (best coverage), then extend to Towers 9 and 2 in that order. Log per-tower results in `results/benchmarks.csv`.  
 _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
@@ -198,12 +218,12 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 
 ## Next task
 
-**R-01 is complete for all three towers.** Next steps:
+**Gap-filling replication phase complete (R-01–R-03); R-04 dropped.** The cross-replication synthesis (`gap_filling_summary.md`) shows algorithm choice is not the bottleneck — feature realism and non-stationarity are. Next steps, in priority order:
 
-1. **R-02 replication** — Kim et al. (2020): RF vs ANN vs SVM + lag features on Tower 4 FCH4. Notebook: `notebooks/03_gap_filling/R02_Kim2020_RF_SVM_ANN.ipynb`. Extend to Tower 9 after Tower 4.
+1. **Management event features (highest-value lever)** — add livestock density, cutting, and fertiliser events to attack the non-stationarity driving negative R² across all replications. This is the next phase (`04_feature_engineering`).
 2. **Tower 2 split redesign** — D-15 custom split (2018 train / Jan–May 2019 test) causes seasonal mismatch (R²=−16.9). Redesign using leave-one-season-out CV within pre-gap window, or download 2024 data for a genuine post-gap test set.
-3. **Tower 9 feature investigation** — near-null R² (−0.027 RF) may reflect training-data sparsity (3,981 vs 7,714 rows). Adding management event features in R-02 may improve this.
-4. **ERA5 for SWIN gap-fill** — `SWIN_1_1_1 [Tower 4]` is only ~52% available; ERA5 `ssrd` would improve predictor coverage but is not a blocker (D-14).
+3. **ERA5 for driver_era** — complete Zhu replication's third driver set; also fills ~48% missing SWIN (D-14).
+4. **SVM hyperparameter search** — R-03 SVM shows systematic negative MBE (≈−22 nmol m⁻² s⁻¹); test C ∈ {0.1, 1.0, 10.0} to address underprediction.
 
 ---
-_Last updated: 2026-06-13 (R-01 extended to all three towers; R01_results.md created; D-19 added)_
+_Last updated: 2026-06-16 (gap_filling_summary.md three-way synthesis created; R-04 dropped; R03_results.md feature counts corrected to 15/23)_

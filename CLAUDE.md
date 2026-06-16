@@ -47,7 +47,7 @@ documents/                      # gitignored — PDFs (literature, presentations
 notebooks/
   01_data_compilation/          # COMPLETE — compiles Consolidated -> Compiled (23 files)
   02_eda/                       # COMPLETE — full EDA; figures in results/figures/
-  03_gap_filling/               # PLANNED — R-01 through R-04 replications
+  03_gap_filling/               # COMPLETE — R-01 through R-03 replications (R-04 dropped: GreenFeed is animal-scale, not EC)
   04_feature_engineering/       # PLANNED
   05_benchmarking/              # PLANNED
   06_interpretability_uq/       # PLANNED

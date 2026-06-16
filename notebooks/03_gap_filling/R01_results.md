@@ -213,9 +213,25 @@ Scatter figure (all towers): `results/figures/r01_scatter_all_towers.png`
 
 ---
 
-## 10  Next steps
+## 10  Recontextualization after R-02 (D-22)
 
-- **R-02:** Kim et al. (2020) — RF vs ANN vs SVM with lag features. Apply to Towers 4 and 9 first.
-- **Tower 2 split redesign:** Replace 2018/2019 split with leave-one-season-out CV within the pre-gap window, or download 2024 data to create a proper post-gap test set.
-- **Tower 9 training data:** Investigate whether 2022–2023 Tower 9 management differs substantially from 2018–2021, causing the near-null test performance. Adding management event features (D-12 next steps) may help.
-- **ERA5 SWIN gap-fill:** `SWIN_1_1_1` is ~52% available. ERA5 `ssrd` could raise predictor completeness to ~95%+ — evaluate in `04_feature_engineering`.
+**R-01's positive R² (+0.144 for Tower 4 RF) is partially explained by an unrealistic feature assumption.**
+
+R-01 includes `LE_1_1_1`, `H_1_1_1`, and `FC_1_1_1` (latent heat, sensible heat, CO2 flux) as predictors. These are measured by the same EC instrument as FCH4. During a real sensor gap that creates missing FCH4, these flux variables would also be missing — they co-fail with the target. Using them as predictors was methodologically incorrect for realistic gap-filling.
+
+R-02 (following Zhu et al. 2023a) correctly excludes LE/H/FC and restricts to meteorological variables from independent sensors (SW, TA, VPD, etc.). R-02 RFm achieves R2 ~ -0.10 at Tower 9 and ~ -0.13 at Tower 4 — substantially worse than R-01's +0.144.
+
+**Implication for interpretation:**
+- R-01 results represent an **upper bound** on gap-filling accuracy under an unrealistic "co-observed flux" assumption.
+- R-02 results are the **realistic benchmark** — achievable performance when only met drivers are available.
+- R-01 is still valid as a methodological replication of Irvin et al. and a feature-ablation data point.
+- In forecasting (R-05+), lagged LE/H/FC from previous timesteps are valid predictors (not co-failed).
+
+See Decision D-22 in `DECISIONS.md`.
+
+## 11  Next steps
+
+- **R-02 complete** (Zhu et al. 2023a) — see `R02_results.md`.
+- **R-03:** Kim et al. (2020) — RF vs ANN vs SVM with lag features and PCA. Towers 4 and 9.
+- **Tower 2 split redesign:** Replace 2018/2019 split with leave-one-season-out CV or post-gap 2024 data.
+- **ERA5 for driver_era:** Complete the Zhu replication's third driver set and fill ~48% missing SWIN.
