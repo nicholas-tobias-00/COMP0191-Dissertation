@@ -77,4 +77,6 @@ Top features by mean|SHAP|:
   3. **Regularize for Tower 9** — fewer features, shallower trees, or pool towers.
   4. Carry **livestock features forward** into the forecasting phase — lagged livestock is a legitimate, high-value predictor.
 
-350 rows tagged `F-01` (with `feature_set` column) in `results/benchmarks.csv` (total 1290).
+350 rows tagged `F-01` (with `feature_set` column) in `results/benchmarks.csv`.
+
+> **Follow-up (F-02, `F02_results.md`):** the recommendations above were implemented — pruned management **fixed the Tower 9 overfit** (−0.86 → +0.01…+0.04), and **stocking density + cross-tower pooling lifted Tower 9 to R² ≈ +0.29** (best in the project).

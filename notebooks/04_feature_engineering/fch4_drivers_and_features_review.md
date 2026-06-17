@@ -91,7 +91,7 @@ Add **P1 (footprint-weighted livestock) + P2 (management events)** to the curren
 
 Order of build: P3 (cheap, enables P1) → P1 → P2 → P4 → P5 → P6.
 
-> **Update (F-01 done):** this experiment ran — see `F01_results.md` / `feature_engineering_summary.md`. Result: **livestock (P1) is the #1 SHAP driver** at Tower 4 and lifts short-gap R² +0.156 → +0.256, confirming the hypothesis. Management (P2) as implemented overfit (collapsed data-poor Tower 9); prune and re-run leave-one-group-in next.
+> **Update (F-01 / F-02 / F-03 done):** see `F01_results.md`, `F02_results.md`, `F03_results.md`, `feature_engineering_summary.md`. **Livestock (P1) is the #1 SHAP driver** at Tower 4 (short-gap R² +0.156 → +0.256), confirming the hypothesis. F-02 **pruned the over-fitting management set** and added **stocking density**: pooling Towers 2+4+9 with LSU/ha density lifts the **data-poor Tower 9 to R² ≈ +0.29** (best in the project) — density makes livestock comparable across different-area catchments. F-03 refined this to **partial pooling** (pooled + tower-indicator): ≥ full pooling at every tower; helps the most-different Tower 2 most while protecting Tower 4 (D-30).
 
 ---
 

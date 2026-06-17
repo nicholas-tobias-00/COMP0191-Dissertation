@@ -57,7 +57,15 @@ CATCHMENT_FIELDS = {
     15: {"NW019"},                              # Longlands East
 }
 # Tower management area = its own catchment (D-18, D-28 revised).
-TOWER_CATCHMENT = {4: 4, 9: 9}
+# Tower 2 = Catchment 2 = {NW002 Great Field} added for the F-05 pooled experiment.
+TOWER_CATCHMENT = {2: 2, 4: 4, 9: 9}
+
+# Total fenced area (ha) per catchment (NWFP_UG_Design_Develop.pdf, Appendix D, post-Aug 2013).
+# Reference data for stocking-density features (D-29). Note Catchments 4 and 9 are both 7.75 ha.
+CATCHMENT_AREA_HA = {
+    1: 4.81, 2: 6.65, 3: 6.62, 4: 7.75, 5: 6.47, 6: 3.86, 7: 2.60, 8: 7.02,
+    9: 7.75, 10: 1.82, 11: 1.76, 12: 1.78, 13: 1.75, 14: 1.72, 15: 1.54,
+}
 
 CUT_OPS = {"Mow", "Rowing up", "Forage harvest", "Trailers (silage)", "Top",
            "Baling (silage)", "Hay turning"}

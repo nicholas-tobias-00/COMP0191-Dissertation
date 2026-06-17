@@ -45,13 +45,14 @@ data/                           # gitignored — too large for git
     consolidated_hourly.csv     # All sources merged, 70,153 rows x 449 cols
     fco2_gapfilled.csv          # Gap-filled FCO2 per tower (from src/data/fco2_gapfill.py, D-26)
     management_features.csv     # Hourly mgmt-event recency features (from src/features/build_management_features.py, D-28)
+    reddyproc_processed.csv     # Gap-filled met drivers + GPP/Reco + u* flag (from src/data/reddyproc_pipeline.py, D-33)
 documents/                      # gitignored — PDFs (literature, presentations)
 notebooks/
   01_data_compilation/          # COMPLETE — compiles Consolidated -> Compiled (23 files)
   02_eda/                       # COMPLETE — full EDA; figures in results/figures/
   03_gap_filling/               # COMPLETE — R-01 through R-03 replications (R-04 dropped: GreenFeed is animal-scale, not EC)
   03b_gap_filling_CO2/          # COMPLETE — R-01/02/03-CO2: gap-filled FCO2 as a CH4 feature (D-26)
-  04_feature_engineering/       # IN PROGRESS — F-01 livestock/management ablation; livestock = #1 driver (D-27/D-28)
+  04_feature_engineering/       # COMPLETE — F-01..F-05 (livestock/density/pooling/lags/mgmt) + F-06 REddyProc met-fill+GPP (D-27..D-33)
   05_benchmarking/              # PLANNED
   06_interpretability_uq/       # PLANNED
   07_scenario_analysis/         # PLANNED
@@ -62,6 +63,7 @@ src/
   data/
     consolidate_hourly.py       # Resample all compiled data to 1h resolution
     fco2_gapfill.py             # Reconstruct FCO2 from met drivers (RFm) for 03b experiment (D-26)
+    reddyproc_pipeline.py       # Python REddyProc-style pipeline: met gap-fill + u* + GPP/Reco (F-06, D-33)
   features/
     build_management_features.py # Hourly management-event recency features (D-28)
   models/                       # Model wrappers

@@ -33,11 +33,51 @@ The two decisive levers were **FCO₂** (an ecosystem-activity proxy) and **live
 - **Livestock is daily-resolution** (no GPS collars, unlike Felber 2015) and **footprint is approximate** (own-catchment + wind features; no site geometry).
 - **Upper-bound inheritance**: BASE still includes observed FCO₂ at gap points (D-22 caveat from 03b).
 
+## F-02 follow-up (done) — stocking density + pruned management + pooling
+
+See `F02_results.md`. Three results:
+1. **Pruned management fixes the F-01 overfit** — Tower 9 management went from −0.86 (F-01, 12 cols) to **+0.01…+0.04** (F-02, 2 tower-specific cols, leave-one-group-in).
+2. **Stocking density (LSU/ha, Appendix D areas) pays off in a pooled multi-area model** — pooling T2(2018)+T4+T9 with density-normalised livestock lifts **Tower 9 to R² ≈ +0.21…+0.29** (best in the project; vs pooled-count +0.09/+0.18 and solo ≈ 0). Density is provably inert for single-tower / equal-area cases (Cat 4 = Cat 9 = 7.75 ha) — it only helps when areas differ (T2 = 6.65 ha), which the pool provides.
+3. **Livestock stays the top per-tower driver** (Tower 4 Δ+0.10).
+
+## F-03 follow-up (done) — partial pooling across all towers
+
+See `F03_results.md`. Compared solo / full-pool / **partial-pool** (pooled + tower-indicator dummies), all with stocking density, evaluated on all three towers:
+- **Partial pooling ≥ full pooling at every tower** — the recommended default.
+- **Tower 9 rescued** (solo ≈ 0 → pooled ≈ +0.29; partial ≈ full).
+- **Tower 2 benefits most from the tower dummy** (partial −0.245 vs full −0.301 short-gap) — it's the most "different" tower; the dummy gives it its own baseline. Still negative (D-15 split, not the model).
+- **Tower 4 (data-rich) protected** — the dummy keeps partial ≈ solo, avoiding the small full-pool dip.
+
+**Method notes (recorded in `F03_results.md §4–§6`):** every predictor is *shared* (one response shape across catchments); only the tower dummy is tower-specific (per-tower level). Pooling adds *rows* not features (T9: 5,387 → 12,558); a tower is predicted from its *own* features but the learned rule draws on all towers (borrowing strength, not leakage). **R² is scored strictly per tower** (own test gaps, own baseline, identical held-out points across variants). Legitimate, literature-backed: partial pooling/multilevel (Gelman & Hill 2007), Mixed-Effects RF (Hajjem 2014), and the EC-flux upscaling paradigm — FLUXCOM (Jung 2020), **UpCH4 (McNicol 2023, CH4-specific)**, Tramontana 2016, Liang 2019.
+
+## F-04 follow-up (done) — re-testing R-03's SWC/TS lags
+
+See `F04_results.md`. Added R-03's SWC/TS 1–4 week lags (D-23) back into the density + partial-pooling models:
+- **Lags do NOT help Tower 9** (Δ ≈ −0.00) — R-03's `RF_lag` advantage doesn't transfer, because FCO₂ + density + pooling already encode the slow soil-moisture/temperature memory the lags proxied (**redundant** on the rich base).
+- **Lags help the weakest-base tower most** — Tower 2 partial-pool Δ **+0.116** (best Tower 2 yet, still negative); Tower 4 marginally at medium/long gaps.
+- **Lesson:** feature value is context-dependent — a feature decisive on a weak base (R-03) can be redundant on a strong one. Keep lags (cheap, help T2/T4-long-gaps), but pooling+density+FCO₂ is the Tower 9 lever (D-31).
+
+## F-05 follow-up (done) — pruned field-event (management) features on the rich base
+
+See `F05_results.md`. Re-added the pruned tower-specific management (cut + manure recency, dropped after F-02) onto the F-04 config:
+- **Small, non-harmful bump** (overall-median Δ: Tower 2 +0.013, Tower 4 +0.012, Tower 9 +0.005) — largest at the weaker-base towers, negligible at strong Tower 9.
+- **Same pattern as F-04 lags: redundant on the rich base** (FCO₂ + density + pooling already encode most of what fertiliser/cut events signal). Keep it (cheap, never hurts) but it is **not a lever** (D-32).
+- **Feature engineering exhausted for hand-crafted features** — P1–P6, pooling, lags, management all tested; returns plateaued. Standard config = partial pool + density + lags + pruned management.
+
+## F-06 follow-up (done) — REddyProc-style met gap-filling + GPP (D-33)
+
+See `F06_results.md`. Prompted by the NWFP/REddyProc EC report. We had always **mean-imputed** the met drivers; `src/data/reddyproc_pipeline.py` gap-fills them properly (interp + mean-diurnal-course) and adds **GPP/Reco** (nighttime Lloyd-Taylor partitioning of CO₂ flux).
+- **Met-fill beats mean-imputation** (overall Δ +0.017…+0.076, largest at coverage-poor Tower 2) — the **first input-fix improvement**, and **not** redundant (it fixes inputs rather than adding info the base already had).
+- **GPP adds more** — **Tower 9 → +0.335 (new project best)**, Tower 4 +0.163, Tower 2 −0.045 (best yet). GPP = real productivity driver, beats the crude SWIN×TA proxy (P5).
+- **New best config:** partial pool + density + lags + pruned management + **gap-filled met drivers + GPP/Reco**.
+- u*-threshold filtering produced (reported separately; CH4 ebullition caveat — not applied to R²).
+
 ## Recommended next steps
 
-1. Prune management to 2–3 tower-specific recency channels; re-run as **leave-one-group-in** ablation.
-2. **Carry livestock features into the forecasting phase** (`05_benchmarking`) — lagged livestock is a legitimate, high-value, non-co-failed predictor.
-3. Regularize / pool data for Tower 9.
-4. (Optional) proper flux-footprint model if site geometry is obtained.
+1. **Adopt partial pooling + stocking density (+ SWC/TS lags)** (D-30/D-31) as the standard multi-tower configuration; carry into forecasting (`05_benchmarking`) as a global model with per-tower effects.
+2. Keep **pruned tower-specific management**; drop site-level + fertN_rate channels.
+3. Optionally replace one-hot tower dummies with **continuous tower descriptors** (fenced area, soil type) to generalise to unseen catchments.
+4. **Tower 2 split redesign** (D-15) is now Tower 2's limiting factor — pooling has done what it can.
+5. (Optional) proper flux-footprint model if site geometry is obtained.
 
 *Source: `fch4_drivers_and_features_review.md`, `F01_results.md`, `src/features/build_management_features.py`, `results/benchmarks.csv` (F-01), `results/f01_shap_tower4.csv`. Decisions D-27, D-28.*
