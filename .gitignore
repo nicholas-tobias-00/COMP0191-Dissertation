@@ -6,6 +6,7 @@
 
 # Documents (PDFs, presentations — tracked locally, not in git)
 documents/
+backup/
 
 # Jupyter
 .ipynb_checkpoints/
