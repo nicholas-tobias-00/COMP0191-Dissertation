@@ -72,6 +72,21 @@ See `F06_results.md`. Prompted by the NWFP/REddyProc EC report. We had always **
 - **New best config:** partial pool + density + lags + pruned management + **gap-filled met drivers + GPP/Reco**.
 - u*-threshold filtering produced (reported separately; CH4 ebullition caveat — not applied to R²).
 
+## F-07 (Tower 2 only) — the broken evaluation, fixed (D-34)
+
+See `F07_results.md`. Tower 2's −16.9/−0.045 was a **broken evaluation**: its CH4 spans only Oct 2017–Jun 2019, with cattle in 2018 (FCH4≈42) but **none in 2019** (FCH4≈2) — so the D-15 year split trained the high-flux regime and tested the near-zero one. Gap-filling is interpolation → the correct evaluation is a **full-period gap-CV**.
+- **RFm pooled, full-period CV = +0.519 (best in project, exceeds 0.5)**; solo +0.394.
+- **MDS stays −0.49** (livestock-blind) → **RFm beats MDS by ~1.0 R² unit** — the clearest "improvement over MDS".
+- Caveat: Tower 2's high R² = unusually discriminable livestock-on/off regime; **not directly comparable to 4/9's ~0.3**. Implication: re-evaluate 4/9 under the same full-period CV for consistency.
+
+## F-08 (all towers) — EC-tower vs external (SMS/MET) sensor sourcing (D-35)
+
+See `F08_results.md`. The project sources almost every driver from the **EC tower**, switching to the external catchment network only for soil moisture (D-18) — but soil *temperature* used a cross-tower **EC proxy** (`TS_1_1_1 [Tower 9]`, D-16) despite a well-correlated (r≈0.98) per-catchment external twin. Built a parallel external-sourced layer (`build_sms_met_dataset.py` → `consolidated_hourly_SMS_MET.csv` + `reddyproc_processed_SMS_MET.csv`; originals untouched) swapping all overlapping drivers to external, and re-evaluated **all three towers under full-period gap-CV** (EC vs EXT; harness validated, EC T2 solo = 0.395 = F-07).
+- **External sourcing is essentially neutral for the RF** — pooled RFm gains a small, consistent **+0.012–0.014 at every tower** (EXT pool: T2 0.490 / T4 0.376 / T9 0.364), never hurts despite Site-level met + r≈0.17 wind. Same "redundant on the rich base" pattern as F-04/F-05.
+- **Per-catchment soil-temperature fix vindicated** (net-positive pooled at all towers) → adopt it for spatial consistency with soil moisture.
+- **Biggest result = the EC baseline under full-period gap-CV:** re-evaluating 4/9 with interpolation-style CV raises **T4 +0.163→+0.362**, T9 +0.335→+0.350 → all three towers now consistent **≈0.35–0.49, each ≈0.6–1.0 over MDS**.
+- **Lesson:** external sourcing is a *consistency/robustness* improvement (adopt external soil temp; prefer external met on coverage grounds), **not a new accuracy lever**.
+
 ## Recommended next steps
 
 1. **Adopt partial pooling + stocking density (+ SWC/TS lags)** (D-30/D-31) as the standard multi-tower configuration; carry into forecasting (`05_benchmarking`) as a global model with per-tower effects.

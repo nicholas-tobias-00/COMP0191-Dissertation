@@ -46,13 +46,15 @@ data/                           # gitignored — too large for git
     fco2_gapfilled.csv          # Gap-filled FCO2 per tower (from src/data/fco2_gapfill.py, D-26)
     management_features.csv     # Hourly mgmt-event recency features (from src/features/build_management_features.py, D-28)
     reddyproc_processed.csv     # Gap-filled met drivers + GPP/Reco + u* flag (from src/data/reddyproc_pipeline.py, D-33)
+    consolidated_hourly_SMS_MET.csv   # External-sourced variant: SWIN/TA/WS<-Site, drivers swapped (from src/data/build_sms_met_dataset.py, D-35)
+    reddyproc_processed_SMS_MET.csv   # Gap-filled met for the external variant; ts<-per-catchment external soil temp (D-35)
 documents/                      # gitignored — PDFs (literature, presentations)
 notebooks/
   01_data_compilation/          # COMPLETE — compiles Consolidated -> Compiled (23 files)
   02_eda/                       # COMPLETE — full EDA; figures in results/figures/
   03_gap_filling/               # COMPLETE — R-01 through R-03 replications (R-04 dropped: GreenFeed is animal-scale, not EC)
   03b_gap_filling_CO2/          # COMPLETE — R-01/02/03-CO2: gap-filled FCO2 as a CH4 feature (D-26)
-  04_feature_engineering/       # COMPLETE — F-01..F-05 (livestock/density/pooling/lags/mgmt) + F-06 REddyProc met-fill+GPP (D-27..D-33)
+  04_feature_engineering/       # COMPLETE — F-01..F-06 (livestock/density/pooling/lags/mgmt/REddyProc) + F-07 Tower-2 eval fix + F-08 EC-vs-external sourcing (D-27..D-35)
   05_benchmarking/              # PLANNED
   06_interpretability_uq/       # PLANNED
   07_scenario_analysis/         # PLANNED
@@ -64,6 +66,7 @@ src/
     consolidate_hourly.py       # Resample all compiled data to 1h resolution
     fco2_gapfill.py             # Reconstruct FCO2 from met drivers (RFm) for 03b experiment (D-26)
     reddyproc_pipeline.py       # Python REddyProc-style pipeline: met gap-fill + u* + GPP/Reco (F-06, D-33)
+    build_sms_met_dataset.py    # External-sourced (SMS/MET) variant of consolidated + reddyproc outputs (F-08, D-35)
   features/
     build_management_features.py # Hourly management-event recency features (D-28)
   models/                       # Model wrappers
