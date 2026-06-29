@@ -40,6 +40,21 @@ Full-period domains: T2 = 2017-10→2019-06, T4 = 2017-10→2023-12, T9 = 2020-0
 
 **Improvement over MDS** (RFm pool): EC — T2 +0.97, T4 +0.60, T9 +0.69; EXT — T2 +0.80, T4 +0.61, T9 +0.68.
 
+### Beyond R² — RMSE / MAE / MBE (median over scenarios; nmol m⁻² s⁻¹)
+
+The benchmark logs full metrics (R²/RMSE/MAE/MBE). They confirm the R² story on every axis:
+
+| RFm **pooled** | RMSE EC→EXT | MBE (bias) EC→EXT |
+|---|---|---|
+| T2 | 96.6 → 95.9 | +2.4 → +3.4 |
+| T4 | 97.9 → 98.7 | +2.5 → +2.6 |
+| T9 | 120.7 → 120.0 | +0.1 → +0.7 |
+
+- **External sourcing is neutral on RMSE *and* bias** (RMSE within ~1 nmol, MBE within ~1 nmol of EC) — so the "external ≈ EC" conclusion holds across all metrics, not just R².
+- **Improvement over MDS is even cleaner in RMSE:** RFm pooled cuts RMSE **~30–40 %** vs MDS (EXT: MDS RMSE 145–170 → RFm 96–120 across towers) — a more interpretable headline than the R² gap for an open system.
+- **Low bias:** all RFm variants have small MBE (≤ ~3.5 nmol) — important because gap-filled values feed annual CH₄ budgets, where systematic bias accumulates. (MDS is near-unbiased too but has ~50 % higher RMSE.)
+- *(Backfilled metrics: F-07/F-08 originally logged R² only; R² values are unchanged on re-run.)*
+
 ## 4  Interpretation
 
 **(a) External sourcing is essentially neutral for the RF models — and never hurts the pooled model.**

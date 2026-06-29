@@ -1,0 +1,24 @@
+feature,vsn_weight
+ch4,0.09205031
+fx_VPD_0_0_1,0.062830545
+ar_fc_t,0.056854483
+fx_WS_0_0_1,0.05177951
+fx_SHF_1_1_1,0.048880536
+ar_reco_t,0.047885876
+fx_hc,0.047874056
+fx_RN_1_1_1,0.046930637
+ar_gpp_t,0.046607543
+fx_Soil Moisture @ 10cm Depth (%),0.044332735
+fx_Soil Temperature @ 15cm Depth (oC),0.043292783
+fx_TA_0_0_1,0.039727855
+fx_mgmt_manure,0.039069563
+fx_hs,0.03729889
+fx_ds,0.037045818
+fx_Precipitation (mm),0.036379654
+fx_graze,0.034576222
+fx_USTAR_0_0_1,0.034479715
+fx_lsu_dens,0.03230935
+fx_mgmt_cut,0.03173601
+fx_dc,0.031656012
+fx_SWIN_1_1_1,0.029821485
+fx_PPFD_1_1_1,0.02658041

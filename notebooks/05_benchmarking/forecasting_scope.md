@@ -73,12 +73,14 @@ The driver-conditional forecaster + UQ *is* the scenario engine: feed counterfac
 
 ## Sequencing (deadline 1 Sept 2026)
 
-1. **Precompute:** continuous gap-filled CH₄ series + forecasting feature matrix (Towers 4/9, pooled with T2 donor).
-2. **Baselines + ML benchmark** (persistence/seasonal → RF/XGB), both tracks, skill-vs-baseline, per horizon.
-3. **DL** (LSTM, TFT, + DLinear/N-HiTS) — largest effort.
-4. **UQ layer** (conformal + TFT quantiles).
-5. **Write-up**; revisit held-out 2024 if data lands.
-6. **Scenario demo** (07).
+1. ✅ **Precompute** — `build_fch4_gapfilled.py`, `build_forecasting_matrix.py` (Stage 0).
+2. ✅ **Baselines + ML benchmark** — FC-01 (`B01`, RF/XGB + persistence/climatology). RF beats persistence; skill-vs-baseline is the metric.
+3. ✅ **DL** — FC-02 (`B02`, hand-rolled DLinear/LSTM/LSTM-VSN, pure PyTorch, GPU; D-38). *Finding: complexity doesn't pay off — RF (hourly) / DLinear (daily) win; LSTM only at Tower 2.* (Full TFT/N-HiTS de-scoped → VSN supplies native importance.)
+4. ✅ **Feature importance** — I-01 (`06/I01`, permutation+SHAP+VSN, D-39): importance shifts with horizon; livestock density #1.
+5. ✅ **UQ layer** — FC-03 (`06/U01`, D-40): conformal + quantile-XGB + LSTM-pinball. *Calibrated but wide; conformal most reliable, quantile-XGB sharpest; intervals miss the biggest spikes → motivates spike-aware modelling.*
+6. ⏭ **Spike-aware modelling** (two-stage hurdle) — the agreed next experiment (plan file).
+7. ⏭ **Write-up**; revisit held-out 2024 if data lands.
+8. ⏭ **Scenario demo** (07, digital shadow).
 
 ## Open items / risks
 
