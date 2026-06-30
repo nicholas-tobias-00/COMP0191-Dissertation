@@ -17,10 +17,14 @@ LSTM seq2seq, LSTM+VSN (variable-selection gate -> native variable importance).
 Device-agnostic: uses CUDA only if a real GPU op succeeds (guards the sm_120 case), else CPU.
 """
 from pathlib import Path
+import sys
 import numpy as np
 import pandas as pd
 import torch
 import torch.nn as nn
+
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from evaluation.metrics import full_metrics
 
 HOURLY = Path(__file__).resolve().parents[2] / "data" / "Hourly"
 TOWERS = [2, 4, 9]
@@ -46,9 +50,9 @@ def get_device():
 
 
 # ── data ─────────────────────────────────────────────────────────────────────
-def load_matrix():
+def load_matrix(path=None):
     global FX
-    m = pd.read_csv(HOURLY / "forecast_features.csv", low_memory=False)
+    m = pd.read_csv(path or (HOURLY / "forecast_features.csv"), low_memory=False)
     m["Datetime"] = pd.to_datetime(m["Datetime"], format="mixed")
     FX = [c for c in m.columns if c.startswith("fx")]
     return m
@@ -259,12 +263,18 @@ def _eval_rows(track, model_name, tower, te, preds, gclim, gl, unit):
         pc = _clim_pred(gclim, gl, te["ttime"][obs, k], unit)
         r, mae, r2, mbe = _metrics(yo, pd_dl)
         rp, rc = np.sqrt(np.mean((pp - yo) ** 2)), np.sqrt(np.mean((pc - yo) ** 2))
+        fm = full_metrics(yo, pd_dl, y_naive=pp)
         rows.append(dict(track=track, horizon=h, tower=tower, model=model_name,
                          RMSE=round(r, 3), MAE=round(mae, 3),
                          R2=(round(r2, 3) if np.isfinite(r2) else np.nan), MBE=round(mbe, 3),
                          n_test=int(obs.sum()),
                          skill_persist=round(1 - r / rp, 3) if rp > 0 else np.nan,
-                         skill_clim=round(1 - r / rc, 3) if rc > 0 else np.nan))
+                         skill_clim=round(1 - r / rc, 3) if rc > 0 else np.nan,
+                         WAPE=round(fm["WAPE"], 4) if np.isfinite(fm["WAPE"]) else np.nan,
+                         MASE=round(fm["MASE"], 4) if np.isfinite(fm["MASE"]) else np.nan,
+                         sMAPE=round(fm["sMAPE"], 4) if np.isfinite(fm["sMAPE"]) else np.nan,
+                         MAPE=round(fm["MAPE"], 4) if np.isfinite(fm["MAPE"]) else np.nan,
+                         MAPE_n_excluded=fm["MAPE_n_excluded"]))
     return rows
 
 

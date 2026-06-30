@@ -78,9 +78,10 @@ The driver-conditional forecaster + UQ *is* the scenario engine: feed counterfac
 3. ✅ **DL** — FC-02 (`B02`, hand-rolled DLinear/LSTM/LSTM-VSN, pure PyTorch, GPU; D-38). *Finding: complexity doesn't pay off — RF (hourly) / DLinear (daily) win; LSTM only at Tower 2.* (Full TFT/N-HiTS de-scoped → VSN supplies native importance.)
 4. ✅ **Feature importance** — I-01 (`06/I01`, permutation+SHAP+VSN, D-39): importance shifts with horizon; livestock density #1.
 5. ✅ **UQ layer** — FC-03 (`06/U01`, D-40): conformal + quantile-XGB + LSTM-pinball. *Calibrated but wide; conformal most reliable, quantile-XGB sharpest; intervals miss the biggest spikes → motivates spike-aware modelling.*
-6. ⏭ **Spike-aware modelling** (two-stage hurdle) — the agreed next experiment (plan file).
-7. ⏭ **Write-up**; revisit held-out 2024 if data lands.
-8. ⏭ **Scenario demo** (07, digital shadow).
+6. ✅ **Enriched-feature reruns** — B-03 (`B03`, trees) + B-04 (`B04`, DL) on `forecast_features_v2.csv` / `forecast_daily_v2.csv` (`build_forecasting_matrix_v2.py`, D-41): wind-direction/TA-minmax/external-soil-daily-lags/days-since-grazing + Round-1 daily HPO. *Trees lift to daily R² ≈0.36–0.39 (+0.08–0.10 vs FC-01); DL unmoved (28-day lookback already saw the history). Short of the 0.5 stretch — the physical ceiling.*
+7. ⏭ **Spike-aware modelling** (two-stage hurdle) — the agreed next experiment.
+8. ⏭ **Write-up**; revisit held-out 2024 if data lands.
+9. ⏭ **Scenario demo** (07, digital shadow).
 
 ## Open items / risks
 
