@@ -156,10 +156,171 @@ class LSTMVSN(nn.Module):
         return self.out(o).squeeze(-1)
 
 
+# ── TFT (B-03b): canonical Temporal Fusion Transformer (Lim et al. 2021) ──────
+# GRN/VSN/static-encoders/interpretable-multi-head-attention, hand-rolled pure PyTorch
+# (no pytorch-forecasting, matching the D-38 no-library convention). Modest d_model/n_heads
+# (bounded-iteration norm) relative to a research-scale TFT, but architecturally complete.
+class GRN(nn.Module):
+    """Gated Residual Network: the core TFT building block (skip + ELU-MLP + GLU + LayerNorm)."""
+    def __init__(self, d_in, d_hidden, d_out=None, d_context=None, dropout=0.1):
+        super().__init__()
+        d_out = d_out or d_in
+        self.skip = nn.Linear(d_in, d_out) if d_in != d_out else nn.Identity()
+        self.fc1 = nn.Linear(d_in, d_hidden)
+        self.context = nn.Linear(d_context, d_hidden, bias=False) if d_context else None
+        self.fc2 = nn.Linear(d_hidden, d_out)
+        self.glu = nn.Linear(d_out, d_out * 2)
+        self.drop = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(d_out)
+    def forward(self, x, c=None):
+        skip = self.skip(x)
+        h = self.fc1(x)
+        if self.context is not None and c is not None:
+            h = h + self.context(c)
+        h = self.fc2(torch.nn.functional.elu(h))
+        g = self.glu(self.drop(h))
+        a, b = g.chunk(2, dim=-1)
+        return self.norm(skip + a * torch.sigmoid(b))
+
+
+class BatchedPerVarGRN(nn.Module):
+    """GRN applied independently per variable (separate weights per variable, vectorised via
+    einsum rather than a Python loop over variables -- keeps VSN tractable at ~20-30 features."""
+    def __init__(self, n_vars, d_in, d_hidden, d_out, dropout=0.1):
+        super().__init__()
+        self.has_skip = d_in != d_out
+        if self.has_skip:
+            self.W_skip = nn.Parameter(torch.randn(n_vars, d_in, d_out) * 0.1)
+            self.b_skip = nn.Parameter(torch.zeros(n_vars, d_out))
+        self.W1 = nn.Parameter(torch.randn(n_vars, d_in, d_hidden) * 0.1); self.b1 = nn.Parameter(torch.zeros(n_vars, d_hidden))
+        self.W2 = nn.Parameter(torch.randn(n_vars, d_hidden, d_out) * 0.1); self.b2 = nn.Parameter(torch.zeros(n_vars, d_out))
+        self.Wg = nn.Parameter(torch.randn(n_vars, d_out, d_out * 2) * 0.1); self.bg = nn.Parameter(torch.zeros(n_vars, d_out * 2))
+        self.drop = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(d_out)
+    def forward(self, x):   # x: (..., n_vars, d_in)
+        skip = torch.einsum("...vi,vio->...vo", x, self.W_skip) + self.b_skip if self.has_skip else x
+        h = torch.nn.functional.elu(torch.einsum("...vi,vih->...vh", x, self.W1) + self.b1)
+        h = torch.einsum("...vh,vho->...vo", h, self.W2) + self.b2
+        g = torch.einsum("...vo,vop->...vp", self.drop(h), self.Wg) + self.bg
+        a, b = g.chunk(2, dim=-1)
+        return self.norm(skip + a * torch.sigmoid(b))
+
+
+class VSN(nn.Module):
+    """Variable Selection Network: per-variable GRN transform + softmax-gated combination."""
+    def __init__(self, n_vars, d_model, d_context=None, dropout=0.1):
+        super().__init__()
+        self.n_vars, self.d_model = n_vars, d_model
+        self.pervar_w = nn.Parameter(torch.randn(n_vars, d_model) * 0.1)
+        self.pervar_b = nn.Parameter(torch.zeros(n_vars, d_model))
+        self.var_grn = BatchedPerVarGRN(n_vars, d_model, d_model, d_model, dropout=dropout)
+        self.weight_grn = GRN(n_vars * d_model, d_model, n_vars, d_context=d_context, dropout=dropout)
+    def forward(self, x, c=None):   # x: (B,T,n_vars)
+        proj = x.unsqueeze(-1) * self.pervar_w + self.pervar_b      # (B,T,n_vars,d_model)
+        flat = proj.reshape(*proj.shape[:-2], self.n_vars * self.d_model)
+        weights = torch.softmax(self.weight_grn(flat, c), dim=-1)    # (B,T,n_vars)
+        transformed = self.var_grn(proj)                             # (B,T,n_vars,d_model)
+        combined = (transformed * weights.unsqueeze(-1)).sum(dim=-2)
+        return combined, weights
+
+
+class GateAddNorm(nn.Module):
+    """Gated skip connection (GLU + residual + LayerNorm) -- TFT's locality-enhancement gate."""
+    def __init__(self, d_model, dropout=0.1):
+        super().__init__()
+        self.glu = nn.Linear(d_model, d_model * 2)
+        self.drop = nn.Dropout(dropout)
+        self.norm = nn.LayerNorm(d_model)
+    def forward(self, x, skip):
+        g = self.glu(self.drop(x))
+        a, b = g.chunk(2, dim=-1)
+        return self.norm(skip + a * torch.sigmoid(b))
+
+
+class InterpretableMultiHeadAttention(nn.Module):
+    """TFT's interpretable multi-head attention: per-head Q/K, a single SHARED value projection
+    across heads (unlike vanilla MHA), outputs averaged across heads for interpretability."""
+    def __init__(self, d_model, n_heads, dropout=0.1):
+        super().__init__()
+        self.n_heads = n_heads; self.d_head = d_model // n_heads
+        self.q_layers = nn.ModuleList([nn.Linear(d_model, self.d_head) for _ in range(n_heads)])
+        self.k_layers = nn.ModuleList([nn.Linear(d_model, self.d_head) for _ in range(n_heads)])
+        self.v_layer = nn.Linear(d_model, self.d_head)
+        self.out = nn.Linear(self.d_head, d_model)
+        self.drop = nn.Dropout(dropout)
+    def forward(self, x, mask=None):
+        V = self.v_layer(x)
+        outs, attns = [], []
+        for h in range(self.n_heads):
+            Q, K = self.q_layers[h](x), self.k_layers[h](x)
+            scores = Q @ K.transpose(-2, -1) / (self.d_head ** 0.5)
+            if mask is not None:
+                scores = scores.masked_fill(mask, float("-inf"))
+            attn = self.drop(torch.softmax(scores, dim=-1))
+            outs.append(attn @ V); attns.append(attn)
+        out = torch.stack(outs, dim=0).mean(0)
+        return self.out(out), torch.stack(attns, dim=1)
+
+
+class TFT(nn.Module):
+    """Canonical TFT: static covariate encoders -> VSN (encoder/decoder) -> LSTM enc/dec with
+    static-initialised state -> gated locality enhancement -> static enrichment -> interpretable
+    self-attention (causal) -> position-wise feed-forward -> point-forecast head over the decoder
+    horizon. d_model/n_heads kept modest (bounded-iteration norm, D-41) relative to a
+    research-scale TFT, but every architectural component from Lim et al. (2021) is present."""
+    def __init__(self, L, H, n_enc, n_dec, n_static, d_model=32, n_heads=4, dropout=0.1):
+        super().__init__()
+        self.L, self.H = L, H
+        self.static_vsn = VSN(n_static, d_model, dropout=dropout)
+        self.static_ctx_selection = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.static_ctx_enrichment = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.static_ctx_h = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.static_ctx_c = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.enc_vsn = VSN(n_enc, d_model, d_context=d_model, dropout=dropout)
+        self.dec_vsn = VSN(n_dec, d_model, d_context=d_model, dropout=dropout)
+        self.lstm_enc = nn.LSTM(d_model, d_model, batch_first=True)
+        self.lstm_dec = nn.LSTM(d_model, d_model, batch_first=True)
+        self.gate_lstm = GateAddNorm(d_model, dropout=dropout)
+        self.static_enrich_grn = GRN(d_model, d_model, d_model, d_context=d_model, dropout=dropout)
+        self.attn = InterpretableMultiHeadAttention(d_model, n_heads, dropout=dropout)
+        self.gate_attn = GateAddNorm(d_model, dropout=dropout)
+        self.pos_ff = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.gate_ff = GateAddNorm(d_model, dropout=dropout)
+        self.out = nn.Linear(d_model, 1)
+        self.last_attn = None
+        self.register_buffer("_mask", torch.triu(torch.ones(L + H, L + H, dtype=torch.bool), diagonal=1))
+    def forward(self, enc, dec, static):
+        static_emb, _ = self.static_vsn(static.unsqueeze(1))
+        static_emb = static_emb.squeeze(1)
+        c_sel, c_enr = self.static_ctx_selection(static_emb), self.static_ctx_enrichment(static_emb)
+        h0, c0 = self.static_ctx_h(static_emb).unsqueeze(0), self.static_ctx_c(static_emb).unsqueeze(0)
+
+        enc_emb, _ = self.enc_vsn(enc, c_sel.unsqueeze(1).expand(-1, enc.shape[1], -1))
+        dec_emb, _ = self.dec_vsn(dec, c_sel.unsqueeze(1).expand(-1, dec.shape[1], -1))
+
+        enc_lstm, (h, c) = self.lstm_enc(enc_emb, (h0, c0))
+        dec_lstm, _ = self.lstm_dec(dec_emb, (h, c))
+
+        lstm_out = torch.cat([enc_lstm, dec_lstm], dim=1)
+        vsn_out = torch.cat([enc_emb, dec_emb], dim=1)
+        gated = self.gate_lstm(lstm_out, vsn_out)
+
+        enriched = self.static_enrich_grn(gated, c_enr.unsqueeze(1).expand(-1, gated.shape[1], -1))
+        attn_out, attn_w = self.attn(enriched, mask=self._mask)
+        self.last_attn = attn_w.detach()
+        attn_gated = self.gate_attn(attn_out, enriched)
+
+        ff_out = self.pos_ff(attn_gated)
+        final = self.gate_ff(ff_out, gated)
+        dec_final = final[:, self.L:, :]
+        return self.out(dec_final).squeeze(-1)
+
+
 def build_model(name, L, H, n_enc, n_dec, n_static):
     if name == "DLinear": return DLinear(L, H, n_dec, n_static)
     if name == "LSTM":    return LSTMSeq2Seq(n_enc, n_dec, n_static, H)
     if name == "LSTM_VSN":return LSTMVSN(n_enc, n_dec, n_static, H)
+    if name == "TFT":     return TFT(L, H, n_enc, n_dec, n_static)
     raise ValueError(name)
 
 
@@ -169,13 +330,31 @@ class Scaler:
         flat = x.reshape(-1, x.shape[-1]); self.mu = flat.mean(0); self.sd = flat.std(0) + 1e-6; return self
     def tf(self, x): return (x - self.mu) / self.sd
 
-def train_model(model, tr, device, epochs=30, bs=256, lr=1e-3, ch4_mu=0.0, ch4_sd=1.0, seed=0):
+def train_model(model, tr, device, epochs=30, bs=256, lr=1e-3, ch4_mu=0.0, ch4_sd=1.0, seed=0,
+                 weight_decay=0.0, val_data=None, patience=5):
+    """weight_decay/val_data/patience default to off -- existing callers (DLinear/LSTM/LSTM_VSN in
+    B02/B04) are unaffected; AdamW with weight_decay=0 is equivalent to plain Adam. Pass val_data
+    (a window dict like `tr`, e.g. a held-out year) to enable early stopping on validation loss --
+    added for TFT (B-03b), which overfits the bounded 30-epoch/no-val budget the simpler DL models
+    don't (D-45)."""
+    import copy
     torch.manual_seed(seed); model.to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     enc = torch.tensor(tr["enc"]); dec = torch.tensor(tr["dec"]); static = torch.tensor(tr["static"])
     y = torch.tensor((tr["y"] - ch4_mu) / ch4_sd); mask = torch.tensor(np.isfinite(tr["y"]).astype(np.float32))
     y = torch.nan_to_num(y, nan=0.0)
     n = len(enc)
+
+    if val_data is not None:
+        # keep on CPU, move per mini-batch -- an unbatched forward pass over a large validation set
+        # blows up memory/time for attention models (TFT's O(T^2) attention over a batch of thousands
+        # allocates a (B,heads,T,T) score tensor that can reach several GB) -- bit us in practice (D-45)
+        venc = torch.tensor(val_data["enc"]); vdec = torch.tensor(val_data["dec"]); vstatic = torch.tensor(val_data["static"])
+        vy = torch.tensor((val_data["y"] - ch4_mu) / ch4_sd); vmask = torch.tensor(np.isfinite(val_data["y"]).astype(np.float32))
+        vy = torch.nan_to_num(vy, nan=0.0)
+        nv = len(venc)
+        best_val, best_state, bad_epochs = float("inf"), None, 0
+
     for ep in range(epochs):
         perm = torch.randperm(n)
         for b in range(0, n, bs):
@@ -186,6 +365,25 @@ def train_model(model, tr, device, epochs=30, bs=256, lr=1e-3, ch4_mu=0.0, ch4_s
             pred = model(xe, xd, xs)
             loss = ((pred - yb) ** 2 * mb).sum() / mb.sum().clamp(min=1)
             loss.backward(); opt.step()
+        if val_data is not None:
+            model.eval()
+            vloss_sum, vmask_sum = 0.0, 0.0
+            with torch.no_grad():
+                for b in range(0, nv, bs):
+                    xe, xd, xs = venc[b:b+bs].to(device), vdec[b:b+bs].to(device), vstatic[b:b+bs].to(device)
+                    yb, mb = vy[b:b+bs].to(device), vmask[b:b+bs].to(device)
+                    vpred = model(xe, xd, xs)
+                    vloss_sum += ((vpred - yb) ** 2 * mb).sum().item(); vmask_sum += mb.sum().item()
+            vloss = vloss_sum / max(vmask_sum, 1)
+            model.train()
+            if vloss < best_val:
+                best_val, best_state, bad_epochs = vloss, copy.deepcopy(model.state_dict()), 0
+            else:
+                bad_epochs += 1
+                if bad_epochs >= patience:
+                    break
+    if val_data is not None and best_state is not None:
+        model.load_state_dict(best_state)
     return model
 
 @torch.no_grad()

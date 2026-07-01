@@ -255,7 +255,43 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      spike-tail signature (B-05/B-06 mechanism). FC-03/U-01 (UQ) excluded — different metric family
      (interval calibration, not point accuracy). Gap-filling phase (R-01–F-08) backfill **deferred** — staged
      for later per user's explicit staging choice, given timeline (deadline 1 Sept).
-   - **Next: B-08 driver-realism sensitivity** (synthetic NWP correction, renumbered from B-07, D-45) — staying within forecasting/data scope per explicit user direction before moving on. Then **07 scenario analysis** (digital shadow). Deferred: coarser/cumulative eval, ensembling; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out EC data.
+   - **Model-roster gaps filled — B-03a (SARIMAX) + B-03b (full TFT), D-45:** the original D-05 roster
+     (persistence/seasonal-mean → ARIMA → RF/XGBoost → LSTM/TFT → SARIMAX) had two never-implemented rungs —
+     ARIMA was scoped but never built; TFT was explicitly de-scoped at FC-02/D-38 in favour of `LSTM_VSN`. Both
+     added on B-03's exact data/CV/horizons. **B-03a SARIMAX** (`B03a_arima.ipynb`, solo per-tower, SHAP-informed
+     exogenous set, order (2,1,1), walk-forward via `append(refit=False)`): competitive only at h=1 (daily R²
+     0.33) then **collapses negative by h=7–14** (MASE 1.06–1.13, worse than persistence). **B-03b TFT**
+     (`B03b_tft.ipynb`, canonical architecture — VSN/GRN/static-encoders/interpretable-attention, new `TFT`
+     class in `forecasting_dl.py`) **original run: negative R² at every horizon/tower/track** (daily -0.73 to
+     -0.97, MASE 1.03–1.79) — the single worst model result in the whole forecasting phase. Result was
+     independently verified (not taken at face value) — manual training-loop check confirmed clean loss
+     convergence and sanely-scaled predictions, ruling out an implementation bug; mechanism = **overfitting**
+     (weak positive test correlation r=0.27, dragged deeply negative by occasional large overconfident
+     spike-mispredictions). **Fixed** (user follow-up, same session): added `weight_decay`/`val_data`/`patience`
+     to `train_model()` (backward-compatible), retrained with weight_decay=1e-3 + early stopping on a held-out
+     2021 validation year — hit and fixed a real bug along the way (unbatched validation forward pass caused a
+     multi-GB attention tensor and a 30-min timeout; batching it like `predict()` already does brought it to
+     16s/epoch). **Fix worked**: daily R² flipped from -0.73…-1.08 (negative everywhere) to **+0.10…+0.26**
+     (positive everywhere), MASE from 1.03–2.01 to 0.65–1.23 (beats persistence from h=3–7 onward) — still well
+     below B-03's trees (0.27–0.39) but no longer broken. **Model-roster question now fully closed** — every
+     D-05 rung has a documented result; B-03 remains unambiguously production either way. benchmarks 3719+18
+     rows (+27 B03a, +45 B03b incl. TFT-Reg). Full write-up: `b03a_b03b_results.md`.
+   - **Feature/scope discussion (D-46):** fertiliser recency confirmed pruned (not re-added, D-28/D-32 already
+     tested this); weekly AR mean already present (`ar_ch4_drm7`); explicit season/week-of-year calendar flags
+     **not recommended** (redundant with `fx_DOY_sin/cos` for a tree model). **Other-catchment data (beyond
+     2/4/9) rejected** — no FCH4 target exists elsewhere on the farm, so no pooling benefit; EC flux is
+     footprint-local (D-18); farm-wide weather already captured via Site MET (D-35). **Long-range (~2030)
+     scenario feasibility scoped** (not yet executed) — this is categorically Phase-07 scenario work, not B-03
+     forecasting; requires a frozen model artifact, a scenario-capable feature pipeline, a livestock/management
+     assumption, a climate-scenario driver source, an AR-history strategy for a horizon with no real recent
+     data, an extrapolation-range check (RF/XGB don't extrapolate past training-leaf values), and explicit
+     "conditional on scenario" framing given the training window ends 2021 (9+ year gap to 2030). **Candidate
+     climate dataset found:** Semenov et al. (2025, Rothamsted, *Data in Brief*, DOI 10.1016/j.dib.2025.111695) —
+     CMIP6-based daily Tmin/Tmax/rainfall/solar radiation, 26 GB sites, 2020–2090, 5 GCMs × 2 SSPs, 100
+     realizations/scenario (LARS-WG downscaling), Zenodo/CC BY. Covers 4 of B-03's ~11 daily drivers (missing
+     wind/VPD/USTAR/soil/SHF); North Wyke site-coverage unconfirmed; 2020–2021 overlap is a free validation
+     check against real NWFP weather before trusting 2030 output.
+   - **Next: B-08 driver-realism sensitivity** (synthetic NWP correction, renumbered from B-07, **D-47**) — staying within forecasting/data scope per explicit user direction before moving on. Then **07 scenario analysis** (digital shadow) — now informed by the D-46 scoping above and the candidate CMIP6 climate dataset. Deferred: coarser/cumulative eval, ensembling; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out EC data.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.
@@ -263,4 +299,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-06-30 (B-07 spike diagnostics done (D-44) + metrics backfill done (D-44b): new src/evaluation/metrics.py (WAPE/MASE/sMAPE/MAPE) backfilled across FC-01/FC-02/B03–B07 (all re-executed, benchmarks.csv 3665 rows, zero lost). B-07 finding: classifier false positives are context-indistinguishable from true positives; recency features marginal/inconsistent, does not flip B-06's negative verdict — B-03 stays production. Early-warning reframing (recall≥0.8, precision 0.28–0.43) is a usable standalone artefact. All three spike levers (transform D-42, architecture D-43, diagnostics+features D-44) now exhausted. MASE confirmed as recommended "watch out" metric (MAPE unstable on signed/near-zero flux data). Next: B-08 driver-realism sensitivity (D-45), staying within forecasting/data scope, then Phase 07 scenario analysis; gap-filling-phase metrics backfill deferred to a later pass.)_
+_Last updated: 2026-07-01 (Model-roster gaps filled — B-03a SARIMAX + B-03b full TFT (D-45): B-03 remains production. SARIMAX competitive only at h=1, collapses by h=7-14. TFT's original run was the single worst model result in the whole forecasting phase (daily R² -0.73 to -0.97) — independently verified not a bug, root cause overfitting; regularized retrain flipped daily R² to +0.10...+0.26 (positive everywhere, still below B-03's trees). Every D-05 model-roster rung now has a documented result; question closed. Also (D-46): fertiliser/weekly-AR/season-calendar feature additions considered and declined (redundant or already-tested); other-catchment data rejected as a lever (no target elsewhere); long-range (~2030) scenario feasibility scoped (Phase 07 territory, not forecasting) with a candidate CMIP6 climate dataset identified (Semenov et al. 2025, Rothamsted, Zenodo/CC BY). benchmarks.csv 3719+18 rows. Next: B-08 driver-realism sensitivity (D-47, renumbered), staying within forecasting/data scope, then Phase 07 scenario analysis — now informed by the D-46 scoping. Gap-filling-phase metrics backfill deferred to a later pass.)_
