@@ -36,7 +36,7 @@ import pandas as pd
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from reddyproc_pipeline import (  # noqa: E402  reuse, don't duplicate
-    mdc_gapfill, qc_fc, ustar_threshold, partition_nee, C4, TOWERS,
+    mdc_gapfill, qc_fc, ustar_threshold, partition_nee, plausibility_filter, C4, TOWERS,
 )
 
 HOURLY = Path(__file__).resolve().parents[2] / "data" / "Hourly"
@@ -92,7 +92,7 @@ def gapfill_and_partition(df_swapped):
         for k, col in dm.items():
             if col not in df_swapped.columns:
                 print(f"  [skip] {col} missing"); continue
-            filled, n0, n1 = mdc_gapfill(df_swapped[col])
+            filled, n0, n1 = mdc_gapfill(plausibility_filter(df_swapped[col], col))
             out[f"{col}__f"] = filled.round(4)
             print(f"  metfill {k:6s}: {100*df_swapped[col].notna().mean():.0f}% -> {100*filled.notna().mean():.0f}%  [{col}]")
         fc = qc_fc(df_swapped, t)

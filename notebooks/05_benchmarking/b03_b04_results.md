@@ -68,3 +68,26 @@ change is the backward-compatible `forecasting_dl.load_matrix(path=None)`.
 
 *Source: `B03_enriched_ML.ipynb`, `B04_enriched_DL.ipynb`, `b03_summary.csv`, `b04_summary.csv`,
 `benchmarks.csv` (B03/B04). Decision D-41.*
+
+---
+
+## Addendum (2026-07-02, D-49) — B-04 re-run on corrected data after the F-09/D-48 gap-filling fix
+
+Re-ran `B04_enriched_DL.ipynb` against the D-48-corrected data (`forecast_daily_v2.csv`), completing the
+user-prioritised re-run slice alongside B-03/B-03a/B-03b (see `b03a_b03b_results.md` addendum, D-49). Daily R²
+(T4/T9 mean, h=1→14), pre-fix → post-fix:
+
+| Model | h=1 | h=3 | h=7 | h=14 |
+|---|---|---|---|---|
+| DLinear | 0.314→**0.363** | 0.237→**0.310** | 0.202→**0.249** | 0.164→**0.192** |
+| LSTM | -0.182→-0.209 | -0.091→-0.152 | -0.207→**0.044** | -0.346→**0.076** |
+| LSTM_VSN | -0.204→-0.250 | -0.057→-0.100 | -0.303→**-0.156** | -0.410→**-0.051** |
+
+**DLinear improved cleanly at every horizon** (+0.03 to +0.07 R²), joining RF/XGB/SARIMAX/gap-filling itself
+in the "uniformly improved" group (D-49) — consistent with it using the AR/CH4-history feature directly, the
+one D-48 fixed. **LSTM and LSTM_VSN show the same horizon-inconsistent pattern already seen in TFT/TFT-Reg**:
+both get *slightly worse* at short horizons (h=1/3) but *substantially better* at long horizons (h=7/14,
+LSTM even flips from negative to positive) — no net directional verdict, same as the B-03b addendum's
+observation that larger/more complex models respond unevenly to the corrected feature distributions.
+**Ranking and recommendation are unchanged**: DLinear remains the DL baseline of choice, still below RF/XGB/
+SARIMAX at every horizon; LSTM/LSTM_VSN remain non-competitive. Cross-ref D-48, D-49.

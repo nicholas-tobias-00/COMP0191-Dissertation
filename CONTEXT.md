@@ -291,7 +291,42 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      realizations/scenario (LARS-WG downscaling), Zenodo/CC BY. Covers 4 of B-03's ~11 daily drivers (missing
      wind/VPD/USTAR/soil/SHF); North Wyke site-coverage unconfirmed; 2020–2021 overlap is a free validation
      check against real NWFP weather before trusting 2030 output.
-   - **Next: B-08 driver-realism sensitivity** (synthetic NWP correction, renumbered from B-07, **D-47**) — staying within forecasting/data scope per explicit user direction before moving on. Then **07 scenario analysis** (digital shadow) — now informed by the D-46 scoping above and the candidate CMIP6 climate dataset. Deferred: coarser/cumulative eval, ensembling; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out EC data.
+   - ⚠⚠ **CRITICAL — F-09 data-quality fix (D-48): `benchmarks.csv` for the ENTIRE forecasting phase (FC-01
+     through B03b) is now stale, pending re-run.** Investigated a user-observed spike in Tower 2's gap-filled
+     FCH4 (also present at T4/T9) via SHAP attribution on the pooled RFm gap-filler — root cause: raw
+     `USTAR_0_0_1` (and `VPD_0_0_1`) were never quality/plausibility-filtered anywhere in the pipeline (unlike
+     FCH4/FCO2, D-13/D-25); USTAR contains readings up to 1039.9 m/s (physically impossible), and
+     `reddyproc_pipeline.py`'s `mdc_gapfill()` used a mean-based fallback for extended blackouts, which a
+     contaminated mean corrupts badly. **Fixed**: added `plausibility_filter()` (USTAR `[0,3]` m/s, VPD `[0,15]`
+     kPa) + changed the fallback to median. Regenerated `reddyproc_processed*.csv`/`fch4_gapfilled.csv`/
+     `forecast_features*.csv`/`forecast_daily_v2.csv` — data files are current. **Validated**: T2's spike
+     resolved (325-413→2.9-27.7 nmol), T4's 2024 blackout resolved (mean 227.6→26.6). **But the impact is much
+     bigger than the isolated spikes** — AR-feature means across the *entire* 2018-2023 evaluated window shifted
+     systematically (T2: 71.9→20.2, T4: 54.6→31.1, T9: 79.2→36.6), now much closer to each tower's real observed
+     CH4 mean (a strong correctness signal) but meaning **every forecasting benchmark (B01-B08) trained/tested
+     on a biased AR feature and needs re-running** before its numbers can be trusted. Full write-up:
+     `notebooks/04_feature_engineering/F09_results.md`.
+   - **D-49 update (2026-07-02): B-03/B-03a/B-03b re-run on corrected data is done** (user-prioritised slice
+     of the D-48 re-run). B-03 (production RF/XGB): small consistent gains, no ranking change. **B-03a
+     (SARIMAX): major reversal — the original "collapses beyond h=1" conclusion is superseded.** Corrected
+     daily R² (T4/T9 mean) 0.416→0.284 across h=1→14 (was 0.326→-0.177), now competitive with B-03's trees at
+     every horizon, MASE<1 from h=3 onward. B-03b (TFT/TFT-Reg): mixed, direction-inconsistent movement across
+     towers/tracks, no clean story either way — verdict unchanged (still non-competitive with B-03). Also ran a
+     lightweight standalone **F-09a** gap-filling re-check (reusing F-08's exact gap-CV methodology, reduced
+     scope, NOT touching the original `F08_external_sensors_RFm.ipynb`/`f08_summary.csv` per explicit
+     instruction) — confirms real gap-filling accuracy improved (EXT/RFm_pool median R²: T2 0.490→0.574, T4
+     0.376→0.402, T9 0.364→0.418), independent corroboration the D-48 fix is correct. See D-49,
+     `notebooks/05_benchmarking/b03a_b03b_results.md` addendum, `results/f09a_summary.csv`.
+   - **B-04 (DLinear/LSTM/LSTM_VSN) also re-run (2026-07-02, D-49):** DLinear improved cleanly at every
+     horizon (daily R² 0.314→0.363 down to 0.164→0.192, h=1→14) — joins the "uniformly improved" group.
+     LSTM/LSTM_VSN show the same horizon-inconsistent pattern as TFT (slightly worse short horizons,
+     substantially better long horizons, LSTM flips negative→positive by h=14). Ranking unchanged — DLinear
+     stays the DL baseline, still below RF/XGB/SARIMAX everywhere. See `b03_b04_results.md` addendum.
+   - **Next (in order): (1) re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48 fix) —
+     still stale, not yet done.** (2) **B-08 driver-realism sensitivity** (D-47, renumbered from B-07) —
+     should wait for (1) rather than build on stale AR features. (3) **07 scenario analysis** (digital shadow)
+     — informed by the D-46 scoping and the candidate CMIP6 climate dataset. Deferred: coarser/cumulative eval,
+     ensembling; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out EC data.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.
@@ -299,4 +334,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-01 (Model-roster gaps filled — B-03a SARIMAX + B-03b full TFT (D-45): B-03 remains production. SARIMAX competitive only at h=1, collapses by h=7-14. TFT's original run was the single worst model result in the whole forecasting phase (daily R² -0.73 to -0.97) — independently verified not a bug, root cause overfitting; regularized retrain flipped daily R² to +0.10...+0.26 (positive everywhere, still below B-03's trees). Every D-05 model-roster rung now has a documented result; question closed. Also (D-46): fertiliser/weekly-AR/season-calendar feature additions considered and declined (redundant or already-tested); other-catchment data rejected as a lever (no target elsewhere); long-range (~2030) scenario feasibility scoped (Phase 07 territory, not forecasting) with a candidate CMIP6 climate dataset identified (Semenov et al. 2025, Rothamsted, Zenodo/CC BY). benchmarks.csv 3719+18 rows. Next: B-08 driver-realism sensitivity (D-47, renumbered), staying within forecasting/data scope, then Phase 07 scenario analysis — now informed by the D-46 scoping. Gap-filling-phase metrics backfill deferred to a later pass.)_
+_Last updated: 2026-07-02 (D-49: re-ran B-03/B-03a/B-03b + a standalone F-09a gap-filling re-check against the D-48-corrected data (the fix: raw USTAR/VPD were never plausibility-filtered anywhere in the pipeline, USTAR readings up to 1039.9 m/s, corrupting reddyproc_pipeline.py's met-gapfill fallback and producing spurious FCH4 gap-fill spikes at all 3 towers — fixed with a plausibility filter + median fallback). **B-03a (SARIMAX) reverses its original conclusion**: no longer collapses beyond h=1 — daily R² now 0.416→0.284 across h=1→14 (was 0.326→-0.177), competitive with B-03's trees at every horizon. B-03 (production) sees small consistent gains, no ranking change. B-03b (TFT/TFT-Reg) moves inconsistently across towers/tracks, verdict unchanged. F-09a (standalone script, doesn't touch the original F-08 notebook/results per explicit instruction) confirms real gap-filling accuracy improved, not just downstream feature statistics (EXT/RFm_pool median R²: T2 0.490→0.574, T4 0.376→0.402, T9 0.364→0.418). **B01, B02, B04-B07 remain stale and un-rerun** — next task. See D-48/D-49, `notebooks/05_benchmarking/b03a_b03b_results.md` addendum.)_

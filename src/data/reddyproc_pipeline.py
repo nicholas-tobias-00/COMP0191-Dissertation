@@ -28,6 +28,13 @@ TOWERS = [2, 4, 9]
 FC_LOW, FC_HIGH = -100.0, 100.0          # umol CO2 m-2 s-1 (D-25)
 C4 = "Catchment 4 After  2013/08/13"
 
+# Met-driver plausibility bounds (D-48) -- mirrors the FCH4 [-500,3000] (D-13) / FCO2 [-100,100]
+# (D-25) pattern, which USTAR/VPD never had. Audited all met columns across all 3 towers;
+# only these two showed real outlier contamination (USTAR: max up to ~1400 m/s, physically
+# impossible, ~1.4-1.7% of readings > 3 m/s; VPD: max up to ~41 kPa, ~2-13% of readings > 15 kPa).
+# PPFD/WS/SHF were clean (checked, not filtered).
+MET_PLAUS = {"USTAR_0_0_1": (0.0, 3.0), "VPD_0_0_1": (0.0, 15.0)}
+
 
 def driver_map(t, catstr):
     """Model met drivers for tower t (the inputs we previously mean-imputed)."""
@@ -46,6 +53,19 @@ def driver_map(t, catstr):
     }
 
 
+def plausibility_filter(s, colname):
+    """Set values outside MET_PLAUS[colname] to NaN before gap-filling (D-48). No-op if
+    colname has no bound registered. Applied ahead of mdc_gapfill so contaminated raw
+    outliers never enter the interpolation/MDC/fallback chain in the first place."""
+    base = colname.split(" [")[0]
+    if base not in MET_PLAUS:
+        return s
+    lo, hi = MET_PLAUS[base]
+    s = s.astype(float).copy()
+    s[s.notna() & ~s.between(lo, hi, inclusive="both")] = np.nan
+    return s
+
+
 def mdc_gapfill(s):
     """Linear interp (<=2 h) then mean-diurnal-course with expanding +/-7/14/28/60 d window."""
     out = s.astype(float).copy()
@@ -60,11 +80,15 @@ def mdc_gapfill(s):
     key = pd.MultiIndex.from_arrays([idx.normalize(), idx.hour])
     mapped = pd.Series(ser.reindex(key).values, index=idx)
     out = out.where(out.notna(), mapped)
-    # final fallbacks: per-hour climatology, then global mean
+    # final fallbacks: per-hour climatology, then global fallback -- median, not mean (D-48):
+    # this tier only fires for long/total blackouts with no nearby real data to anchor to,
+    # exactly where a residual outlier-contaminated mean does the most damage (a handful of
+    # impossible raw readings can drag a global mean far from the typical value; the median
+    # is robust to that by construction).
     if out.isna().any():
-        hourly_mean = out.groupby(idx.hour).transform("mean")
-        out = out.where(out.notna(), hourly_mean)
-        out = out.fillna(out.mean())
+        hourly_med = out.groupby(idx.hour).transform("median")
+        out = out.where(out.notna(), hourly_med)
+        out = out.fillna(out.median())
     return out, int(n_obs), int(out.notna().sum())
 
 
@@ -170,11 +194,11 @@ def main():
         catstr = C4 if t == 4 else f"Catchment {t}"
         dm = driver_map(t, catstr)
         print(f"\n=== Tower {t} ===")
-        # (A) met-driver gap-fill
+        # (A) met-driver gap-fill (plausibility-filtered first, D-48)
         for k, col in dm.items():
             if col not in df.columns:
                 print(f"  [skip] {col} missing"); continue
-            filled, n0, n1 = mdc_gapfill(df[col])
+            filled, n0, n1 = mdc_gapfill(plausibility_filter(df[col], col))
             out[f"{col}__f"] = filled.round(4)
             base = f"{100*df[col].notna().mean():.0f}%"
             print(f"  metfill {k:6s}: {base} -> {100*filled.notna().mean():.0f}%")

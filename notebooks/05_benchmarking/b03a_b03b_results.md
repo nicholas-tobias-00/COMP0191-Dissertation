@@ -133,3 +133,49 @@ departure from partial pooling — no standard panel-SARIMAX equivalent exists).
 
 *Source: `B03a_arima.ipynb`, `B03b_tft.ipynb`, `b03a_summary.csv`, `b03b_summary.csv`, `benchmarks.csv`
 (B03a/B03b rows). Decision D-45.*
+
+---
+
+## Addendum (2026-07-02, D-49) — re-run on corrected data after the F-09/D-48 gap-filling fix
+
+D-48 found and fixed a root-cause bug (unfiltered USTAR/VPD outliers corrupting `reddyproc_pipeline.py`'s
+met-driver gap-filling, contaminating the AR/CH4-history feature used throughout the whole forecasting phase).
+B-03, B-03a, and B-03b were re-run against the regenerated data (`forecast_features_v2.csv`,
+`forecast_daily_v2.csv`) as the first, user-prioritised slice of the required re-run (B01/B02/B04-B07 remain
+stale and are not yet re-run).
+
+**SARIMAX's headline conclusion above ("collapses beyond h=1") is now superseded.** Corrected daily R² (T4/T9
+mean, h=1→14):
+
+| | h=1 | h=3 | h=7 | h=14 |
+|---|---|---|---|---|
+| B-03a SARIMAX (original, pre-fix) | 0.326 | 0.060 | -0.103 | -0.177 |
+| B-03a SARIMAX (corrected, post-fix) | **0.416** | **0.308** | **0.272** | **0.284** |
+| B-03 RF (corrected, post-fix, for reference) | 0.375 | 0.352 | 0.330 | 0.320 |
+
+MASE also flips from >1 (worse than persistence) at h≥3 to <1 (beats persistence) at every horizon post-fix.
+SARIMAX is now **competitive with the production RF/XGB trees at every horizon tried**, not just h=1 — the
+same `(2,1,1)` order and exogenous set were unchanged; only the underlying AR-feature quality improved. This
+is a stronger result than anything in the original D-45 roster comparison and warrants revisiting whether
+SARIMAX deserves a second look as a lightweight production alternative (not done in this pass — flagged for
+a future session).
+
+**TFT/TFT-Reg: no equivalent clean improvement — mixed, direction-inconsistent movement.** Unlike SARIMAX,
+corrected-data TFT-Reg results moved in *different* directions across towers/tracks with no discernible
+pattern: T4 daily declined slightly (0.247→0.255 before → 0.191→0.199 after, still positive), T9 daily
+improved (0.097→0.106 before → 0.189→0.217 after); T4 hourly flipped from marginally positive to negative
+(0.016→0.008 before → -0.076→-0.185 after), T9 hourly stayed marginal both times. No overfitting-adjacent
+explanation was identified for this mixed pattern — most plausibly the TFT's larger parameter count makes it
+more sensitive to the altered feature distributions in ways that don't resolve to a single sign, rather than
+indicating a bug. Not investigated further, since TFT/TFT-Reg were never production candidates regardless.
+**Verdict is unchanged**: B-03 remains production; the only actionable new finding is that SARIMAX no longer
+"collapses" and is now a genuinely competitive (if still non-superior) alternative at every horizon.
+
+**Gap-filling itself re-verified independently (F-09a, standalone script, not a re-run of
+`F08_external_sensors_RFm.ipynb` — that notebook was left untouched per explicit instruction, given it timed
+out even before this fix and its historical D-35 baseline must be preserved).** Reduced-scope re-check
+(EXT variant, `RFm_pool` only, 2 reps instead of 5) confirms the fix improves *actual gap-filling accuracy*
+against real masked FCH4 observations, not just downstream AR-feature statistics: overall median R² across
+gap-scenarios rose T2 0.490→0.574, T4 0.376→0.402, T9 0.364→0.418 (`results/f09a_summary.csv`).
+
+*Cross-ref: D-48 (the fix), D-49 (this re-run, full detail).*
