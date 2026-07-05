@@ -322,6 +322,18 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      LSTM/LSTM_VSN show the same horizon-inconsistent pattern as TFT (slightly worse short horizons,
      substantially better long horizons, LSTM flips negative→positive by h=14). Ranking unchanged — DLinear
      stays the DL baseline, still below RF/XGB/SARIMAX everywhere. See `b03_b04_results.md` addendum.
+   - **F-09b (2026-07-04, D-51): outlier-correction technique comparison (winsorization/Hampel vs hard
+     truncation) for the D-50-flagged WS/TA contamination.** Scoping finding first: D-50's contamination
+     lives only in the raw EC-tower data — `build_sms_met_dataset.py`'s Site-station swap (D-35) means
+     production's WS/TA are **already clean**, so D-50's fix is **not urgent for production** (downgrades
+     that entry's framing). Tested anyway on the EC-tower-sourced series as real ground truth: hard
+     truncation and winsorization both fully resolve the contamination; **Hampel filter only partially
+     fixes WS and doesn't touch Tower 2's long stuck-sensor TA fault at all** (predicted in advance, then
+     confirmed). Downstream gap-filling R² is a **null result** — indistinguishable across every config,
+     even fully uncorrected, unlike D-48's USTAR/VPD fix which clearly moved things — candidate explanation
+     is this calendar-gap CV harness may not exercise the long-blackout fallback failure mode that made
+     USTAR/VPD damaging (untested caveat, flagged for any future contamination audit). See D-51,
+     `notebooks/04_feature_engineering/F09b_results.md`.
    - **Next (in order): (1) re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48 fix) —
      still stale, not yet done.** (2) **B-08 driver-realism sensitivity** (D-47, renumbered from B-07) —
      should wait for (1) rather than build on stale AR features. (3) **07 scenario analysis** (digital shadow)
@@ -334,4 +346,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-02 (D-49: re-ran B-03/B-03a/B-03b + a standalone F-09a gap-filling re-check against the D-48-corrected data (the fix: raw USTAR/VPD were never plausibility-filtered anywhere in the pipeline, USTAR readings up to 1039.9 m/s, corrupting reddyproc_pipeline.py's met-gapfill fallback and producing spurious FCH4 gap-fill spikes at all 3 towers — fixed with a plausibility filter + median fallback). **B-03a (SARIMAX) reverses its original conclusion**: no longer collapses beyond h=1 — daily R² now 0.416→0.284 across h=1→14 (was 0.326→-0.177), competitive with B-03's trees at every horizon. B-03 (production) sees small consistent gains, no ranking change. B-03b (TFT/TFT-Reg) moves inconsistently across towers/tracks, verdict unchanged. F-09a (standalone script, doesn't touch the original F-08 notebook/results per explicit instruction) confirms real gap-filling accuracy improved, not just downstream feature statistics (EXT/RFm_pool median R²: T2 0.490→0.574, T4 0.376→0.402, T9 0.364→0.418). **B01, B02, B04-B07 remain stale and un-rerun** — next task. See D-48/D-49, `notebooks/05_benchmarking/b03a_b03b_results.md` addendum.)_
+_Last updated: 2026-07-04 (D-51: tested winsorization and a Hampel filter as alternatives to hard truncation for the D-50-flagged WS/TA contamination (F-09b). Found first that D-50's contamination never reaches production (Site-station swap, D-35, already keeps WS/TA clean there) — downgrades that entry's urgency. Hard truncation and winsorization both fully resolve the contamination; Hampel only partially fixes WS and doesn't touch Tower 2's long stuck-sensor TA fault. Downstream gap-filling R² is a null result across every config, including uncorrected — a real methodological contrast with D-48's USTAR/VPD fix, which clearly moved things; candidate explanation is the calendar-gap CV harness may not exercise the long-blackout fallback failure mode that made USTAR/VPD damaging. See D-51, `notebooks/04_feature_engineering/F09b_results.md`. Prior session (2026-07-02, D-49): re-ran B-03/B-03a/B-03b + a standalone F-09a gap-filling re-check against the D-48-corrected data. **B-03a (SARIMAX) reverses its original conclusion**: no longer collapses beyond h=1 — daily R² now 0.416→0.284 across h=1→14 (was 0.326→-0.177), competitive with B-03's trees at every horizon. **B01, B02, B04-B07 remain stale and un-rerun** — still the next forecasting-phase task. See D-48/D-49, `notebooks/05_benchmarking/b03a_b03b_results.md` addendum.)_
