@@ -47,14 +47,9 @@ AR_COLS = ["ar_ch4_dlag1", "ar_ch4_dlag2", "ar_ch4_dlag3", "ar_ch4_dlag7", "ar_c
 EXOG_B = ["fx_lsu_dens", "fx_WS_mean", "fx_VPD_mean", "fx_USTAR_mean", "fx_PPFD_mean",
           "fx_DOY_sin", "fx_DOY_cos", "fx_is_growing"]
 
-# B-10 baseline for comparison
-B10_BASELINE = {
-    "Ensemble_unweighted": {"mean_r2": 0.012, "mean_mase": 0.975},
-    "XGB": {"mean_r2": 0.003, "mean_mase": 0.968},
-    "LightGBM": {"mean_r2": -0.014, "mean_mase": 0.978},
-    "SARIMAX": {"mean_r2": -0.039, "mean_mase": 1.038},
-    "RF": {"mean_r2": -0.067, "mean_mase": 1.024},
-}
+# B-10 baseline for comparison -- loaded from real per-bin data at runtime (see main()),
+# not a hardcoded scalar dict (which previously disagreed with the precise recomputed values
+# used in compile_b15_results.py's 3-way comparison)
 
 # Tuned hyperparameters from B-14a grid search (extracted from b14_tree_grid_search.csv)
 TUNED_PARAMS = {
@@ -300,10 +295,15 @@ def main():
     print("\nPer-model aggregate (5-anchor n-weighted mean):")
     print(agg.round(4).to_string(index=False))
 
-    print("\n\nB-10 Baseline for comparison:")
-    baseline_df = pd.DataFrame([{"model": k, "R2_mean": v["mean_r2"], "MASE_mean": v["mean_mase"]}
-                               for k, v in B10_BASELINE.items()])
-    print(baseline_df.round(4).to_string(index=False))
+    print("\n\nB-10 Baseline for comparison (real per-bin data, per-anchor-then-mean):")
+    b10_raw = pd.read_csv(f"{RESULTS}/b10_ensemble_multi_anchor.csv")
+    b10_per_anchor = b10_raw.groupby(["model", "anchor_year"]).apply(
+        lambda g: pd.Series({"R2": wavg(g, "R2"), "MASE": wavg(g, "MASE")}),
+        include_groups=False
+    ).reset_index()
+    b10_agg = b10_per_anchor.groupby("model")[["R2", "MASE"]].mean().reset_index()
+    b10_agg.columns = ["model", "R2_mean", "MASE_mean"]
+    print(b10_agg.round(4).to_string(index=False))
 
     print("\n" + "="*70)
     print("Results saved: b14_tuned_rollout_summary.csv")

@@ -66,6 +66,7 @@ def main():
     feat_cols = AR_COLS + FX_B + ["ar_fc_dlag1"] + DUM
 
     rows_summary = []
+    rows_chains = []
 
     for yr in ANCHOR_YEARS:
         anchor = pd.Timestamp(f"{yr}-12-16")
@@ -187,11 +188,27 @@ def main():
         mean_mase = (bm_ens["MASE"] * bm_ens["n"]).sum() / bm_ens["n"].sum()
         print(f"R2={mean_r2:.3f}, MASE={mean_mase:.3f}")
 
+        # Save per-day chains for plotting (results/figures/b15_chains/)
+        chain_frame = pd.DataFrame({
+            "RF_tuned": chain_rf.reindex(target_dates),
+            "XGB_tuned": chain_xgb.reindex(target_dates),
+            "LightGBM_tuned": chain_lgb.reindex(target_dates),
+            "SARIMAX": chain_sarimax.reindex(target_dates),
+            "Ensemble_4model_tuned": ens_unweighted.reindex(target_dates),
+        })
+        chain_frame = chain_frame.reset_index().rename(columns={"index": "Datetime"})
+        chain_frame["anchor_year"] = yr
+        rows_chains.append(chain_frame)
+
         print(f"  Anchor {yr} done ({time.time()-t_anchor_start:.0f}s)")
 
     # Aggregate results
     R = pd.concat(rows_summary, ignore_index=True)
     R.to_csv(f"{RESULTS}/b15_tuned_rollout_summary.csv", index=False)
+
+    C = pd.concat(rows_chains, ignore_index=True)
+    C.to_csv(f"{RESULTS}/b15_chains.csv", index=False)
+    print(f"\n[OK] Saved chains: {RESULTS}/b15_chains.csv ({len(C)} rows)")
 
     def wavg(g, col):
         w = g["n"]

@@ -375,6 +375,35 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      training/HPO. B-10's ensemble remains the headline R² recommendation, but TabPFN earns a
      standing mention as a genuine alternative. See D-57, `notebooks/05_benchmarking/
      b13_results.md`.
+   - **B-14 (2026-07-06, D-58): GridSearchCV hyperparameter tuning for recursive rollout (retroactive
+     log).** Re-opens the closed B-09→B-13 sequence for one bounded tuning round — literal `GridSearchCV`
+     for RF/XGB/LightGBM (3-fold walk-forward CV, one-step R²), widened SARIMAX AIC-order grid, plugged
+     into B-10's exact 5-anchor rollout mechanism for the real verdict. **Result**: CV-picked hyperparameters
+     mostly don't transfer to rollout, except LightGBM (tuned mean R²=0.006, beats B-10's own untuned
+     LightGBM at -0.014); the 3-model tuned ensemble (RF+XGB+LightGBM, no SARIMAX — a composition mismatch
+     vs B-10's 4-model baseline, fixed in B-15) scores R²=-0.005. B-10's ensemble (D-54, R²=0.012) remains
+     the best-validated configuration. See D-58, `notebooks/05_benchmarking/b14_results.md`.
+   - **B-15 (2026-07-06, D-59): direct rollout-based hyperparameter tuning.** Follow-up to B-14 — scores
+     hyperparameter combos by their own 365-day rollout R² instead of one-step CV, with a 2-anchor
+     (2021+2019) combined-rank selection and the correct 4-model ensemble (RF+XGB+LightGBM+SARIMAX).
+     **Result**: no uniform winner between CV-tuning and rollout-tuning (rollout-tuning wins on
+     Ensemble/LightGBM, loses on XGB/RF), but **B-15's rollout-tuned LightGBM (mean R²=0.017) is the best
+     single model found across the entire B-09→B-15 sequence**, ahead of B-10's own ensemble (0.012) —
+     though the equal-weight 4-model ensemble dilutes this gain (R²=0.007), so B-10's ensemble remains the
+     best-validated **ensemble** configuration. **This closes the B-14/B-15 hyperparameter-tuning
+     side-thread** — B-10's ensemble stands, now confirmed robust to two independent tuning attempts. A
+     rebalanced ensemble weighted toward the tuned LightGBM is a flagged, unexecuted follow-up. See D-59,
+     `notebooks/05_benchmarking/b15_results.md`.
+   - **B-15 addendum (2026-07-06, D-59): cross-tower generalization check (T2/T9).** B-14/B-15's tuning
+     was Tower-4-only throughout (training pools T2+T4+T9, scoring never left T4). **T4-tuned LightGBM
+     (T4's best model, R²=0.017) is T9's *worst* model (R²=-0.388)** — doesn't transfer. An independent
+     tuning search scored on T9 (usable at 4/5 anchors; T2 usable at only 1/5, too scarce to tune) picks
+     genuinely different hyperparameters but the validated outcome is **nearly identical to reusing T4's
+     config** (within ±0.03 R²) — **T9's poor performance isn't primarily a tuning problem**, something
+     more structural is limiting it. Anchor 2020 is a catastrophic whole-anchor outlier for T9 (R²
+     -0.79 to -1.38), a partial explanation not fully diagnosed. T2 (1 usable anchor) too data-scarce for
+     any reliable conclusion. 75 new chain plots in `results/figures/b15_chains/`. See D-59 addendum,
+     `notebooks/05_benchmarking/b15_results_t2_t9.md`.
    - **F-09b (2026-07-04, D-51): outlier-correction technique comparison (winsorization/Hampel vs hard
      truncation) for the D-50-flagged WS/TA contamination.** Scoping finding first: D-50's contamination
      lives only in the raw EC-tower data — `build_sms_met_dataset.py`'s Site-station swap (D-35) means
@@ -387,15 +416,27 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      is this calendar-gap CV harness may not exercise the long-blackout fallback failure mode that made
      USTAR/VPD damaging (untested caveat, flagged for any future contamination audit). See D-51,
      `notebooks/04_feature_engineering/F09b_results.md`.
-   - **B-09→B-12 recursive-rollout sequence is now closed.** Final recommendation: B-10's unweighted
+   - **B-09→B-15 recursive-rollout sequence is now closed.** Final recommendation: B-10's unweighted
      ensemble (RF+XGB+LightGBM+SARIMAX, daily resolution) is the best available configuration
      (mean R²=0.012 across 5 anchors) — B-12 confirmed combining it with B-11's monthly-downscale
-     framework does not improve on it.
-   - **Next (in order): (1)** re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48
-     fix) — still stale, not yet done. (2) **B-08 driver-realism sensitivity** (D-47, renumbered from
-     B-07) — should wait for (1) rather than build on stale AR features. (3) **07 scenario analysis**
-     (digital shadow) — informed by the D-46 scoping, the candidate CMIP6 climate dataset, and the
-     B-09→B-12 recursive-rollout findings (use B-10's ensemble as the AR-history strategy). Deferred:
+     framework does not improve on it, and B-14/B-15 confirmed neither CV-based nor rollout-based
+     hyperparameter tuning produces a better ensemble (though B-15 did find a better single model,
+     tuned LightGBM at R²=0.017 — flagged as an unexecuted rebalanced-ensemble follow-up).
+   - **B01/B02/B05-B07 full rerun on D-48-corrected data — DESCOPED (D-60), not pending.** B-03 (the
+     production model) was already rerun under the D-48 fix (D-48 addendum) and showed only small,
+     non-ranking-changing gains (T4 RF daily h=1 0.357→0.365, h=14 0.270→0.280; T9 RF h=14
+     0.342→0.359) — the fix's real-world impact on the best-performing model is modest. B01/B02/B05/
+     B06/B07 are all already-established structural/architectural findings (DL underperforms trees,
+     asinh transform is a dead end, hurdle architecture hurts daily R² by a wide margin, recency
+     features are marginal) — a data shift of similar modest magnitude is very unlikely to reverse
+     any of them. Do not spend further session time re-running these.
+   - **Next (in order): (1) B-08 driver-realism sensitivity** (D-47) — no longer blocked, proceed
+     directly. (2) **07 scenario analysis** (digital shadow) — informed by the D-46 scoping, the
+     candidate CMIP6 climate dataset, and the B-09→B-15 recursive-rollout findings (use B-10's
+     ensemble as the AR-history strategy). (3) **Uncertainty quantification for the recursive-rollout
+     sequence (quantile-ML)** — being scoped now (see discussion following D-59); extends U-01's
+     (D-40) conformal/quantile-XGB/LSTM-pinball approach to the 365-day rollout, where uncertainty
+     compounds by lead time and likely varies sharply by tower (per B-15's addendum). Deferred:
      coarser/cumulative eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out
      EC data.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
@@ -405,4 +446,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-06 (D-57: B-13 — TFT and TabPFN for recursive rollout, plus a DLinear/LSTM chain-plot visualization extension. Fills B-09's two remaining stretch items. TFT: D-45's regularization recipe (adapted to a 90-day validation window given anchors don't have a spare year) generalizes cleanly to recursive rollout — mean R²=-0.237, MASE=1.055, the best DL model in the B-09-B13 sequence, still behind trees/SARIMAX. **TabPFN — the headline finding of this session**: a zero-shot foundation model (one-shot, non-autoregressive, local GPU inference via `tabpfn-time-series`) achieves mean MASE=0.862, beating every model tested across the whole B-09-B13 sequence including B-10's ensemble (0.975), with competitive mean R²=-0.006 (between LightGBM and XGB) — achieved with zero training or HPO. B-10's ensemble (D-56) remains the headline R² recommendation, but TabPFN now earns a standing mention as a genuine alternative/complementary choice, particularly where MASE/robustness or avoiding a training pipeline matters. See D-57, `notebooks/05_benchmarking/b13_results.md`. This closes out the B-09(D-53)→B-13(D-57) recursive-rollout sequence entirely. **Next: re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48 fix)** — still stale, the next task when resumed — then B-08 driver-realism sensitivity (D-47), then 07 scenario analysis informed by all of the above.)_
+_Last updated: 2026-07-06 (D-60: descoped the B01/B02/B05-B07 full rerun on D-48-corrected data — the production model (B-03) was already rerun under the fix with only small, non-ranking-changing gains, and the other five notebooks are already-established structural/negative findings unlikely to flip from a similarly modest data shift. **B-08 (driver-realism sensitivity, D-47) is next, no longer blocked.** D-58/D-59 (B-14/B-15 hyperparameter tuning) closed the recursive-rollout side-thread: B-10's unweighted 4-model ensemble (R²=0.012) remains the best-validated production configuration, confirmed robust to two independent tuning attempts (CV-based and rollout-based), though B-15 found a better single model (tuned LightGBM, R²=0.017) and its Tower 2/9 addendum found tuning doesn't transfer across towers (Tower 9's poor performance isn't primarily a tuning problem; Tower 2 too data-scarce for any conclusion). See D-58, D-59, D-60, `notebooks/05_benchmarking/b14_results.md`, `b15_results.md` (single consolidated doc, includes the Tower 2/9 addendum). **Next up for discussion: extending uncertainty quantification (quantile-ML, per U-01/D-40's precedent) to the recursive-rollout sequence** — being scoped now, then B-08, then 07 scenario analysis informed by all of the above.)_

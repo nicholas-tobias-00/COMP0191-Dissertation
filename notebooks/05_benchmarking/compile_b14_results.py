@@ -40,14 +40,18 @@ def compile_results():
     print("\nPer-model aggregate (5-anchor mean):")
     print(agg_by_model.to_string(index=False))
 
-    # B-10 baseline for comparison
-    B10_BASELINE = {
-        "Ensemble_unweighted": {"mean_r2": 0.012, "mean_mase": 0.975},
-        "XGB": {"mean_r2": 0.003, "mean_mase": 0.968},
-        "LightGBM": {"mean_r2": -0.014, "mean_mase": 0.978},
-        "SARIMAX": {"mean_r2": -0.039, "mean_mase": 1.038},
-        "RF": {"mean_r2": -0.067, "mean_mase": 1.024},
-    }
+    # B-10 baseline for comparison -- real per-bin data (not a hardcoded scalar dict, which
+    # previously disagreed with the precise numbers used in compile_b15_results.py). Aggregated
+    # as n-weighted mean per anchor, then simple mean across anchors -- matches this project's
+    # established convention (reproduces D-54's exact published XGB=0.003/LightGBM=-0.014/
+    # SARIMAX=-0.039/RF=-0.067), not a pooled mean across all anchor-bin rows.
+    b10_raw = pd.read_csv(RESULTS/"b10_ensemble_multi_anchor.csv")
+    b10_per_anchor = b10_raw.groupby(["model", "anchor_year"]).apply(
+        lambda g: pd.Series({"R2": wavg(g, "R2"), "MASE": wavg(g, "MASE")}),
+        include_groups=False
+    ).reset_index()
+    b10_agg = b10_per_anchor.groupby("model")[["R2", "MASE"]].mean().reset_index()
+    B10_BASELINE = {row["model"]: {"mean_r2": row["R2"], "mean_mase": row["MASE"]} for _, row in b10_agg.iterrows()}
 
     baseline_df = pd.DataFrame([
         {"model": f"{k} (B-10)", "mean_R2": v["mean_r2"], "mean_MASE": v["mean_mase"]}
@@ -63,22 +67,33 @@ def compile_results():
     print("\n\nCOMPREHENSIVE COMPARISON: Tuned vs B-10 Baseline")
     print(comparison.to_string(index=False))
 
-    # Find improvements
+    # Find improvements -- match by normalized family, since B-14's own model names
+    # (e.g. "RF_tuned", "SARIMAX_widened") never literally match B10_BASELINE's raw names
+    # (e.g. "RF", "SARIMAX"); this loop previously never fired for any model as a result.
+    def normalize(name):
+        return name.replace("_tuned", "").replace("_widened", "")
+
+    baseline_by_family = {normalize(k): v for k, v in B10_BASELINE.items()}
+
     print("\n\nIMPROVEMENTS OVER B-10 BASELINE:")
     for model in agg_by_model["model"].unique():
-        if model in B10_BASELINE:
+        fam = normalize(model)
+        if fam in baseline_by_family and not model.startswith("Ensemble"):
             tuned = agg_by_model[agg_by_model["model"] == model].iloc[0]
-            baseline = B10_BASELINE[model]
+            baseline = baseline_by_family[fam]
             r2_delta = tuned["mean_R2"] - baseline["mean_r2"]
             mase_delta = tuned["mean_MASE"] - baseline["mean_mase"]
-            print(f"\n{model}:")
+            print(f"\n{model} vs {fam} (B-10):")
             print(f"  R2 change: {tuned['mean_R2']:.4f} vs {baseline['mean_r2']:.4f} (Δ = {r2_delta:+.4f})")
             print(f"  MASE change: {tuned['mean_MASE']:.4f} vs {baseline['mean_mase']:.4f} (Δ = {mase_delta:+.4f})")
 
-    return agg_by_model, comparison
+    return agg_by_model, comparison, B10_BASELINE
 
-def write_results_markdown(agg_by_model, comparison):
+def write_results_markdown(agg_by_model, comparison, b10_baseline):
     """Write b14_results.md markdown narrative."""
+
+    b10_ens_r2 = b10_baseline["Ensemble_unweighted"]["mean_r2"]
+    b10_ens_mase = b10_baseline["Ensemble_unweighted"]["mean_mase"]
 
     md = """# B-14 — Comprehensive Hyperparameter Tuning for Recursive Rollout
 
@@ -112,13 +127,13 @@ def write_results_markdown(agg_by_model, comparison):
         md += f"**Tuned ensemble:** {ensemble_rows.iloc[0]['model']} (R2={ensemble_rows.iloc[0]['mean_R2']:.4f}, MASE={ensemble_rows.iloc[0]['mean_MASE']:.4f})\n\n"
 
     # Compare to B-10 ensemble baseline
-    md += "**vs. B-10 Ensemble baseline (R2=0.012, MASE=0.975):**\n\n"
+    md += f"**vs. B-10 Ensemble baseline (R2={b10_ens_r2:.4f}, MASE={b10_ens_mase:.4f}):**\n\n"
 
     # Check if any tuned model beat the baseline
     improvements = []
     for _, row in agg_by_model.iterrows():
-        r2_gain = row["mean_R2"] - 0.012
-        mase_change = row["mean_MASE"] - 0.975
+        r2_gain = row["mean_R2"] - b10_ens_r2
+        mase_change = row["mean_MASE"] - b10_ens_mase
         if r2_gain > 0.001:  # More than 0.001 improvement
             improvements.append((row["model"], r2_gain, mase_change))
 
@@ -135,7 +150,7 @@ def write_results_markdown(agg_by_model, comparison):
     md += "|---|---|---|---|\n"
 
     for _, row in agg_by_model.iterrows():
-        delta_r2 = row["mean_R2"] - 0.012
+        delta_r2 = row["mean_R2"] - b10_ens_r2
         delta_str = f"{delta_r2:+.4f}" if delta_r2 != 0 else "-"
         md += f"| {row['model']} | {row['mean_R2']:.4f} | {row['mean_MASE']:.4f} | {delta_str} |\n"
 
@@ -157,10 +172,24 @@ def write_results_markdown(agg_by_model, comparison):
     md += "The gap between grid-search validation R2 and recursive-rollout R2 is itself a methodological insight:\n"
     md += "- **One-step CV** (where tuning is optimized) scores locally and may overfit the 2020-2021 validation window\n"
     md += "- **365-day rollout** (where verdict is rendered) compounds prediction errors and reveals which hyperparameters stay robust under recursion\n"
-    md += "- This divergence is why B-10's hand-tuned baseline (D-41) remains competitive: it was tested on the real task (rollout), not a proxy\n\n"
+    md += "- The **3-model tuned ensemble** (RF+XGB+LightGBM, no SARIMAX) underperforms B-10's 4-model ensemble baseline -- consistent with CV-picked hyperparameters not reliably transferring to rollout\n\n"
+
+    best_single = agg_by_model[~agg_by_model["model"].str.startswith("Ensemble")].iloc[0]
+    if best_single["mean_R2"] > b10_ens_r2:
+        md += (f"**However**, at the single-model level, `{best_single['model']}` (R2={best_single['mean_R2']:.4f}) actually "
+               f"**beats** B-10's own ensemble (R2={b10_ens_r2:.4f}) -- CV tuning did find a genuinely better individual "
+               f"tree model here, it just didn't carry through to B-14's own (3-model, SARIMAX-less) ensemble. This nuance "
+               f"was missed in an earlier draft of this document that compared against a stale, hand-typed B-10 baseline "
+               f"number (0.012) rather than the precise value recomputed from `b10_ensemble_multi_anchor.csv` (0.0026) --"
+               f" corrected here.\n\n")
 
     md += "## Recommendations\n\n"
-    md += "1. **For production use:** B-10's unweighted ensemble (R2=0.012) remains the best validated configuration\n"
+    if best_single["mean_R2"] > b10_ens_r2:
+        md += (f"1. **For production use:** `{best_single['model']}` (R2={best_single['mean_R2']:.4f}) is the best single "
+               f"validated model found across B-09-B-14, ahead of B-10's ensemble (R2={b10_ens_r2:.4f}). B-15 (D-59) "
+               f"re-examines whether an ensemble built from this tuned model can beat B-10's outright.\n")
+    else:
+        md += f"1. **For production use:** B-10's unweighted ensemble (R2={b10_ens_r2:.4f}) remains the best validated configuration\n"
     md += "2. **For future tuning:** Focus on features/architecture rather than hyperparameter tweaking; the rollout task is robust to moderate HPO choices\n"
     md += "3. **For next iterations:** Explore ensemble weighting schemes or architecture changes (not parameter tuning alone)\n\n"
 
@@ -182,7 +211,8 @@ def write_results_markdown(agg_by_model, comparison):
     print("\n[OK] Written b14_results.md")
 
 if __name__ == "__main__":
-    agg, comp = compile_results()
-    if agg is not None and comp is not None:
-        write_results_markdown(agg, comp)
+    result = compile_results()
+    if result[0] is not None:
+        agg, comp, b10_baseline = result
+        write_results_markdown(agg, comp, b10_baseline)
         print("\n[OK] B-14 results compilation complete")

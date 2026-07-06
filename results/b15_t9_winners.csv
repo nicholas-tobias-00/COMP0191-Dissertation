@@ -1,0 +1,4 @@
+model,max_features,min_samples_leaf,chosen_by,max_depth,learning_rate,min_child_weight,num_leaves,min_child_samples
+RF,0.3,10.0,combined_2021_2019_T9,,,,,
+XGB,,,combined_2021_2019_T9,2.0,0.02,10.0,,
+LGB,,,combined_2021_2019_T9,,0.02,,7.0,20.0
