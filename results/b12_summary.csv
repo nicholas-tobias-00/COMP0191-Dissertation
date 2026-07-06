@@ -1,0 +1,13 @@
+bin,n,R2,MAE,MASE,model
+1-7,3,-2.386,3.801,1.5313,B12_monthly_ensemble_downscaled
+8-30,19,-0.052,13.531,1.0646,B12_monthly_ensemble_downscaled
+31-90,50,-0.154,15.921,1.226,B12_monthly_ensemble_downscaled
+91-180,90,0.098,55.853,0.8607,B12_monthly_ensemble_downscaled
+181-270,88,0.302,59.736,0.8809,B12_monthly_ensemble_downscaled
+271-365,91,0.066,23.051,1.1065,B12_monthly_ensemble_downscaled
+1-7,3,-2.396,3.804,1.5325,B10_daily_ensemble_original
+8-30,19,-0.2,14.696,1.1564,B10_daily_ensemble_original
+31-90,50,-0.035,15.05,1.159,B10_daily_ensemble_original
+91-180,90,0.168,55.75,0.8591,B10_daily_ensemble_original
+181-270,88,0.293,65.574,0.967,B10_daily_ensemble_original
+271-365,91,-0.436,31.053,1.4907,B10_daily_ensemble_original

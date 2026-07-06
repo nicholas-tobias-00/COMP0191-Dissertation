@@ -322,6 +322,48 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      LSTM/LSTM_VSN show the same horizon-inconsistent pattern as TFT (slightly worse short horizons,
      substantially better long horizons, LSTM flips negative→positive by h=14). Ranking unchanged — DLinear
      stays the DL baseline, still below RF/XGB/SARIMAX everywhere. See `b03_b04_results.md` addendum.
+   - **B-09 (2026-07-05, D-53): recursive 365-day daily rollout backtest — does autoregressive
+     forecasting compound error?** Direct empirical test of D-46 requirement 5. Single anchor
+     (2021-12-16, Tower 4), one continuous 365-day recursive chain per model (SARIMAX, RF, XGB,
+     LightGBM, DLinear, LSTM), every model fit fresh ≤ anchor. **The 1-7 day bin is a small-sample
+     artifact** (only 3 real ground-truth days) — not a real "recursion fails immediately" signal.
+     **Recursion does not inevitably collapse**: in the trustworthy 91-180/181-270 bins (n=88-90),
+     every model except LSTM beats both persistence and climatology (positive R², MASE<1) — more
+     encouraging than the original a-priori compounding-error concern. **Multi-anchor extension
+     (2018-2022, D-53 addendum) revised the single-anchor picture substantially**: late-window
+     degradation is year-specific (only 2018/2021 show it), not universal; **DLinear's striking
+     single-anchor R² (0.417) was a fluke** (multi-anchor mean -4.752, worst of all models);
+     **XGB is the most robust model** (only positive mean R², 0.003; mean MASE 0.968), LightGBM
+     close behind. TFT/Tower 9/TabPFN-prep deferred as stretch items, not attempted. See D-53,
+     `notebooks/05_benchmarking/b09_results.md`.
+   - **B-10 (2026-07-06, D-54): recursive-rollout improvements — does anything fix the
+     spike-blindness?** Three ideas tested on top of B-09's machinery, verdicts from the 5-anchor
+     (2018-2022) sweep: **(1) blended AR fails cleanly** — pure recursion (alpha=1.0) always beats
+     blending with climatology, for all three tree models. **(2) ensemble is a modest genuine win**
+     — unweighted mean of RF+XGB+LightGBM+SARIMAX gets R²=0.012 (best of B-09+B-10 combined),
+     beating best-individual XGB's 0.003, though MASE ticks up marginally (0.975 vs 0.968).
+     **(3) H=1 DL retrain is mixed** — helps LSTM (R² -0.364 vs -0.438) but hurts DLinear (-1.729
+     vs -1.460), not a uniform DL fix. None of the three closes the R² gap to a genuinely good
+     result. **Recommendation: use the unweighted 4-model ensemble** if deploying one recursive
+     rollout. See D-54, `notebooks/05_benchmarking/b10_results.md`.
+   - **B-11 (2026-07-06, D-55): monthly-resolution rollout + downscale-to-daily — does coarser
+     resolution help, and does the gain survive downscaling?** New `forecast_monthly_v2.csv` (via
+     `build_forecasting_matrix_monthly.py`), SARIMAX+RF/XGB/LightGBM only (DL scoped out, too
+     little monthly data). **Monthly-native evaluation is a real, substantial improvement** —
+     confirms the M5-hierarchy prediction (LightGBM mean R²=0.156 vs 0.014 daily; XGB 0.147 vs
+     0.003 daily). **But this does NOT survive downscaling back to daily** — downscaled mean R²
+     (XGB -0.000, LightGBM -0.016) is essentially unchanged from B-09's own daily numbers, because
+     the hybrid-calibration downscaling method reuses the daily template's own within-month shape
+     unchanged and only corrects the coarse monthly bias (verified exact by construction). The one
+     genuine win: the late-window bin (271-365) improves consistently across all four models. See
+     D-55, `notebooks/05_benchmarking/b11_results.md`.
+   - **B-12 (2026-07-06, D-56): combined ensemble + monthly-downscale — executed despite low
+     expected payoff.** Combines B-10's ensemble with B-11's monthly-downscale framework. Single
+     anchor looked like a clear win (R²=0.075 vs B-10 alone's -0.034) but the **5-anchor sweep
+     reverses this** (mean R²: B-10 alone 0.012 vs B-12 -0.011) — the third single-anchor-vs-
+     multi-anchor reversal this session (after B-09's DLinear, B-10's H1-retrain read). **B-10's
+     daily ensemble alone remains the best recursive-rollout result and the recommendation** — this
+     closes the B-09→B-12 experiment sequence. See D-56, `notebooks/05_benchmarking/b12_results.md`.
    - **F-09b (2026-07-04, D-51): outlier-correction technique comparison (winsorization/Hampel vs hard
      truncation) for the D-50-flagged WS/TA contamination.** Scoping finding first: D-50's contamination
      lives only in the raw EC-tower data — `build_sms_met_dataset.py`'s Site-station swap (D-35) means
@@ -334,11 +376,17 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      is this calendar-gap CV harness may not exercise the long-blackout fallback failure mode that made
      USTAR/VPD damaging (untested caveat, flagged for any future contamination audit). See D-51,
      `notebooks/04_feature_engineering/F09b_results.md`.
-   - **Next (in order): (1) re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48 fix) —
-     still stale, not yet done.** (2) **B-08 driver-realism sensitivity** (D-47, renumbered from B-07) —
-     should wait for (1) rather than build on stale AR features. (3) **07 scenario analysis** (digital shadow)
-     — informed by the D-46 scoping and the candidate CMIP6 climate dataset. Deferred: coarser/cumulative eval,
-     ensembling; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out EC data.
+   - **B-09→B-12 recursive-rollout sequence is now closed.** Final recommendation: B-10's unweighted
+     ensemble (RF+XGB+LightGBM+SARIMAX, daily resolution) is the best available configuration
+     (mean R²=0.012 across 5 anchors) — B-12 confirmed combining it with B-11's monthly-downscale
+     framework does not improve on it.
+   - **Next (in order): (1)** re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48
+     fix) — still stale, not yet done. (2) **B-08 driver-realism sensitivity** (D-47, renumbered from
+     B-07) — should wait for (1) rather than build on stale AR features. (3) **07 scenario analysis**
+     (digital shadow) — informed by the D-46 scoping, the candidate CMIP6 climate dataset, and the
+     B-09→B-12 recursive-rollout findings (use B-10's ensemble as the AR-history strategy). Deferred:
+     coarser/cumulative eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out
+     EC data.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.
@@ -346,4 +394,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-04 (D-51: tested winsorization and a Hampel filter as alternatives to hard truncation for the D-50-flagged WS/TA contamination (F-09b). Found first that D-50's contamination never reaches production (Site-station swap, D-35, already keeps WS/TA clean there) — downgrades that entry's urgency. Hard truncation and winsorization both fully resolve the contamination; Hampel only partially fixes WS and doesn't touch Tower 2's long stuck-sensor TA fault. Downstream gap-filling R² is a null result across every config, including uncorrected — a real methodological contrast with D-48's USTAR/VPD fix, which clearly moved things; candidate explanation is the calendar-gap CV harness may not exercise the long-blackout fallback failure mode that made USTAR/VPD damaging. See D-51, `notebooks/04_feature_engineering/F09b_results.md`. Prior session (2026-07-02, D-49): re-ran B-03/B-03a/B-03b + a standalone F-09a gap-filling re-check against the D-48-corrected data. **B-03a (SARIMAX) reverses its original conclusion**: no longer collapses beyond h=1 — daily R² now 0.416→0.284 across h=1→14 (was 0.326→-0.177), competitive with B-03's trees at every horizon. **B01, B02, B04-B07 remain stale and un-rerun** — still the next forecasting-phase task. See D-48/D-49, `notebooks/05_benchmarking/b03a_b03b_results.md` addendum.)_
+_Last updated: 2026-07-06 (D-56: combined ensemble + monthly-downscale (B-12) — closes the B-09→B-12 recursive-rollout experiment sequence. Combined D-54/B-10's winning ensemble idea with D-55/B-11's monthly-downscale framework; single-anchor result looked like a clear win (R²=0.075 vs B-10 alone's -0.034) but the 5-anchor sweep reverses this (mean R²: B-10 alone 0.012, B-12 -0.011) — the third single-anchor-vs-multi-anchor reversal this session (after B-09's DLinear finding and B-10's H1-retrain single-anchor read), reinforcing this project's own headline methodological lesson: don't trust a single-anchor backtest. **Final recommendation: B-10's daily unweighted ensemble (RF+XGB+LightGBM+SARIMAX) is the best available recursive-rollout configuration** — simpler than B-12's combined approach and performs at least as well. See D-56, `notebooks/05_benchmarking/b12_results.md`. This closes out the B-09(D-53)→B-10(D-54)→B-11(D-55)→B-12(D-56) sequence entirely. **Next: re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48 fix)** — still stale, the next task when resumed — then B-08 driver-realism sensitivity (D-47), then 07 scenario analysis informed by all of the above.)_
