@@ -244,3 +244,38 @@ def bin_metrics(y_true, y_pred, dates, anchor, y_persist=None,
                           MAE=round(float(mae_v), 3),
                           MASE=round(float(mase_v), 4) if np.isfinite(mase_v) else np.nan))
     return pd.DataFrame(rows)
+
+
+# ---------------------------------------------------------------- TabPFN one-shot forecast (B-13b)
+# NOT a rollout in the iterative sense -- tabpfn-time-series predicts the entire horizon in a
+# single forward pass from a context+future-covariates dataframe (architecturally closer to
+# SARIMAX's one-shot get_forecast(steps=H) than to tree_rollout/dl_rollout's day-by-day loop).
+# Per-tower only -- the simple predict_df API has no static-covariate/pooling support.
+
+def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local"):
+    """hist_target: pandas Series, real y_observed history (gaps allowed as NaN -- TabPFN handles
+    missing context values internally, so this deliberately does NOT use y_gapfilled, avoiding the
+    diffuse globally-trained-gap-filler optimism flagged for every other model's training target).
+    hist_covariates/future_covariates: DataFrames indexed by date, same columns in both (only
+    covariates present in both are used) -- real historical / perfect-foresight future fx_ drivers.
+    mode: "local" (default, user-confirmed -- requires TABPFN_TOKEN env var set once via
+    https://ux.priorlabs.ai) or "client" (cloud; sends data to Prior Labs per call).
+    Returns a pandas Series of point (median) forecasts indexed by future_covariates.index."""
+    import tabpfn_time_series as tts
+
+    pipeline = tts.TabPFNTSPipeline(
+        tabpfn_mode=tts.TabPFNMode.LOCAL if mode == "local" else tts.TabPFNMode.CLIENT
+    )
+
+    context_df = hist_covariates.copy()
+    context_df["timestamp"] = context_df.index
+    context_df["target"] = hist_target.reindex(context_df.index).values
+    context_df = context_df.reset_index(drop=True)
+
+    future_df = future_covariates.copy()
+    future_df["timestamp"] = future_df.index
+    future_df = future_df.reset_index(drop=True)
+
+    preds = pipeline.predict_df(context_df, future_df=future_df)
+    preds = preds.reset_index()
+    return pd.Series(preds["target"].values, index=pd.to_datetime(preds["timestamp"]))

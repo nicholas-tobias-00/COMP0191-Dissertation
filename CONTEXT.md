@@ -364,6 +364,17 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      multi-anchor reversal this session (after B-09's DLinear, B-10's H1-retrain read). **B-10's
      daily ensemble alone remains the best recursive-rollout result and the recommendation** — this
      closes the B-09→B-12 experiment sequence. See D-56, `notebooks/05_benchmarking/b12_results.md`.
+   - **B-13 (2026-07-06, D-57): TFT and TabPFN for recursive rollout, plus DLinear/LSTM chain-plot
+     extension.** Fills B-09's remaining stretch items. **TFT**: D-45's regularization recipe
+     (adapted validation window: last 90 days before anchor, not a full year) generalizes cleanly
+     — no reproduction of the original catastrophic instability; mean R²=-0.237, MASE=1.055, the
+     best DL model in the B-09-B13 sequence, still behind trees/SARIMAX. **TabPFN — headline
+     finding**: a zero-shot foundation model (`tabpfn-time-series`, one-shot 365-day forecast, NOT
+     autoregressive, local GPU inference) achieves mean MASE=**0.862, the best of any model tested
+     this session** (beats B-10's ensemble at 0.975), with competitive mean R²=-0.006, using zero
+     training/HPO. B-10's ensemble remains the headline R² recommendation, but TabPFN earns a
+     standing mention as a genuine alternative. See D-57, `notebooks/05_benchmarking/
+     b13_results.md`.
    - **F-09b (2026-07-04, D-51): outlier-correction technique comparison (winsorization/Hampel vs hard
      truncation) for the D-50-flagged WS/TA contamination.** Scoping finding first: D-50's contamination
      lives only in the raw EC-tower data — `build_sms_met_dataset.py`'s Site-station swap (D-35) means
@@ -394,4 +405,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-06 (D-56: combined ensemble + monthly-downscale (B-12) — closes the B-09→B-12 recursive-rollout experiment sequence. Combined D-54/B-10's winning ensemble idea with D-55/B-11's monthly-downscale framework; single-anchor result looked like a clear win (R²=0.075 vs B-10 alone's -0.034) but the 5-anchor sweep reverses this (mean R²: B-10 alone 0.012, B-12 -0.011) — the third single-anchor-vs-multi-anchor reversal this session (after B-09's DLinear finding and B-10's H1-retrain single-anchor read), reinforcing this project's own headline methodological lesson: don't trust a single-anchor backtest. **Final recommendation: B-10's daily unweighted ensemble (RF+XGB+LightGBM+SARIMAX) is the best available recursive-rollout configuration** — simpler than B-12's combined approach and performs at least as well. See D-56, `notebooks/05_benchmarking/b12_results.md`. This closes out the B-09(D-53)→B-10(D-54)→B-11(D-55)→B-12(D-56) sequence entirely. **Next: re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48 fix)** — still stale, the next task when resumed — then B-08 driver-realism sensitivity (D-47), then 07 scenario analysis informed by all of the above.)_
+_Last updated: 2026-07-06 (D-57: B-13 — TFT and TabPFN for recursive rollout, plus a DLinear/LSTM chain-plot visualization extension. Fills B-09's two remaining stretch items. TFT: D-45's regularization recipe (adapted to a 90-day validation window given anchors don't have a spare year) generalizes cleanly to recursive rollout — mean R²=-0.237, MASE=1.055, the best DL model in the B-09-B13 sequence, still behind trees/SARIMAX. **TabPFN — the headline finding of this session**: a zero-shot foundation model (one-shot, non-autoregressive, local GPU inference via `tabpfn-time-series`) achieves mean MASE=0.862, beating every model tested across the whole B-09-B13 sequence including B-10's ensemble (0.975), with competitive mean R²=-0.006 (between LightGBM and XGB) — achieved with zero training or HPO. B-10's ensemble (D-56) remains the headline R² recommendation, but TabPFN now earns a standing mention as a genuine alternative/complementary choice, particularly where MASE/robustness or avoiding a training pipeline matters. See D-57, `notebooks/05_benchmarking/b13_results.md`. This closes out the B-09(D-53)→B-13(D-57) recursive-rollout sequence entirely. **Next: re-run B01, B02, B05, B06, B07 against the corrected data (F-09/D-48 fix)** — still stale, the next task when resumed — then B-08 driver-realism sensitivity (D-47), then 07 scenario analysis informed by all of the above.)_
