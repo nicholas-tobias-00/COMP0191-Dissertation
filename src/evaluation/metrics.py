@@ -66,6 +66,38 @@ def mape(y, p, min_abs_y=1.0):
     return val, n_excluded
 
 
+def pinball(y, quantile_preds, quantiles):
+    """Pinball (quantile) loss, averaged across the given quantile levels. `quantile_preds`: dict
+    or 2D array-like with one prediction column per quantile in `quantiles` (same order). For a
+    single quantile q, loss(y,p) = max(q*(y-p), (q-1)*(y-p)) -- asymmetric, penalizing
+    under-prediction more heavily at high q and over-prediction more heavily at low q. Lower is
+    better; this is the direct quantile-regression analogue of MAE."""
+    y = np.asarray(y, float)
+    losses = []
+    for q in quantiles:
+        p = np.asarray(quantile_preds[q], float)
+        e = y - p
+        losses.append(np.mean(np.maximum(q * e, (q - 1) * e)))
+    return float(np.mean(losses))
+
+
+def picp(y, lo, hi):
+    """Prediction Interval Coverage Probability: fraction of real y values falling inside [lo,hi].
+    Compare against the interval's nominal coverage (e.g. 0.90) -- PICP well below nominal means
+    the interval is overconfident (too narrow); PICP well above means it's overly conservative."""
+    y = np.asarray(y, float); lo = np.asarray(lo, float); hi = np.asarray(hi, float)
+    m = np.isfinite(y) & np.isfinite(lo) & np.isfinite(hi)
+    return float(np.mean((y[m] >= lo[m]) & (y[m] <= hi[m]))) if m.sum() > 0 else np.nan
+
+
+def mpiw(lo, hi):
+    """Mean Prediction Interval Width: mean(hi - lo). The sharpness counterpart to PICP -- among
+    intervals with comparable coverage, narrower (lower MPIW) is more useful/actionable."""
+    lo = np.asarray(lo, float); hi = np.asarray(hi, float)
+    m = np.isfinite(lo) & np.isfinite(hi)
+    return float(np.mean(hi[m] - lo[m])) if m.sum() > 0 else np.nan
+
+
 def full_metrics(y, p, y_naive=None):
     """All metrics in one call, for direct use in notebook emit()/metrics() helpers.
     y_naive (persistence-forecast array on the same test rows) is required for MASE;

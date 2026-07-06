@@ -288,6 +288,8 @@ class TFT(nn.Module):
         self.gate_ff = GateAddNorm(d_model, dropout=dropout)
         self.out = nn.Linear(d_model, 1)
         self.last_attn = None
+        self.last_enc_vsn_w = None
+        self.last_dec_vsn_w = None
         self.register_buffer("_mask", torch.triu(torch.ones(L + H, L + H, dtype=torch.bool), diagonal=1))
     def forward(self, enc, dec, static):
         static_emb, _ = self.static_vsn(static.unsqueeze(1))
@@ -295,8 +297,10 @@ class TFT(nn.Module):
         c_sel, c_enr = self.static_ctx_selection(static_emb), self.static_ctx_enrichment(static_emb)
         h0, c0 = self.static_ctx_h(static_emb).unsqueeze(0), self.static_ctx_c(static_emb).unsqueeze(0)
 
-        enc_emb, _ = self.enc_vsn(enc, c_sel.unsqueeze(1).expand(-1, enc.shape[1], -1))
-        dec_emb, _ = self.dec_vsn(dec, c_sel.unsqueeze(1).expand(-1, dec.shape[1], -1))
+        enc_emb, enc_vsn_w = self.enc_vsn(enc, c_sel.unsqueeze(1).expand(-1, enc.shape[1], -1))
+        dec_emb, dec_vsn_w = self.dec_vsn(dec, c_sel.unsqueeze(1).expand(-1, dec.shape[1], -1))
+        self.last_enc_vsn_w = enc_vsn_w.detach()
+        self.last_dec_vsn_w = dec_vsn_w.detach()
 
         enc_lstm, (h, c) = self.lstm_enc(enc_emb, (h0, c0))
         dec_lstm, _ = self.lstm_dec(dec_emb, (h, c))
@@ -534,6 +538,71 @@ class LSTMQuantile(nn.Module):
         return self.out(o)                          # (B, H, Q)
 
 
+class TFTQuantile(nn.Module):
+    """Quantile variant of TFT (U-02) -> (B, H, Q) for pinball-loss UQ, giving TFT the same native
+    quantile mechanism every other B-10/B-13 model already has (RF/XGB/LightGBM/SARIMAX/TabPFN).
+    Identical body to `TFT` -- same VSN/GRN/attention architecture, agnostic to head width -- with
+    exactly the two edits `LSTMQuantile` already established relative to `LSTMSeq2Seq`: the output
+    head widened from `nn.Linear(d_model, 1)` to `nn.Linear(d_model, nq)`, and the final
+    `.squeeze(-1)` dropped so the trailing quantile axis is retained. Deliberately a separate class,
+    not a modification of `TFT` (which stays byte-for-byte unchanged) or a parameterised branch of
+    it -- matches this project's existing point-vs-quantile pattern and guarantees every existing
+    `TFT`/`build_model("TFT", ...)` caller (B03b_tft.ipynb, B13_tft_tabpfn.ipynb,
+    i02_multi_anchor_tower.py) is unaffected. Not wired into `build_model` -- constructed directly
+    by its one caller, mirroring `LSTMQuantile`'s own precedent (also never routed through
+    `build_model`)."""
+    def __init__(self, L, H, n_enc, n_dec, n_static, nq, d_model=32, n_heads=4, dropout=0.1):
+        super().__init__()
+        self.L, self.H = L, H
+        self.static_vsn = VSN(n_static, d_model, dropout=dropout)
+        self.static_ctx_selection = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.static_ctx_enrichment = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.static_ctx_h = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.static_ctx_c = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.enc_vsn = VSN(n_enc, d_model, d_context=d_model, dropout=dropout)
+        self.dec_vsn = VSN(n_dec, d_model, d_context=d_model, dropout=dropout)
+        self.lstm_enc = nn.LSTM(d_model, d_model, batch_first=True)
+        self.lstm_dec = nn.LSTM(d_model, d_model, batch_first=True)
+        self.gate_lstm = GateAddNorm(d_model, dropout=dropout)
+        self.static_enrich_grn = GRN(d_model, d_model, d_model, d_context=d_model, dropout=dropout)
+        self.attn = InterpretableMultiHeadAttention(d_model, n_heads, dropout=dropout)
+        self.gate_attn = GateAddNorm(d_model, dropout=dropout)
+        self.pos_ff = GRN(d_model, d_model, d_model, dropout=dropout)
+        self.gate_ff = GateAddNorm(d_model, dropout=dropout)
+        self.out = nn.Linear(d_model, nq)
+        self.last_attn = None
+        self.last_enc_vsn_w = None
+        self.last_dec_vsn_w = None
+        self.register_buffer("_mask", torch.triu(torch.ones(L + H, L + H, dtype=torch.bool), diagonal=1))
+    def forward(self, enc, dec, static):
+        static_emb, _ = self.static_vsn(static.unsqueeze(1))
+        static_emb = static_emb.squeeze(1)
+        c_sel, c_enr = self.static_ctx_selection(static_emb), self.static_ctx_enrichment(static_emb)
+        h0, c0 = self.static_ctx_h(static_emb).unsqueeze(0), self.static_ctx_c(static_emb).unsqueeze(0)
+
+        enc_emb, enc_vsn_w = self.enc_vsn(enc, c_sel.unsqueeze(1).expand(-1, enc.shape[1], -1))
+        dec_emb, dec_vsn_w = self.dec_vsn(dec, c_sel.unsqueeze(1).expand(-1, dec.shape[1], -1))
+        self.last_enc_vsn_w = enc_vsn_w.detach()
+        self.last_dec_vsn_w = dec_vsn_w.detach()
+
+        enc_lstm, (h, c) = self.lstm_enc(enc_emb, (h0, c0))
+        dec_lstm, _ = self.lstm_dec(dec_emb, (h, c))
+
+        lstm_out = torch.cat([enc_lstm, dec_lstm], dim=1)
+        vsn_out = torch.cat([enc_emb, dec_emb], dim=1)
+        gated = self.gate_lstm(lstm_out, vsn_out)
+
+        enriched = self.static_enrich_grn(gated, c_enr.unsqueeze(1).expand(-1, gated.shape[1], -1))
+        attn_out, attn_w = self.attn(enriched, mask=self._mask)
+        self.last_attn = attn_w.detach()
+        attn_gated = self.gate_attn(attn_out, enriched)
+
+        ff_out = self.pos_ff(attn_gated)
+        final = self.gate_ff(ff_out, gated)
+        dec_final = final[:, self.L:, :]
+        return self.out(dec_final)                  # (B, H, Q) -- no squeeze, unlike point TFT
+
+
 def pinball_loss(pred, y, mask, quantiles):
     """pred (B,H,Q); y,mask (B,H)."""
     q = torch.tensor(quantiles, device=pred.device).view(1, 1, -1)
@@ -543,12 +612,25 @@ def pinball_loss(pred, y, mask, quantiles):
 
 
 def train_quantile(model, tr, device, quantiles=QUANTILES, epochs=30, bs=256, lr=1e-3,
-                   ch4_mu=0.0, ch4_sd=1.0, seed=0):
+                   ch4_mu=0.0, ch4_sd=1.0, seed=0, weight_decay=0.0, val_data=None, patience=5):
+    """weight_decay/val_data/patience default to off -- the original LSTMQuantile caller (U-01) is
+    unaffected. Added for TFTQuantile (U-02), mirroring `train_model`'s identical D-45 rationale:
+    TFT overfits the bounded 30-epoch/no-val budget the simpler DL models don't, and this is the
+    same fix applied here rather than reusing an unregularized recipe known to be unstable for TFT."""
+    import copy
     torch.manual_seed(seed); model.to(device)
-    opt = torch.optim.Adam(model.parameters(), lr=lr)
+    opt = torch.optim.AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
     enc = torch.tensor(tr["enc"]); dec = torch.tensor(tr["dec"]); static = torch.tensor(tr["static"])
     y = torch.tensor((tr["y"] - ch4_mu) / ch4_sd); mask = torch.tensor(np.isfinite(tr["y"]).astype(np.float32))
     y = torch.nan_to_num(y, nan=0.0); n = len(enc)
+
+    if val_data is not None:
+        venc = torch.tensor(val_data["enc"]); vdec = torch.tensor(val_data["dec"]); vstatic = torch.tensor(val_data["static"])
+        vy = torch.tensor((val_data["y"] - ch4_mu) / ch4_sd); vmask = torch.tensor(np.isfinite(val_data["y"]).astype(np.float32))
+        vy = torch.nan_to_num(vy, nan=0.0)
+        nv = len(venc)
+        best_val, best_state, bad_epochs = float("inf"), None, 0
+
     for ep in range(epochs):
         perm = torch.randperm(n)
         for b in range(0, n, bs):
@@ -557,6 +639,25 @@ def train_quantile(model, tr, device, quantiles=QUANTILES, epochs=30, bs=256, lr
             yb, mb = y[idx].to(device), mask[idx].to(device)
             opt.zero_grad(); loss = pinball_loss(model(xe, xd, xs), yb, mb, quantiles)
             loss.backward(); opt.step()
+        if val_data is not None:
+            model.eval()
+            vloss_sum, vmask_sum = 0.0, 0.0
+            with torch.no_grad():
+                for b in range(0, nv, bs):
+                    xe, xd, xs = venc[b:b+bs].to(device), vdec[b:b+bs].to(device), vstatic[b:b+bs].to(device)
+                    yb, mb = vy[b:b+bs].to(device), vmask[b:b+bs].to(device)
+                    vloss_sum += (pinball_loss(model(xe, xd, xs), yb, mb, quantiles) * mb.sum()).item()
+                    vmask_sum += mb.sum().item()
+            vloss = vloss_sum / max(vmask_sum, 1)
+            model.train()
+            if vloss < best_val:
+                best_val, best_state, bad_epochs = vloss, copy.deepcopy(model.state_dict()), 0
+            else:
+                bad_epochs += 1
+                if bad_epochs >= patience:
+                    break
+    if val_data is not None and best_state is not None:
+        model.load_state_dict(best_state)
     return model
 
 

@@ -430,13 +430,45 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      asinh transform is a dead end, hurdle architecture hurts daily R² by a wide margin, recency
      features are marginal) — a data shift of similar modest magnitude is very unlikely to reverse
      any of them. Do not spend further session time re-running these.
+   - **I-02 (2026-07-06, D-61): feature importance (native/SHAP/LIME) for the recursive-rollout
+     models.** Fresh experiment, not based on I-01 (different harness, explicitly not used as
+     precedent, left untouched). Covers all 8 B-10/B-13 models, all 3 towers, full 5-anchor sweep.
+     New `src/interpretability/importance.py`. **`fx_lsu_dens` (livestock density) confirmed as the
+     dominant driver by every method that can see it** (native + SHAP across RF/XGB/LightGBM,
+     SARIMAX coefficients at all 3 towers, TabPFN permutation importance at T4/T9) — reconfirms this
+     project's central thesis from the rollout models themselves. **New finding: its SHAP importance
+     grows with lead time**, not shrinks (7.6→38.4 mean|SHAP| from bin 1-7 to 181-270 at T4) — AR
+     features degrade as the rollout's own predictions dilute real history, while the exogenous
+     livestock signal doesn't. TabPFN's driver ranking differs sharply at Tower 2 (read as a
+     data-scarcity symptom, not a real ecosystem difference). See D-61,
+     `notebooks/06_interpretability_uq/I02_feature_importance_rollout.ipynb`, `I02_results.md`.
+   - **U-02 (2026-07-06, D-62): quantile-ML + conformal uncertainty for the recursive-rollout
+     models.** Fresh experiment, not based on U-01 (different harness, left untouched). RF via
+     quantile-forest trick, XGB/LightGBM via 3 quantile-objective fits, SARIMAX via `conf_int()`,
+     TabPFN via its own native `quantiles=` parameter, **TFT via a new `TFTQuantile` class**
+     (added in a follow-up round after the initial conformal-only-wrap version left it as the one
+     model with a genuine blank-gap failure mode — see D-62 addendum; verified fully
+     backward-compatible with `B03b_tft.ipynb`/`B13_tft_tabpfn.ipynb`/`i02_multi_anchor_tower.py`,
+     the only other TFT callers in the repo). Leave-one-anchor-out conformal calibration per
+     lead-time bin. **Result: calibration works consistently across every model at T4/T9** — all
+     converge to ~0.88-0.90 PICP regardless of raw coverage (tree models raw PICP 0.35-0.50, badly
+     overconfident; SARIMAX/TabPFN/TFT all already reasonable raw, 0.72-0.92 — the training
+     objective, not architecture complexity, appears to drive calibration quality). **Calibrated
+     Ensemble/RF are sharpest (lowest pinball)** at both towers; TFT's calibrated pinball is the
+     worst at T4 despite its good coverage. **Tower 2 cannot support calibration at all** (all
+     conformal columns NaN, consistent with its known data scarcity) — raw intervals only, reported
+     as low-confidence. Four real bugs caught and fixed before finalizing: a TabPFN quantile
+     column-matching bug (silently gave 100% NaN raw intervals), an
+     Ensemble_MASEweighted-identical-to-unweighted bug, a fan-chart whole-chain-fallback bug
+     (caught via direct user inspection of the figures) that hid valid raw intervals behind
+     spurious blank gaps, and TFT's original no-raw-quantile limitation (closed via `TFTQuantile`).
+     See D-62,
+     `notebooks/06_interpretability_uq/U02_uncertainty_rollout.ipynb`, `U02_results.md`, 120
+     fan-chart figures in `results/figures/u02_fancharts/`.
    - **Next (in order): (1) B-08 driver-realism sensitivity** (D-47) — no longer blocked, proceed
      directly. (2) **07 scenario analysis** (digital shadow) — informed by the D-46 scoping, the
-     candidate CMIP6 climate dataset, and the B-09→B-15 recursive-rollout findings (use B-10's
-     ensemble as the AR-history strategy). (3) **Uncertainty quantification for the recursive-rollout
-     sequence (quantile-ML)** — being scoped now (see discussion following D-59); extends U-01's
-     (D-40) conformal/quantile-XGB/LSTM-pinball approach to the 365-day rollout, where uncertainty
-     compounds by lead time and likely varies sharply by tower (per B-15's addendum). Deferred:
+     candidate CMIP6 climate dataset, the B-09→B-15 recursive-rollout findings (use B-10's ensemble
+     as the AR-history strategy), and I-02/U-02's importance/uncertainty layers. Deferred:
      coarser/cumulative eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out
      EC data.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
@@ -446,4 +478,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-06 (D-60: descoped the B01/B02/B05-B07 full rerun on D-48-corrected data — the production model (B-03) was already rerun under the fix with only small, non-ranking-changing gains, and the other five notebooks are already-established structural/negative findings unlikely to flip from a similarly modest data shift. **B-08 (driver-realism sensitivity, D-47) is next, no longer blocked.** D-58/D-59 (B-14/B-15 hyperparameter tuning) closed the recursive-rollout side-thread: B-10's unweighted 4-model ensemble (R²=0.012) remains the best-validated production configuration, confirmed robust to two independent tuning attempts (CV-based and rollout-based), though B-15 found a better single model (tuned LightGBM, R²=0.017) and its Tower 2/9 addendum found tuning doesn't transfer across towers (Tower 9's poor performance isn't primarily a tuning problem; Tower 2 too data-scarce for any conclusion). See D-58, D-59, D-60, `notebooks/05_benchmarking/b14_results.md`, `b15_results.md` (single consolidated doc, includes the Tower 2/9 addendum). **Next up for discussion: extending uncertainty quantification (quantile-ML, per U-01/D-40's precedent) to the recursive-rollout sequence** — being scoped now, then B-08, then 07 scenario analysis informed by all of the above.)_
+_Last updated: 2026-07-06 (D-61/D-62: I-02/U-02 — feature importance (native/SHAP/LIME) and quantile-ML/conformal uncertainty for the recursive-rollout models (B-10+B-13), all 3 towers, full 5-anchor sweep. Fresh methodology, explicitly not based on I-01/U-01 (different, unrelated harness — left untouched, not deleted). **I-02**: `fx_lsu_dens` (livestock density) confirmed as the dominant driver by every method that can see it, reconfirming this project's central thesis from the rollout models themselves; new finding that its importance grows (not shrinks) with lead time, plausibly explaining why exogenous-driver-heavy configs (B-15's tuned LightGBM) beat AR-heavy ones at long horizons. **U-02**: leave-one-anchor-out conformal calibration reliably fixes miscalibration for every model type at T4/T9 (tree models raw PICP as low as 0.35, all converge to ~0.89 after calibration); calibrated Ensemble/RF are sharpest; Tower 2 cannot support calibration at all (data scarcity). Three real bugs caught and fixed (TabPFN quantile column-matching, a duplicate-ensemble-weights bug, a fan-chart per-chain-vs-per-day fallback bug caught via direct user inspection of the figures) — illustrates the value of scrutinizing generated output rather than trusting a clean run. See D-61, D-62, `notebooks/06_interpretability_uq/I02_feature_importance_rollout.ipynb`, `I02_results.md`, `U02_uncertainty_rollout.ipynb`, `U02_results.md`. **Next: B-08 driver-realism sensitivity (D-47), no longer blocked, then 07 scenario analysis** informed by all of the above.)_

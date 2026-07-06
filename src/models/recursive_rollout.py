@@ -145,6 +145,52 @@ def dl_rollout(model, scaler_enc, scaler_dec, ch4_mu, ch4_sd, device, static_vec
     return pd.Series(preds, index=dates_full[anchor_idx + 1:anchor_idx + 1 + n_days])
 
 
+def dl_rollout_quantile(model, scaler_enc, scaler_dec, ch4_mu, ch4_sd, device, static_vec,
+                         enc_ex_full, dec_ex_full, dates_full, history_init, anchor,
+                         quantiles=(0.05, 0.5, 0.95), L=28, H=14, n_days=365):
+    """Quantile analogue of `dl_rollout` (U-02) -- for a model like TFTQuantile whose forward()
+    returns (B, H, Q) instead of (B, H). Same sliding-window mechanism as `dl_rollout` (identical
+    docstring for enc_ex_full/dec_ex_full/dates_full/history_init/static_vec applies), but at each
+    step takes `pred_scaled[0]` as a (Q,) array (day-1's quantiles, not a scalar), sorts it to
+    enforce non-crossing (matching `predict_quantile`'s own convention), and feeds back ONLY the
+    median (quantiles must include 0.5) into the shared `ch4` history -- the same single-coherent-
+    history principle `tree_rollout_quantile` already established, for the same reason: three
+    diverging quantile-specific histories would compound inconsistently, one shared median-anchored
+    history does not. Returns a DataFrame indexed by date, one column per quantile level (float)
+    plus 'median' (identical to the 0.5 column) -- same contract as `tree_rollout_quantile`."""
+    if 0.5 not in quantiles:
+        raise ValueError("0.5 (median) must be included in quantiles -- it is what's fed back into ch4 history")
+    import torch
+    median_idx = list(quantiles).index(0.5)
+    ch4 = np.full(len(dates_full), np.nan, dtype=np.float32)
+    anchor_idx = dates_full.get_loc(anchor)
+    ch4[:anchor_idx + 1] = history_init
+    static = np.asarray(static_vec, dtype=np.float32)
+    rows = []
+    model.eval()
+    with torch.no_grad():
+        for step in range(n_days):
+            t_idx = anchor_idx + 1 + step
+            enc_ch4 = ch4[t_idx - L:t_idx]
+            enc_feat = np.concatenate([enc_ch4[:, None], enc_ex_full[t_idx - L:t_idx]], axis=1)
+            enc_feat = np.nan_to_num(enc_feat, nan=0.0)
+            dec_feat = np.nan_to_num(dec_ex_full[t_idx:t_idx + H], nan=0.0)
+            enc_s = scaler_enc.tf(enc_feat[None, ...])
+            dec_s = scaler_dec.tf(dec_feat[None, ...])
+            xe = torch.tensor(enc_s, dtype=torch.float32).to(device)
+            xd = torch.tensor(dec_s, dtype=torch.float32).to(device)
+            xs = torch.tensor(static[None, :], dtype=torch.float32).to(device)
+            pred_scaled = model(xe, xd, xs).cpu().numpy()[0]   # (H, Q)
+            day1_q = np.sort(pred_scaled[0]) * ch4_sd + ch4_mu  # (Q,), non-crossing enforced
+            rec = {q: float(day1_q[i]) for i, q in enumerate(quantiles)}
+            rows.append(rec)
+            ch4[t_idx] = day1_q[median_idx]
+    dates = dates_full[anchor_idx + 1:anchor_idx + 1 + n_days]
+    df = pd.DataFrame(rows, index=dates)
+    df["median"] = df[0.5]
+    return df
+
+
 # ---------------------------------------------------------------- monthly rollout (B-11, D-55)
 # Coarser companion to the daily tree_rollout above -- dampens any single missed spike-day's
 # influence on evaluation (the M5-hierarchy lesson: coarser aggregates score better). Uses
@@ -218,6 +264,116 @@ def downscale_monthly_to_daily(monthly_pred_series, daily_template_series):
     return daily_template_series - month_means + monthly_aligned
 
 
+# ---------------------------------------------------------------- quantile rollout (U-02)
+# Model adapters give tree_rollout_quantile a uniform `.predict_quantiles(Xi, quantiles)` interface
+# despite RF/XGB/LightGBM having genuinely different native quantile mechanisms (quantile-forest
+# trick vs separately-fit quantile-objective models) -- see U02_results.md for why each was chosen.
+
+class RFQuantileAdapter:
+    """Wraps an ALREADY-FITTED point-forecast RandomForestRegressor -- no retraining. Quantiles come
+    from the empirical distribution of the forest's individual tree predictions at each row (the
+    standard "quantile regression forest" trick), reusing the exact same fitted model B-10 already
+    validated as its point forecaster."""
+    def __init__(self, rf_model):
+        self.rf = rf_model
+
+    def predict_quantiles(self, Xi, quantiles):
+        tree_preds = np.array([est.predict(Xi) for est in self.rf.estimators_])  # (n_trees, n_rows)
+        return {q: np.quantile(tree_preds, q, axis=0) for q in quantiles}
+
+
+class MultiModelQuantileAdapter:
+    """Wraps N separately-fit quantile-objective models (e.g. XGBRegressor(objective=
+    'reg:quantileerror', quantile_alpha=q) or LGBMRegressor(objective='quantile', alpha=q)), one
+    fitted model per requested quantile level."""
+    def __init__(self, models_by_quantile):
+        self.models_by_quantile = models_by_quantile  # {quantile_level: fitted_model}
+
+    def predict_quantiles(self, Xi, quantiles):
+        return {q: self.models_by_quantile[q].predict(Xi) for q in quantiles}
+
+
+def tree_rollout_quantile(adapter, imp, feat_cols, fx_frame, history_init, anchor, n_days=365,
+                           quantiles=(0.05, 0.5, 0.95)):
+    """Quantile analogue of `tree_rollout`. `adapter` exposes `.predict_quantiles(Xi, quantiles) ->
+    {q: array_of_len_1}` (see RFQuantileAdapter/MultiModelQuantileAdapter above). At each recursive
+    step, computes every requested quantile but feeds ONLY the median (0.5, required to be present
+    in `quantiles`) back into the shared AR history -- keeps one coherent recursive state rather than
+    letting each quantile diverge into its own history (three separately-fed-back chains would be
+    internally inconsistent: the 0.05 chain would keep compounding an artificially-low history against
+    itself, biasing its own future predictions further down every step, not just reflecting genuine
+    lower-tail uncertainty). Returns a DataFrame indexed by date, one column per quantile level
+    (float) plus a 'median' column (identical to the 0.5 column, provided for readability)."""
+    if 0.5 not in quantiles:
+        raise ValueError("0.5 (median) must be included in quantiles -- it is what's fed back into AR history")
+    history = history_init.copy()
+    dates = pd.date_range(anchor + pd.Timedelta(days=1), periods=n_days, freq="D")
+    rows = []
+    for d in dates:
+        row = ar_features_for_day(history, d)
+        for c in fx_frame.columns:
+            row[c] = fx_frame.loc[d, c]
+        X = pd.DataFrame([row])[feat_cols]
+        Xi = imp.transform(X.values)
+        qpreds = adapter.predict_quantiles(Xi, quantiles)
+        rec = {q: float(qpreds[q][0]) for q in quantiles}
+        rows.append(rec)
+        history.loc[d] = rec[0.5]
+    df = pd.DataFrame(rows, index=dates)
+    df["median"] = df[0.5]
+    return df
+
+
+def sarimax_quantile(sarimax_res, target_dates, exog, alpha=0.10):
+    """Thin wrapper around SARIMAX's own predictive distribution -- `get_forecast().conf_int()`
+    already gives a (1-alpha) interval essentially for free from the fitted state-space model, no
+    new fitting cost beyond the point-forecast fit every other B-09-B-15 SARIMAX call already pays.
+    Returns a DataFrame indexed by target_dates with columns 'median', alpha/2, 1-alpha/2 (e.g.
+    0.05/0.95 for the default alpha=0.10, a 90% interval)."""
+    fc = sarimax_res.get_forecast(steps=len(target_dates), exog=exog)
+    ci = fc.conf_int(alpha=alpha)
+    lo_col, hi_col = ci.columns[0], ci.columns[1]
+    out = pd.DataFrame(index=target_dates)
+    out["median"] = fc.predicted_mean.values
+    out[round(alpha / 2, 4)] = ci[lo_col].values
+    out[round(1 - alpha / 2, 4)] = ci[hi_col].values
+    return out
+
+
+def conformal_margins_by_bin(residuals_by_bin, alpha=0.10):
+    """Standard split-conformal finite-sample-corrected quantile of absolute residuals, computed
+    separately per lead-time bin (necessary because rollout error is heteroscedastic by lead time,
+    confirmed throughout B-09-B-15 -- a single global margin would under-cover the far end of the
+    chain and over-cover the near end). `residuals_by_bin`: dict {bin_label: array of abs residuals
+    pooled from calibration anchors} (e.g. leave-one-anchor-out: every anchor except the one being
+    tested). Returns {bin_label: margin}; the calibrated interval for a point forecast `p` in that bin
+    is [p - margin, p + margin]. Uses the standard finite-sample conformal correction
+    level = min(1, ceil((n+1)*(1-alpha))/n) (Lei et al. 2018 / Romano et al. 2019's well-known
+    split-conformal quantile adjustment, not specific to any prior work in this repo)."""
+    margins = {}
+    for b, res in residuals_by_bin.items():
+        res = np.asarray(res, dtype=float)
+        res = res[np.isfinite(res)]
+        n = len(res)
+        if n == 0:
+            margins[b] = np.nan
+            continue
+        level = min(1.0, np.ceil((n + 1) * (1 - alpha)) / n)
+        margins[b] = float(np.quantile(res, level))
+    return margins
+
+
+def lead_time_bin(dates, anchor, bins=((1, 7), (8, 30), (31, 90), (91, 180), (181, 270), (271, 365))):
+    """Maps each date to its lead-time bin label (matching bin_metrics's bins exactly), or None if
+    outside every bin. Used to group residuals for conformal_margins_by_bin."""
+    lead = np.array([(d - anchor).days for d in dates])
+    labels = np.full(len(dates), None, dtype=object)
+    for lo, hi in bins:
+        m = (lead >= lo) & (lead <= hi)
+        labels[m] = f"{lo}-{hi}"
+    return labels
+
+
 # ---------------------------------------------------------------- evaluation
 
 def bin_metrics(y_true, y_pred, dates, anchor, y_persist=None,
@@ -252,7 +408,7 @@ def bin_metrics(y_true, y_pred, dates, anchor, y_persist=None,
 # SARIMAX's one-shot get_forecast(steps=H) than to tree_rollout/dl_rollout's day-by-day loop).
 # Per-tower only -- the simple predict_df API has no static-covariate/pooling support.
 
-def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local"):
+def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local", quantiles=None):
     """hist_target: pandas Series, real y_observed history (gaps allowed as NaN -- TabPFN handles
     missing context values internally, so this deliberately does NOT use y_gapfilled, avoiding the
     diffuse globally-trained-gap-filler optimism flagged for every other model's training target).
@@ -260,7 +416,12 @@ def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local
     covariates present in both are used) -- real historical / perfect-foresight future fx_ drivers.
     mode: "local" (default, user-confirmed -- requires TABPFN_TOKEN env var set once via
     https://ux.priorlabs.ai) or "client" (cloud; sends data to Prior Labs per call).
-    Returns a pandas Series of point (median) forecasts indexed by future_covariates.index."""
+    quantiles (U-02): optional list of quantile levels (e.g. [0.05, 0.5, 0.95]) -- tabpfn-time-series's
+    own `predict_df(..., quantiles=[...])` already supports this natively (confirmed via its
+    signature), returning one column per level named as the quantile's string (e.g. '0.05'). Default
+    (None) preserves the exact original point-only behavior (a single Series of the median forecast).
+    When quantiles is given, returns a DataFrame instead (columns = quantile levels as floats, plus
+    'median'), indexed by future_covariates.index."""
     import tabpfn_time_series as tts
 
     pipeline = tts.TabPFNTSPipeline(
@@ -276,6 +437,19 @@ def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local
     future_df["timestamp"] = future_df.index
     future_df = future_df.reset_index(drop=True)
 
-    preds = pipeline.predict_df(context_df, future_df=future_df)
+    if quantiles is None:
+        preds = pipeline.predict_df(context_df, future_df=future_df)
+        preds = preds.reset_index()
+        return pd.Series(preds["target"].values, index=pd.to_datetime(preds["timestamp"]))
+
+    preds = pipeline.predict_df(context_df, future_df=future_df, quantiles=list(quantiles))
     preds = preds.reset_index()
-    return pd.Series(preds["target"].values, index=pd.to_datetime(preds["timestamp"]))
+    idx = pd.to_datetime(preds["timestamp"])
+    out = pd.DataFrame(index=idx)
+    out["median"] = preds["target"].values
+    # predict_df's returned columns are the float quantile VALUES themselves (e.g. 0.05), not their
+    # string representation -- confirmed empirically (a naive str(q)-based lookup silently returned
+    # all-NaN, since '0.05' was never a column name; 0.05 the float was).
+    for q in quantiles:
+        out[q] = preds[q].values if q in preds.columns else np.nan
+    return out
