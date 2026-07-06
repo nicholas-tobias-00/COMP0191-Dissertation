@@ -1,0 +1,4 @@
+model,max_features,min_samples_leaf,chosen_by,max_depth,learning_rate,min_child_weight,num_leaves,min_child_samples
+RF,0.7,10.0,2021_search,,,,,
+XGB,,,2021_search,3.0,0.01,20.0,,
+LGB,,,2021_search,,0.02,,7.0,10.0
