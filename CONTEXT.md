@@ -465,12 +465,49 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      See D-62,
      `notebooks/06_interpretability_uq/U02_uncertainty_rollout.ipynb`, `U02_results.md`, 120
      fan-chart figures in `results/figures/u02_fancharts/`.
+   - **U-03 (2026-07-07, D-63): does U-02's conformal calibration hold up under distribution
+     shift?** Direct follow-up to U-02, prompted by the pivot from "long-horizon forecasting" to
+     **scenario simulation** for Phase 07 (2x-livestock, CMIP6-2050-climate). Found U-02's
+     calibration never discussed the split-conformal exchangeability assumption — a real gap once
+     scenario inputs are, by construction, not exchangeable with historical calibration data.
+     **Part A (real ground truth, all 3 towers x 5 anchors):** no clear evidence that conformal
+     PICP degrades with historical distribution shift (corr(shift score, PICP): T4 −0.166 n=5, T9
+     +0.562 n=4 — small samples, no degradation signal either way); caveat — the shift magnitudes
+     tested (max ≈2.0, one anomalous weather year) are far smaller than a genuine future scenario,
+     so this does not certify calibration survives real scenario shift.
+     **Part B (no ground truth, diagnostic only) — expanded twice after the user caught two
+     successive scope gaps** (first "I don't think U03 has been completed for all models, towers,
+     and years?", then "tower 2 should also be included... always include tower 2") **to its final
+     scope: all 8 U-02/B-10/B-13 models x all 3 towers x all 5 anchors**, matching U-02's own
+     coverage exactly. Sweeping `fx_lsu_dens` (livestock density) 1.0×→3.0× (Towers 4/9, 10 usable
+     cases; Tower 2 structurally degenerate for this test — its `fx_lsu_dens` is exactly 0.0 for
+     the entire rollout window in 4/5 anchors, a genuine data finding, not a bug) produced a clean
+     structural split: **RF/XGB/LightGBM plateau** (mean +21–23%, the tree-extrapolation-ceiling
+     signature), **TFT/TabPFN form a broadly comparable, muted-but-noisier cluster** (+26%/+30%
+     mean; TabPFN ranges −4.9% to +90.1%, the least predictable model, sometimes inverting
+     direction), **both ensembles sit in a distinct elevated tier** (+49–50% mean — B-10's
+     production-recommended ensemble is NOT immune to this problem despite being 75% tree-weighted,
+     since SARIMAX's 25% weight isn't diluted away), and **SARIMAX is the clear outlier** (+150%
+     mean, 59–380% range, the maximum of all 8 models in 10/10 cases — the one fully robust ordering
+     claim). **Recommendation: do not reuse U-02's conformal margins as validated intervals for
+     genuine scenario predictions; do not reuse B-10's ensemble unmodified for scenario
+     extrapolation without addressing its SARIMAX-inherited risk; any Tower-2 scenario needs an
+     explicit livestock baseline independent of the 2019-2022 fitting window.** Directly motivates
+     the detrend-and-residual/hybrid process+ML approach already flagged in this session's
+     literature discussion. See D-63 (+ two addenda),
+     `notebooks/06_interpretability_uq/U03_uncertainty_shift_robustness.ipynb`, `U03_results.md`,
+     `results/u03_extrapolation_stress_test_multi.csv`, `results/figures/u03_fancharts/` (24
+     figures).
    - **Next (in order): (1) B-08 driver-realism sensitivity** (D-47) — no longer blocked, proceed
      directly. (2) **07 scenario analysis** (digital shadow) — informed by the D-46 scoping, the
      candidate CMIP6 climate dataset, the B-09→B-15 recursive-rollout findings (use B-10's ensemble
-     as the AR-history strategy), and I-02/U-02's importance/uncertainty layers. Deferred:
-     coarser/cumulative eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out
-     EC data.
+     as the AR-history strategy, **with U-03's caveat that its SARIMAX component carries real
+     extrapolation risk**), I-02/U-02's importance/uncertainty layers, **and U-03's full-coverage
+     extrapolation-ceiling/exchangeability findings (D-63) — any scenario-uncertainty treatment
+     needs a better-extrapolating model or an explicit interval-widening rule, not a bare reuse of
+     U-02's historical conformal margins; Tower 2 needs its own livestock-baseline assumption**.
+     Deferred: coarser/cumulative eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase
+     2024 held-out EC data.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.
@@ -478,4 +515,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-06 (D-61/D-62: I-02/U-02 — feature importance (native/SHAP/LIME) and quantile-ML/conformal uncertainty for the recursive-rollout models (B-10+B-13), all 3 towers, full 5-anchor sweep. Fresh methodology, explicitly not based on I-01/U-01 (different, unrelated harness — left untouched, not deleted). **I-02**: `fx_lsu_dens` (livestock density) confirmed as the dominant driver by every method that can see it, reconfirming this project's central thesis from the rollout models themselves; new finding that its importance grows (not shrinks) with lead time, plausibly explaining why exogenous-driver-heavy configs (B-15's tuned LightGBM) beat AR-heavy ones at long horizons. **U-02**: leave-one-anchor-out conformal calibration reliably fixes miscalibration for every model type at T4/T9 (tree models raw PICP as low as 0.35, all converge to ~0.89 after calibration); calibrated Ensemble/RF are sharpest; Tower 2 cannot support calibration at all (data scarcity). Three real bugs caught and fixed (TabPFN quantile column-matching, a duplicate-ensemble-weights bug, a fan-chart per-chain-vs-per-day fallback bug caught via direct user inspection of the figures) — illustrates the value of scrutinizing generated output rather than trusting a clean run. See D-61, D-62, `notebooks/06_interpretability_uq/I02_feature_importance_rollout.ipynb`, `I02_results.md`, `U02_uncertainty_rollout.ipynb`, `U02_results.md`. **Next: B-08 driver-realism sensitivity (D-47), no longer blocked, then 07 scenario analysis** informed by all of the above.)_
+_Last updated: 2026-07-07 (D-63, twice-addended: U-03 Part B expanded to its final, complete scope — all 8 U-02/B-10/B-13 models x all 3 towers (T2 included) x all 5 anchors — after the user caught two successive rounds of incomplete coverage ("I don't think U03 has been completed for all models, towers, and years?", then "tower 2 should also be included... always include tower 2"). Verified via bit-for-bit reproduction checks and a pre-commit smoke test before each expensive full run. **Genuine, non-bug finding from including Tower 2: its `fx_lsu_dens` is exactly 0.0 for the entire rollout window in 4/5 anchors** — the livestock-extrapolation diagnostic is structurally degenerate there, reported honestly rather than forced. **Final result (Towers 4/9, 10 cases): RF/XGB/LightGBM plateau (+21-23% mean, 1.0x->3.0x), TFT/TabPFN form a muted-but-noisy cluster (+26%/+30%, TabPFN ranging -4.9% to +90.1%), both ensembles sit in a distinct elevated tier (+49-50% mean) — the production-recommended B-10 ensemble is NOT immune to this problem despite being 75% tree-weighted — and SARIMAX is the clear outlier (+150% mean, 59-380% range, maximum of all 8 models in 10/10 cases).** Recommendation: do not reuse U-02's conformal margins as validated scenario intervals; do not reuse B-10's ensemble unmodified for scenario extrapolation without addressing its SARIMAX-inherited risk; Tower 2 needs an explicit livestock-baseline assumption for any scenario work. See D-63 (+2 addenda), `notebooks/06_interpretability_uq/U03_uncertainty_shift_robustness.ipynb`, `U03_results.md`, `results/u03_extrapolation_stress_test_multi.csv`. Builds on D-61/D-62 (I-02/U-02). **Next: B-08 driver-realism sensitivity (D-47), no longer blocked, then 07 scenario analysis** informed by all of the above, including U-03's now fully robustness-checked extrapolation-ceiling finding.)_
