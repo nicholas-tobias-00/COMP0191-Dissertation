@@ -51,13 +51,13 @@ Error / unexpected behaviour:
 
 ## Template 4 — End-of-session checklist
 
-Before committing, run through:
+At end of session, run through:
 - [ ] Updated `CONTEXT.md` → Current status, Replications table, and Next task fields
 - [ ] Added any new decisions to `DECISIONS.md` (one D-XX entry per decision)
 - [ ] Appended new rows to `results/benchmarks.csv` if a model was evaluated
 - [ ] Created or updated `notebooks/03_gap_filling/R0X_results.md` if a replication ran
 - [ ] Updated any prior `R0X_results.md` files if new findings recontextualize earlier results
-- [ ] Committed with a meaningful message
+- [ ] **Do NOT commit or push** — leave changes uncommitted; the user pushes from their end
 
 ## Template 5 — Replication result cross-check
 

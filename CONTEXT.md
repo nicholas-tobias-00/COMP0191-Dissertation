@@ -498,14 +498,59 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      `notebooks/06_interpretability_uq/U03_uncertainty_shift_robustness.ipynb`, `U03_results.md`,
      `results/u03_extrapolation_stress_test_multi.csv`, `results/figures/u03_fancharts/` (24
      figures).
-   - **Next (in order): (1) B-08 driver-realism sensitivity** (D-47) — no longer blocked, proceed
-     directly. (2) **07 scenario analysis** (digital shadow) — informed by the D-46 scoping, the
-     candidate CMIP6 climate dataset, the B-09→B-15 recursive-rollout findings (use B-10's ensemble
-     as the AR-history strategy, **with U-03's caveat that its SARIMAX component carries real
-     extrapolation risk**), I-02/U-02's importance/uncertainty layers, **and U-03's full-coverage
-     extrapolation-ceiling/exchangeability findings (D-63) — any scenario-uncertainty treatment
-     needs a better-extrapolating model or an explicit interval-widening rule, not a bare reuse of
-     U-02's historical conformal margins; Tower 2 needs its own livestock-baseline assumption**.
+   - **S-01 (2026-07-07, D-64): first Phase 07 scenario-simulation worked example (level-residual
+     hybrid), all 3 towers, all 3 residual models broken out individually.** Phase 07 moves from
+     "PLANNED, not started" to a proven end-to-end mechanism. B-08 confirmed superseded for Phase
+     07's purposes by U-03 (user-confirmed). Architecture (deep-research-informed, user-scoped to a
+     parametric — not mechanistic — trend for this pass; SPACSYS, already validated at North Wyke,
+     logged as future work): a Ridge trend model (fit **once** on the full pooled real record, not
+     per-anchor — the fix for U-03's SARIMAX-instability finding) carries the climate+livestock
+     extrapolation; RF/XGB/LightGBM (B-10's exact hyperparameters, monotonic constraint on
+     livestock density for XGB/LightGBM) correct only the residual; `fx_USTAR_mean`/`fx_SHF_mean`
+     dropped entirely (no climate-scenario-product source at all). Caught and fixed a real unit
+     mismatch (CMIP6 `RAD` is MJ/m²/day, this project's `fx_SWIN_mean` is W/m² — verified conversion
+     via a physical sanity check). **Scenario**: SSP2-4.5 ensemble-mean (5 GCMs × 100 realizations),
+     2041–2060 ("the 2050s"), all 3 towers × {1×, 2×, 3×} livestock multipliers on the day-of-year
+     climatology of `fx_lsu_dens`. **Result: the hybrid measurably fixes U-03's flattening** — the
+     same 3× sweep that gave trees-alone only +21–23% (U-03) gives **+138% at T4, +105% at T9**
+     here, since the trend now carries the extrapolation. **Genuine, non-obvious finding**: a "2×
+     livestock" scenario built by scaling a *smoothed climatology* is meaningfully milder than one
+     built by scaling raw daily values (U-03's method) — only 3× genuinely exceeds the training
+     envelope (Area-of-Applicability check, a lightweight from-scratch Python implementation in the
+     spirit of Meyer & Pebesma 2021), confirmed at T4/T9 (5.5%/6.0% flagged) but **never at Tower 2**
+     (its own livestock baseline is ~7-8× smaller than T4/T9's, directly consistent with U-03's own
+     T2 finding). **Per-model breakdown finding**: a full monotonic sweep shows XGB/LightGBM's
+     residual correction is completely flat with respect to livestock density — for two of three
+     tree models, ~100% of the scenario response flows through the trend, not the residual; only RF
+     (no native monotonic-constraint support) shows real residual sensitivity. Frozen model artifact
+     persisted for the first time in this project (closes D-46 requirement 1). Explicitly a
+     proof-of-mechanism, not a final output — every caveat (parametric-not-mechanistic trend,
+     9/11 drivers historical-day-resampled, naive livestock multiplier, U-02/U-03 intervals NOT
+     attached) carried forward. See D-64 (+ addendum),
+     `notebooks/07_scenario_analysis/S01_first_scenario.ipynb`, `s01_results.md`,
+     `results/s01_scenario_summary.csv`, `results/figures/s01_*.png` (4 figures).
+   - **D-65 (2026-07-07): `bin_metrics()` extended with RMSE/WAPE/Correlation** (was R²/MAE/MASE
+     only, narrower than the B01-B07 phase's full roster). B-10 + B-13 reconstructed and rerun
+     with the fuller metric set (their original multi-anchor scripts were never committed — this
+     one is, closing that gap). **Reproduction confirmed bit-for-bit for 7/8 models at Tower 4**
+     (TFT differs due to its already-documented unseeded-init non-determinism). **Addendum: extended
+     to all 3 towers (T2/T4/T9)** per the new "full coverage by default" CLAUDE.md convention (this
+     exact narrow-scope gap had already recurred 3 times this session: U-03, S-01, and this rerun).
+     **All-tower pooled headline is substantially worse on R² than the T4-only number but comparable
+     on MASE** (Ensemble_unweighted R² 0.012→−0.165, MASE 0.975→0.918) — driven by Tower 9 being
+     consistently harder and Tower 2 being largely degenerate outside 2018; model ranking is
+     unchanged (Ensemble/TabPFN still best on MASE, SARIMAX/TFT still worst). **New finding: TabPFN's
+     best-in-sequence MASE (0.862 T4-only / 0.855 all-tower) does not extend to RMSE** (second-worst
+     in both tables) — its strength is consistency vs. persistence, not small worst-case errors.
+     Correlation uniformly weak (0.26-0.40) across every model/scope. No change to the standing
+     recommendation (B-10's Ensemble_unweighted best on R² and RMSE in both tables). A new
+     tower×year×model breakdown table added. See D-65 (+ addendum),
+     `notebooks/05_benchmarking/b10_b13_metrics_rerun.md`, `results/b10_b13_rerun_table.csv`,
+     `results/b10_b13_rerun_table_all_towers.csv`, `results/b10_b13_rerun_table_by_tower_year.csv`.
+   - **Next (in order): (1) 07 scenario analysis, extending S-01** — SSP5-8.5, realization-level
+     (not just ensemble-mean) spread, a self-consistent mechanistic livestock-scenario construction,
+     and (if time permits) the SPACSYS process-model route for the trend/level component. B-08
+     remains available separately for the point-forecast track but is not on this critical path.
      Deferred: coarser/cumulative eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase
      2024 held-out EC data.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
@@ -515,4 +560,4 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-07 (D-63, twice-addended: U-03 Part B expanded to its final, complete scope — all 8 U-02/B-10/B-13 models x all 3 towers (T2 included) x all 5 anchors — after the user caught two successive rounds of incomplete coverage ("I don't think U03 has been completed for all models, towers, and years?", then "tower 2 should also be included... always include tower 2"). Verified via bit-for-bit reproduction checks and a pre-commit smoke test before each expensive full run. **Genuine, non-bug finding from including Tower 2: its `fx_lsu_dens` is exactly 0.0 for the entire rollout window in 4/5 anchors** — the livestock-extrapolation diagnostic is structurally degenerate there, reported honestly rather than forced. **Final result (Towers 4/9, 10 cases): RF/XGB/LightGBM plateau (+21-23% mean, 1.0x->3.0x), TFT/TabPFN form a muted-but-noisy cluster (+26%/+30%, TabPFN ranging -4.9% to +90.1%), both ensembles sit in a distinct elevated tier (+49-50% mean) — the production-recommended B-10 ensemble is NOT immune to this problem despite being 75% tree-weighted — and SARIMAX is the clear outlier (+150% mean, 59-380% range, maximum of all 8 models in 10/10 cases).** Recommendation: do not reuse U-02's conformal margins as validated scenario intervals; do not reuse B-10's ensemble unmodified for scenario extrapolation without addressing its SARIMAX-inherited risk; Tower 2 needs an explicit livestock-baseline assumption for any scenario work. See D-63 (+2 addenda), `notebooks/06_interpretability_uq/U03_uncertainty_shift_robustness.ipynb`, `U03_results.md`, `results/u03_extrapolation_stress_test_multi.csv`. Builds on D-61/D-62 (I-02/U-02). **Next: B-08 driver-realism sensitivity (D-47), no longer blocked, then 07 scenario analysis** informed by all of the above, including U-03's now fully robustness-checked extrapolation-ceiling finding.)_
+_Last updated: 2026-07-07 (D-65: `bin_metrics()` extended with RMSE/WAPE/Correlation, alongside D-64's S-01 first scenario result. B-10+B-13 reconstructed and rerun with the fuller metric set (their original multi-anchor scripts were never committed -- this one is, closing that gap) -- **reproduction confirmed bit-for-bit for 7/8 models at Tower 4** (TFT differs, already-documented non-determinism). **Addendum: extended to all 3 towers (T2/T4/T9)** per the new "full coverage by default" CLAUDE.md convention -- all-tower pooled R² is substantially worse than the T4-only headline (Ensemble_unweighted 0.012→−0.165) while MASE holds/improves (0.975→0.918), driven by Tower 9 being consistently harder and Tower 2 largely degenerate outside 2018; model ranking unchanged. **New finding: TabPFN's best-in-sequence MASE (0.862 T4-only / 0.855 all-tower) does not extend to RMSE** (second-worst in both) -- its strength is consistency vs. persistence, not small worst-case errors; correlation is uniformly weak (0.26-0.40) across every model/scope. No change to the standing recommendation. See D-65 (+ addendum), `notebooks/05_benchmarking/b10_b13_metrics_rerun.md`, `results/b10_b13_rerun_table_all_towers.csv`, `results/b10_b13_rerun_table_by_tower_year.csv`. D-64: S-01, the first Phase 07 scenario-simulation worked example — Phase 07 moves from "PLANNED, not started" to a proven end-to-end mechanism. Level-residual hybrid (Ridge trend, fit once on the full pooled record, carries the climate+livestock extrapolation; RF/XGB/LightGBM with a monotonic constraint on livestock density correct only the residual; USTAR/SHF dropped entirely) built on D-46/D-52's data scoping and directly informed by U-03's extrapolation-ceiling finding plus a user-provided deep-research literature pass. Extended to **all 3 towers and all 3 residual models individually**, per direct user request. **Result: the hybrid measurably fixes U-03's flattening** (+138%/+105% at T4/T9 for a 3x livestock sweep, vs. U-03's trees-alone +21-23%). **Genuine finding: a "2x" scenario built by scaling a smoothed climatology is milder than one built by scaling raw values** (U-03's method) — only 3x exceeds the training envelope (Area-of-Applicability check), and Tower 2 never does (its own livestock baseline is far smaller, consistent with U-03's own T2 finding). **Per-model finding: XGB/LightGBM's residual correction is completely flat with respect to livestock density** (verified via a full monotonic sweep) — for 2 of 3 tree models, ~100% of the scenario response flows through the trend, not the residual; only RF shows real residual sensitivity. A frozen model artifact was persisted for the first time in this project. See D-64 (+ addendum), `notebooks/07_scenario_analysis/S01_first_scenario.ipynb`, `s01_results.md`, `results/figures/s01_*.png`. Builds on D-46/D-52/D-63/D-61. **Next: extend S-01 (SSP5-8.5, realization-level spread, mechanistic livestock scenario, possibly SPACSYS for the trend component)** — B-08 confirmed superseded for Phase 07's purposes, remains available separately for the point-forecast track.)_

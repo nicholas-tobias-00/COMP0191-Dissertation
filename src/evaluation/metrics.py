@@ -26,6 +26,18 @@ def mbe(y, p):
     return float(np.mean(np.asarray(p, float) - np.asarray(y, float)))
 
 
+def correlation(y, p):
+    """Pearson correlation coefficient between observed and predicted values. Scale/bias-invariant,
+    unlike R2 -- distinguishes "wrong scale/bias, right pattern" from "no real signal", a
+    distinction R2 alone conflates (the same informal check used to diagnose the original
+    unregularized TFT in D-45, r=0.27 despite deeply negative R2, now formalized here).
+    Returns NaN if either series has zero variance or fewer than 2 points."""
+    y = np.asarray(y, float); p = np.asarray(p, float)
+    if len(y) < 2 or np.std(y) == 0 or np.std(p) == 0:
+        return np.nan
+    return float(np.corrcoef(y, p)[0, 1])
+
+
 def wape(y, p):
     """Weighted Absolute Percentage Error = sum|y-p| / sum|y|.
     Aggregates before dividing, so unlike MAPE a few near-zero actuals can't blow it up.

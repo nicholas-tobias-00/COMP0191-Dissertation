@@ -382,23 +382,37 @@ def bin_metrics(y_true, y_pred, dates, anchor, y_persist=None,
     ungapfilled days -- those rows are dropped per bin). y_persist (the chain-persistence
     baseline, same length) is used as MASE's y_naive if given. Returns a DataFrame, one row
     per lead-time bin -- the direct M5-lesson analogue of "don't blend across the hierarchy",
-    here binning by lead-time-within-the-chain instead of store/category."""
+    here binning by lead-time-within-the-chain instead of store/category.
+
+    Columns: bin, n, R2, RMSE, MAE, MASE, WAPE, Correlation. RMSE/WAPE/Correlation added to the
+    original R2/MAE/MASE set (D-65) -- purely additive, every existing caller in the B-09-B-15
+    sequence accesses this DataFrame by column name only, confirmed via a full repo grep before
+    this change. Correlation is Pearson r (see evaluation.metrics.correlation) -- scale/bias-
+    invariant, distinguishes "wrong scale, right pattern" from "no real signal", a distinction R2
+    alone conflates."""
     from sklearn.metrics import r2_score, mean_absolute_error
-    from evaluation.metrics import mase as mase_fn
+    from evaluation.metrics import mase as mase_fn, rmse as rmse_fn, wape as wape_fn, correlation as corr_fn
     lead = np.array([(d - anchor).days for d in dates])
     rows = []
     for lo, hi in bins:
         m = (lead >= lo) & (lead <= hi) & np.isfinite(y_true)
         if m.sum() < 3:
-            rows.append(dict(bin=f"{lo}-{hi}", n=int(m.sum()), R2=np.nan, MAE=np.nan, MASE=np.nan))
+            rows.append(dict(bin=f"{lo}-{hi}", n=int(m.sum()), R2=np.nan, RMSE=np.nan, MAE=np.nan,
+                              MASE=np.nan, WAPE=np.nan, Correlation=np.nan))
             continue
         yt, yp = y_true[m], y_pred[m]
         r2 = r2_score(yt, yp) if np.var(yt) > 0 else np.nan
         mae_v = mean_absolute_error(yt, yp)
         mase_v = mase_fn(yt, yp, y_persist[m]) if y_persist is not None else np.nan
+        rmse_v = rmse_fn(yt, yp)
+        wape_v = wape_fn(yt, yp)
+        corr_v = corr_fn(yt, yp)
         rows.append(dict(bin=f"{lo}-{hi}", n=int(m.sum()), R2=round(r2, 3) if np.isfinite(r2) else np.nan,
+                          RMSE=round(float(rmse_v), 3) if np.isfinite(rmse_v) else np.nan,
                           MAE=round(float(mae_v), 3),
-                          MASE=round(float(mase_v), 4) if np.isfinite(mase_v) else np.nan))
+                          MASE=round(float(mase_v), 4) if np.isfinite(mase_v) else np.nan,
+                          WAPE=round(float(wape_v), 4) if np.isfinite(wape_v) else np.nan,
+                          Correlation=round(float(corr_v), 3) if np.isfinite(corr_v) else np.nan))
     return pd.DataFrame(rows)
 
 
