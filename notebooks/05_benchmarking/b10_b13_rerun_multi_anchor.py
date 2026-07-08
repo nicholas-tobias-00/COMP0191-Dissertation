@@ -25,6 +25,21 @@ Pooling structure (matches every other multi-tower B-09-U-03 script this session
 LightGBM/TFT are fit ONCE per anchor on pooled T2+T4+T9 data, then rolled out separately per
 tower (reusing the same fitted model, only the tower-specific fx_frame/history/static vector
 changes). SARIMAX and TabPFN are never pooled -- fit fresh per anchor PER TOWER.
+
+--- Addendum: secondary gap-filled-target metric (user's own idea, live discussion) ---
+Alongside the primary y_observed-target bin_metrics() call, every chain is ALSO scored a second
+time against y_gapfilled (dense/continuous, unlike sparse y_observed -- especially at Tower 2,
+which is ~100% NaN under y_observed in every anchor except 2018). This is an EXPLICIT, bounded
+departure from D-36/D-37's "train on gap-filled, evaluate on observed" convention for this one
+secondary/exploratory check -- not a redefinition of that convention. Real circularity risk:
+y_gapfilled seeds history_init (the pre-anchor AR memory every rollout builds forward from) AND
+is itself a pooled RFm gap-filler's output trained on met/soil features that substantially
+overlap RF/XGB/LightGBM's own forecast features -- so agreement can partly reflect "forecaster
+resembles gap-filler," not real skill against reality. Every downstream table/section built from
+this secondary metric must carry that caveat visibly, plus a per-bin real_frac (fraction of that
+bin's days that were also real-observed) so the caveat is backed by numbers, not just prose.
+bin_metrics() itself is untouched (already generic over y_true) -- this only adds a second call
+per chain, reusing every already-fitted model/already-rolled-out chain, no new fits.
 """
 import os
 import sys
@@ -104,6 +119,8 @@ def main():
         print("WARNING: TABPFN_TOKEN not set -- TabPFN will be skipped.")
 
     all_rows = []
+    all_rows_gf = []  # secondary metric vs. y_gapfilled (addendum, see module docstring)
+    all_chain_rows = []  # raw daily prediction chains, for export (never persisted before this addendum)
 
     for yr in ANCHOR_YEARS:
         anchor = pd.Timestamp(f"{yr}-12-16")
@@ -166,6 +183,15 @@ def main():
             anchor_val = dft.loc[anchor, "y_gapfilled"]
             persist = rr.chain_persistence(anchor_val, N_DAYS)
 
+            # ---- Secondary metric setup: y_gapfilled target + per-bin real-data coverage ----
+            y_gf = dft["y_gapfilled"].reindex(target_dates).values
+            bin_labels = rr.lead_time_bin(target_dates, anchor)
+            real_frac_by_bin = {}
+            for lo, hi in ((1, 7), (8, 30), (31, 90), (91, 180), (181, 270), (271, 365)):
+                lbl = f"{lo}-{hi}"
+                bm_mask = bin_labels == lbl
+                real_frac_by_bin[lbl] = float(np.isfinite(y_true[bm_mask]).mean()) if bm_mask.sum() > 0 else np.nan
+
             # ---- Trees: reuse the already-fitted pooled models, roll out for this tower ----
             tree_chains = {}
             for algo, (model, imp) in tree_models.items():
@@ -201,6 +227,15 @@ def main():
             b10_chains = {**tree_chains, "SARIMAX": sarimax_chain,
                           "Ensemble_unweighted": ens_unweighted, "Ensemble_MASEweighted": ens_weighted}
 
+            # ---- Raw daily chains, for export (never persisted before this addendum) ----
+            chain_df = pd.DataFrame({name: c.reindex(target_dates) for name, c in b10_chains.items()})
+            chain_df["y_true"] = y_true
+            chain_df["y_gapfilled"] = y_gf
+            chain_df["persistence"] = persist
+            chain_df["tower"] = tower
+            chain_df["anchor_year"] = yr
+            chain_df.index.name = "date"
+
             for name, chain in b10_chains.items():
                 yp = chain.reindex(target_dates).values
                 bm = rr.bin_metrics(y_true, yp, target_dates, anchor, y_persist=persist)
@@ -208,6 +243,13 @@ def main():
                 bm["anchor_year"] = yr
                 bm["tower"] = tower
                 all_rows.append(bm)
+
+                bm_gf = rr.bin_metrics(y_gf, yp, target_dates, anchor, y_persist=persist)
+                bm_gf["model"] = name
+                bm_gf["anchor_year"] = yr
+                bm_gf["tower"] = tower
+                bm_gf["real_frac"] = bm_gf["bin"].map(real_frac_by_bin)
+                all_rows_gf.append(bm_gf)
 
             # ---- TFT rollout: reuse the pooled-fitted model, roll out for this tower ----
             if tft_model is not None:
@@ -229,6 +271,16 @@ def main():
                     bm["anchor_year"] = yr
                     bm["tower"] = tower
                     all_rows.append(bm)
+
+                    bm_gf = rr.bin_metrics(y_gf, yp, target_dates, anchor, y_persist=persist)
+                    bm_gf["model"] = "TFT"
+                    bm_gf["anchor_year"] = yr
+                    bm_gf["tower"] = tower
+                    bm_gf["real_frac"] = bm_gf["bin"].map(real_frac_by_bin)
+                    all_rows_gf.append(bm_gf)
+
+                    chain_df["TFT"] = tft_chain.reindex(target_dates).values
+                    chain_df["y_true_tft"] = y_true_tft
                 except Exception as e:
                     print(f"    Tower {tower} TFT rollout SKIPPED: {str(e)[:100]}")
 
@@ -246,9 +298,19 @@ def main():
                     bm["anchor_year"] = yr
                     bm["tower"] = tower
                     all_rows.append(bm)
+
+                    bm_gf = rr.bin_metrics(y_gf, yp, target_dates, anchor, y_persist=persist)
+                    bm_gf["model"] = "TabPFN"
+                    bm_gf["anchor_year"] = yr
+                    bm_gf["tower"] = tower
+                    bm_gf["real_frac"] = bm_gf["bin"].map(real_frac_by_bin)
+                    all_rows_gf.append(bm_gf)
+
+                    chain_df["TabPFN"] = tabpfn_chain.reindex(target_dates).values
                 except Exception as e:
                     print(f"    Tower {tower} TabPFN SKIPPED: {str(e)[:100]}")
 
+            all_chain_rows.append(chain_df.reset_index())
             print(f"  Tower {tower} done ({time.time()-t_tower:.0f}s)")
 
         print(f"  Anchor {yr} total ({time.time()-t_anchor:.0f}s)")
@@ -256,6 +318,51 @@ def main():
     out = pd.concat(all_rows, ignore_index=True)
     out.to_csv(f"{RESULTS}/b10_b13_rerun_summary.csv", index=False)
     print(f"\n[OK] Saved b10_b13_rerun_summary.csv ({len(out)} rows)")
+
+    # ---- Secondary metric outputs (addendum, see module docstring) ----
+    out_gf = pd.concat(all_rows_gf, ignore_index=True)
+    out_gf.to_csv(f"{RESULTS}/b10_b13_rerun_summary_vs_gapfilled.csv", index=False)
+    print(f"[OK] Saved b10_b13_rerun_summary_vs_gapfilled.csv ({len(out_gf)} rows)")
+
+    METRICS = ["R2", "RMSE", "MAE", "MASE", "WAPE", "Correlation"]
+    MODEL_ORDER = ["RF", "XGB", "LightGBM", "SARIMAX", "Ensemble_unweighted",
+                   "Ensemble_MASEweighted", "TFT", "TabPFN"]
+
+    def wavg(g, col):
+        d = g.dropna(subset=[col])
+        return (d[col] * d["n"]).sum() / d["n"].sum() if d["n"].sum() > 0 else np.nan
+
+    # All-tower pooled headline (per-anchor n-weighted mean across bins+towers, then mean across anchors)
+    per_anchor_gf = (out_gf.groupby(["model", "anchor_year"])
+                     .apply(lambda g: pd.Series({m: wavg(g, m) for m in METRICS}), include_groups=False)
+                     .reset_index())
+    all_towers_gf = per_anchor_gf.groupby("model")[METRICS].mean().round(3).reindex(MODEL_ORDER)
+    all_towers_gf.to_csv(f"{RESULTS}/b10_b13_rerun_table_vs_gapfilled_all_towers.csv")
+    print("[OK] Saved b10_b13_rerun_table_vs_gapfilled_all_towers.csv")
+
+    # Tower x year x model breakdown (true MultiIndex: tower=parent column, anchor_year=parent row)
+    per_year_gf = (out_gf.groupby(["tower", "model", "anchor_year"])
+                   .apply(lambda g: pd.Series({m: wavg(g, m) for m in METRICS}), include_groups=False)
+                   .reset_index())
+    table_gf = per_year_gf.pivot_table(index=["anchor_year", "model"], columns="tower", values=METRICS)
+    table_gf = table_gf.reorder_levels([1, 0], axis=1).sort_index(axis=1, level=0, sort_remaining=False)
+    table_gf = table_gf.reindex(columns=TOWERS, level=0)
+    table_gf = table_gf.reindex(columns=METRICS, level=1)
+    table_gf = table_gf.sort_index(level=[0, 1])
+    table_gf.to_csv(f"{RESULTS}/b10_b13_rerun_table_vs_gapfilled_by_tower_year.csv")
+    print("[OK] Saved b10_b13_rerun_table_vs_gapfilled_by_tower_year.csv")
+
+    # Coverage comparison: real-observed n vs gap-filled n, per tower (motivating hypothesis check)
+    cov_obs = out.groupby("tower")["n"].sum()
+    cov_gf = out_gf.groupby("tower")["n"].sum()
+    print("\nCoverage (summed n across all models/anchors/bins) -- observed vs gap-filled target:")
+    for t in TOWERS:
+        print(f"  Tower {t}: observed n={cov_obs.get(t, 0)}, gap-filled n={cov_gf.get(t, 0)}")
+
+    # ---- Raw daily prediction chains (never persisted before this addendum) ----
+    chains = pd.concat(all_chain_rows, ignore_index=True)
+    chains.to_csv(f"{RESULTS}/b10_b13_rerun_chains.csv", index=False)
+    print(f"[OK] Saved b10_b13_rerun_chains.csv ({len(chains)} rows)")
 
 
 if __name__ == "__main__":

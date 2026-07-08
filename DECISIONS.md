@@ -566,6 +566,94 @@ anchor_year as parent row). New files: `results/b10_b13_rerun_table_all_towers.c
 to cite the all-tower headline going forward; the original Tower-4-only table is kept in
 `b10_b13_metrics_rerun.md` for continuity with existing citations, not removed.
 
+**Second addendum — 2026-07-08 — secondary metric vs. gap-filled target.** User's own idea, from a
+live discussion: also score every chain against `y_gapfilled` (dense/continuous) alongside the
+primary `y_observed`-target metric, since real observations are sparse — especially Tower 2 (816
+real data-points summed across all models/anchors/bins vs. 14,600 possible; T4 10,560; T9 7,200).
+**This is an explicit, bounded departure from D-36/D-37's "train on gap-filled, evaluate on
+observed" convention for one secondary/exploratory check, not a redefinition of it** — user-confirmed
+scope. Real circularity risk, stated up front in every downstream table: `y_gapfilled` seeds
+`history_init` (the pre-anchor AR memory every rollout builds forward from) and is itself a pooled
+RFm gap-filler's output trained on met/soil features overlapping RF/XGB/LightGBM's own forecast
+features, so agreement can partly reflect "forecaster resembles gap-filler," not real skill.
+`bin_metrics()` needed no change (already generic over `y_true`) — `b10_b13_rerun_multi_anchor.py`
+was extended to call it a second time per already-computed chain, plus a per-bin `real_frac` (fraction
+of that bin's days that were also real-observed) so the caveat is backed by numbers. Full 3-tower ×
+5-anchor × 8-model coverage (user-confirmed), as an **extension only** — verified the 4 existing
+observed-target output files are unaffected (non-TFT rows of `b10_b13_rerun_summary.csv` bit-for-bit
+identical after rerun; TFT rows differ only from its already-documented unseeded non-determinism,
+consistent with the first addendum's own TFT reproduction check; the 3 derived observed-target tables
+were never touched by the script and are untouched files, not regenerated).
+**Findings**: (1) Tower 2's coverage problem is fully unlocked (14,600/14,600 vs. 816/14,600), and its
+gap-filled-target numbers, while mostly negative R², are broadly consistent with — not contradicting
+— its already-documented harder/data-scarce status, not degenerate the way its observed-target numbers
+were. (2) RMSE/MAE/WAPE/MASE all *improve* under the gap-filled target (e.g. Ensemble_unweighted MASE
+0.918→0.751) but R² gets *worse* (0.012→−0.189 at Tower 4-equivalent all-tower scale) — mechanistic,
+not contradictory: `y_gapfilled` is smoother (lower variance) than `y_observed`, so the same
+(smaller) absolute error is a larger share of a smaller total variance, which is exactly what R²
+penalizes. (3) Model ranking mostly holds — Ensemble_unweighted stays at or near the top on R² in
+both metrics (reinforcing the standing recommendation), SARIMAX/TFT remain the two worst in both —
+**except TabPFN, which drops from best-R² (observed-target, 1st of 8) to 6th of 8 (gap-filled-target)**,
+the one real ranking disagreement, flagged as a reason not to over-read TabPFN's observed-target R²
+advantage as fully robust. New files: `results/b10_b13_rerun_summary_vs_gapfilled.csv`,
+`results/b10_b13_rerun_table_vs_gapfilled_all_towers.csv`,
+`results/b10_b13_rerun_table_vs_gapfilled_by_tower_year.csv`. New section in
+`b10_b13_metrics_rerun.md` ("Secondary metric: scored against gap-filled target"). No new D-number
+(secondary/exploratory, bounded to B-10/B-13 rerun only per user's explicit scope choice — no
+retrofit into U-02/U-03/S-01/I-02 this round). `BEST_RESULTS.md` gets a one-line pointer only (not a
+new quick-reference row) — this does not supersede or compete with the all-tower observed-target
+headline above.
+
+**Third addendum — 2026-07-08 — DLinear/LSTM model-roster extension (closes the `b10_chains` figure
+gap).** DLinear and LSTM had rollout chain *figures* extended to all 3 towers × 5 anchors during
+B-13's Part A (`results/figures/b10_chains/T*_anchor*_{DLinear,LSTM}.png`) but that extension never
+saved a `bin_metrics()` summary — there was no full-coverage evaluation table for these two models
+with the D-65 metric set. Reconstructed from `B09_recursive_rollout.ipynb`'s exact Section-4 recipe
+(track B, `L=28/H=14`, pooled T2+T4+T9 training with **no** validation carve-out — deliberately not
+TFT's regularized recipe — per-tower rollout via the already-generic `rr.dl_rollout`, `y_true` from
+`fdl.tower_series(...)["Y"]`). **Verification produced a genuinely new, sharper finding that
+refines D-62's addendum**: LSTM reproduces bit-for-bit exactly against the published
+`b09_multi_anchor_summary.csv` in all 5 anchors; DLinear matches exactly in 4 of 5 (only the very
+first anchor processed in the run, 2018, differs). Root cause: `fdl.train_model()` calls
+`torch.manual_seed()` **after** `fdl.build_model()` already constructed and randomly initialized the
+model — so only whichever model is built *first in the whole process, before any prior
+`torch.manual_seed()` call*, gets non-deterministic weights; every later model/anchor lands on fully
+deterministic initialization because an earlier `train_model()` call already fixed the global
+PyTorch RNG. This is almost certainly the same mechanism behind TFT's own documented
+non-determinism (D-62) — TFT is typically the only/first torch model built in its script — and
+implies seeding once at the very top of a script would make every model in it exactly reproducible
+(noted as a real, easy future fix; not applied, to avoid silently changing already-published
+numbers without being asked). **Result: DLinear/LSTM are drastically worse than every one of the 8
+models in the primary tables** (all-tower R²: DLinear −5.057, LSTM −1.357, vs. Ensemble_unweighted's
+−0.165 best) — directly confirming, not contradicting, D-53/D-54's finding that these two were
+correctly excluded from B-10's ensemble, now shown to hold at all 3 towers, not just Tower 4.
+Reported in their own standalone tables (not merged into the primary 8-model tables), because doing
+so surfaced a **separate, real discovery**: TFT's row in the currently-saved
+`results/b10_b13_rerun_summary.csv` has independently drifted to a **third** random draw since the
+primary all-tower/Tower-4-only tables above were built (current file's Tower-4 TFT R²=−0.232 vs.
+−0.568 cited in those tables) — the same non-determinism, now manifesting as a staleness mismatch
+between sibling artifacts rather than a single-run caveat. Flagged plainly, not resolved this pass
+(would require deciding whether to regenerate the primary tables, a separate decision from this
+one). New files: `notebooks/05_benchmarking/b10_b13_dl_extension.py`,
+`results/b10_b13_dl_extension_summary.csv` (180 rows), `results/b10_b13_dl_extension_table_all_towers.csv`,
+`_table_tower4.csv`, `_table_by_tower_year.csv`. New section in `b10_b13_metrics_rerun.md`
+("Model-roster extension: DLinear + LSTM").
+
+**Follow-up same day — DLinear/LSTM added to the gap-filled-target secondary-metric table too.**
+`b10_b13_dl_extension.py` extended with the same secondary `y_gapfilled`-target `bin_metrics()` call
+(+`real_frac`) already added to `b10_b13_rerun_multi_anchor.py`, so DLinear/LSTM now have rows in
+the "Secondary metric" section's all-tower comparison table alongside the other 8 models. **Found a
+further, concrete illustration of DLinear's instability while doing this**: rerunning the script
+redrew the 2018 anchor's DLinear weights (the already-identified non-deterministic "cold start"
+case) into a genuine numerical divergence this time — MAE up to ~7,545 nmol m⁻² s⁻¹ at Tower 9,
+physically implausible for a series spanning roughly −1,559 to +6,161 — which, scored against the
+low-variance `y_gapfilled` target, drove the pooled R² to −6576.7. Reported plainly with the
+outlier explained rather than silently smoothed over, alongside the 4-anchor (excluding 2018)
+alternative (R²=−7.035) for an interpretable number — still clearly the worst model either way.
+LSTM's gap-filled numbers (R²=−3.769) are unaffected by this, consistent with its own confirmed
+determinism. New files: `results/b10_b13_dl_extension_summary_vs_gapfilled.csv`,
+`results/b10_b13_dl_extension_table_all_towers_vs_gapfilled.csv`.
+
 ---
 
 ### D-44b — 2026-06-30 — additional point-forecast metrics: WAPE, MASE, sMAPE, MAPE (backfilled B01–B07)

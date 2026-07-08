@@ -146,6 +146,29 @@ tracks the true pattern strongly by this measure. Does not change the standing r
 (Ensemble_unweighted remains best on R² and RMSE in both tables). A tower×year×model breakdown table
 is also available. Full detail: `notebooks/05_benchmarking/b10_b13_metrics_rerun.md`.
 
+**Secondary, exploratory metric (not a headline number):** the same rerun also scores every chain
+against `y_gapfilled` instead of `y_observed` (explicit, bounded departure from D-36/D-37's
+"train on gap-filled, evaluate on observed" convention, real circularity risk — `y_gapfilled` seeds
+the AR history and shares features with the forecasters). Unlocks full Tower 2 coverage (816→14,600
+of 14,600) but R² gets *worse* while RMSE/MASE improve (a variance-normalization artifact of scoring
+against a smoother target, not a contradiction); Ensemble_unweighted stays near the top either way,
+but TabPFN drops from best-R² (observed) to 6th of 8 (gap-filled) — the one real ranking
+disagreement. See "Secondary metric" section, `notebooks/05_benchmarking/b10_b13_metrics_rerun.md`.
+
+**Model-roster extension (DLinear/LSTM):** closes the gap between the `b10_chains` figures (which
+existed for these two models across all 3 towers) and their evaluation metrics (which didn't).
+Confirms D-53/D-54's finding at full coverage — both are drastically worse than every model above
+(all-tower R²: DLinear −5.06, LSTM −1.36) — correctly excluded from B-10's ensemble. Also produced a
+sharper, generalized version of D-62's TFT non-determinism finding: LSTM reproduces bit-for-bit
+exactly every time; DLinear only differs on the very first anchor processed in a run — traced to
+`torch.manual_seed()` being called *after* model construction, so only the first torch model built
+in a process (before any prior seed call) gets non-deterministic weights. See "Model-roster
+extension" section, `notebooks/05_benchmarking/b10_b13_metrics_rerun.md`. DLinear/LSTM were also
+added to the gap-filled-target secondary-metric table — DLinear's pooled R² there (−6576.7) is
+dominated by a genuine numerical divergence in the 2018 anchor's non-deterministic draw (MAE up to
+~7,545 nmol m⁻² s⁻¹, physically implausible), amplified by scoring against the low-variance
+gap-filled target; excluding that one anchor gives R²=−7.035, still worst but interpretable.
+
 **Standing production recommendation: B-10's ensemble** — but see Section 5, U-03: this ensemble
 is **not immune** to extrapolation risk under scenario-style inputs, inherited from its SARIMAX
 component.
