@@ -74,11 +74,16 @@ by default" convention — the Tower-4-only table below is kept for continuity, 
 | SARIMAX | 53.79 | 36.06 | 0.976 | 1.105 | 0.343 | −0.360 |
 | **Ensemble_unweighted** | 51.57 | 33.75 | **0.918** | 0.998 | **0.375** | **−0.165** |
 | Ensemble_MASEweighted | 51.57 | 33.74 | 0.918 | 0.998 | 0.375 | −0.165 |
-| TFT | 59.23* | 37.37* | 1.047* | 1.096* | 0.260* | −0.565* |
+| TFT | 56.59* | 35.62* | 0.972* | 1.045* | 0.292* | −0.363* |
 | TabPFN | 56.12 | 33.14 | 0.855 | 0.899 | 0.358 | −0.122 |
 
 *TFT's numbers reflect this specific unseeded rerun (per-tower/per-anchor refits) — see the TFT
-caveat below, which applies identically here. Source: `results/b10_b13_rerun_table_all_towers.csv`.
+caveat below, which applies identically here. **Updated 2026-07-09** to the currently-live draw in
+`results/b10_b13_rerun_summary.csv` (previously −0.565 — TFT's non-determinism means every rerun of
+`b10_b13_rerun_multi_anchor.py` redraws it, and several reruns happened for other purposes between
+when this number was first published and now; every other row in this table is deterministic and
+was reconfirmed bit-for-bit unchanged before touching only the TFT row). Source:
+`results/b10_b13_rerun_table_all_towers.csv`.
 
 **Every model's R² drops substantially once T2/T9 are included** — the ensemble goes from +0.012
 (T4-only) to −0.165 (all-tower). This is consistent with, not contradictory to, this project's
@@ -105,12 +110,14 @@ published headline numbers before trusting the new columns):
 | SARIMAX | 52.39 | 35.23 | 1.038 | 1.047 | 0.379 | −0.039 |
 | **Ensemble_unweighted** | **50.96** | 33.18 | 0.975 | 0.977 | 0.396 | **0.012** |
 | Ensemble_MASEweighted | 50.96 | 33.17 | 0.975 | 0.977 | 0.396 | 0.011 |
-| TFT | 54.60* | 33.67* | 1.045* | 1.050* | 0.329* | −0.568* |
+| TFT | 54.48* | 33.43* | 1.014* | 1.020* | 0.315* | −0.228* |
 | TabPFN | 54.19 | 30.46 | **0.862** | 0.860 | 0.391 | −0.006 |
 
 *TFT's numbers reflect this specific unseeded rerun, not a re-validated "new" TFT result — see
 caveat below. All other rows are exact reproductions of already-published numbers, now with 3 new
-columns.
+columns. **Updated 2026-07-09** to the currently-live draw (previously −0.568, from an earlier
+rerun of `b10_b13_rerun_multi_anchor.py` — TFT redraws every time that script runs, and it has run
+several times since for unrelated reasons).
 
 ## Results by tower and year
 
@@ -132,7 +139,7 @@ a computation error, consistent with U-02/U-03/S-01's own Tower 2 documentation)
 | 2018 | SARIMAX | 34.10 | 30.76 | 0.574 | 2.286 | 0.056 | 49.50 | 37.79 | 1.171 | 1.382 | 0.240 | nan | nan | nan | nan | nan | −3.244 | −0.398 | nan |
 | 2018 | Ensemble_unweighted | 23.66 | 19.82 | 0.374 | 1.464 | 0.176 | 46.04 | 32.11 | 0.977 | 1.148 | 0.276 | nan | nan | nan | nan | nan | −1.048 | −0.160 | nan |
 | 2018 | Ensemble_MASEweighted | 23.54 | 19.69 | 0.372 | 1.455 | 0.178 | 46.00 | 32.03 | 0.974 | 1.144 | 0.277 | nan | nan | nan | nan | nan | −1.029 | −0.157 | nan |
-| 2018 | TFT | 18.81 | 13.32 | 0.250 | 0.978 | 0.045 | 49.57 | 29.70 | 0.872 | 1.010 | 0.166 | nan | nan | nan | nan | nan | −0.325 | −0.183 | nan |
+| 2018 | TFT | 29.53 | 20.84 | 0.400 | 1.549 | 0.111 | 52.20 | 32.36 | 1.004 | 1.200 | 0.057 | nan | nan | nan | nan | nan | −2.312 | −0.621 | nan |
 | 2018 | TabPFN | 18.25 | 12.96 | 0.243 | 0.969 | 0.098 | 49.69 | 29.06 | 0.844 | 0.974 | 0.081 | nan | nan | nan | nan | nan | −0.240 | −0.201 | nan |
 | 2019 | RF | nan | nan | nan | nan | nan | 48.57 | 29.90 | 0.784 | 0.785 | 0.473 | 71.21 | 45.02 | 0.913 | 0.840 | 0.499 | nan | 0.007 | 0.078 |
 | 2019 | XGB | nan | nan | nan | nan | nan | 48.21 | 28.60 | 0.745 | 0.746 | 0.439 | 70.19 | 44.25 | 0.900 | 0.830 | 0.521 | nan | 0.075 | 0.101 |
@@ -140,7 +147,7 @@ a computation error, consistent with U-02/U-03/S-01's own Tower 2 documentation)
 | 2019 | SARIMAX | nan | nan | nan | nan | nan | 47.93 | 31.36 | 0.836 | 0.837 | 0.448 | 69.13 | 41.55 | 0.814 | 0.753 | 0.490 | nan | 0.114 | 0.186 |
 | 2019 | Ensemble_unweighted | nan | nan | nan | nan | nan | 47.05 | 27.70 | 0.710 | 0.711 | 0.465 | 69.61 | 42.74 | 0.861 | 0.793 | 0.520 | nan | 0.136 | 0.134 |
 | 2019 | Ensemble_MASEweighted | nan | nan | nan | nan | nan | 47.07 | 27.71 | 0.710 | 0.711 | 0.465 | 69.64 | 42.78 | 0.863 | 0.794 | 0.520 | nan | 0.134 | 0.132 |
-| 2019 | TFT | nan | nan | nan | nan | nan | 53.84 | 31.45 | 0.823 | 0.824 | 0.183 | 80.69 | 48.20 | 0.939 | 0.868 | 0.197 | nan | −0.068 | −0.102 |
+| 2019 | TFT | nan | nan | nan | nan | nan | 53.48 | 32.54 | 0.879 | 0.880 | 0.260 | 81.22 | 53.04 | 1.035 | 0.955 | 0.239 | nan | −0.113 | −0.117 |
 | 2019 | TabPFN | nan | nan | nan | nan | nan | 55.86 | 32.09 | 0.809 | 0.811 | 0.505 | 91.60 | 56.29 | 1.087 | 1.000 | nan | nan | −0.090 | −0.460 |
 | 2020 | RF | nan | nan | nan | nan | nan | 61.52 | 34.47 | 1.029 | 0.929 | 0.337 | 58.46 | 36.64 | 0.950 | 1.132 | 0.354 | nan | −0.070 | −1.147 |
 | 2020 | XGB | nan | nan | nan | nan | nan | 63.10 | 34.87 | 1.021 | 0.917 | 0.251 | 58.14 | 35.90 | 0.938 | 1.134 | 0.340 | nan | −0.073 | −1.378 |
@@ -148,7 +155,7 @@ a computation error, consistent with U-02/U-03/S-01's own Tower 2 documentation)
 | 2020 | SARIMAX | nan | nan | nan | nan | nan | 62.67 | 35.21 | 1.000 | 0.887 | 0.318 | 58.56 | 35.01 | 0.895 | 1.034 | 0.283 | nan | 0.060 | −0.921 |
 | 2020 | Ensemble_unweighted | nan | nan | nan | nan | nan | 62.14 | 34.15 | 0.990 | 0.886 | 0.309 | 58.03 | 35.44 | 0.915 | 1.087 | 0.337 | nan | 0.000 | −1.076 |
 | 2020 | Ensemble_MASEweighted | nan | nan | nan | nan | nan | 62.16 | 34.16 | 0.991 | 0.887 | 0.308 | 58.03 | 35.46 | 0.915 | 1.089 | 0.338 | nan | −0.002 | −1.082 |
-| 2020 | TFT | nan | nan | nan | nan | nan | 67.50 | 35.41 | 0.998 | 0.886 | 0.184 | 61.31 | 37.28 | 0.982 | 1.071 | 0.294 | nan | −0.079 | −0.418 |
+| 2020 | TFT | nan | nan | nan | nan | nan | 63.77 | 34.78 | 1.015 | 0.905 | 0.316 | 58.10 | 33.15 | 0.876 | 0.924 | 0.334 | nan | −0.090 | −0.105 |
 | 2020 | TabPFN | nan | nan | nan | nan | nan | 64.30 | 31.20 | 0.886 | 0.786 | 0.394 | 62.23 | 35.55 | 0.906 | 1.003 | 0.192 | nan | 0.034 | −0.510 |
 | 2021 | RF | nan | nan | nan | nan | nan | 61.90 | 44.24 | 1.195 | 1.060 | 0.411 | 63.74 | 40.88 | 0.749 | 0.837 | 0.341 | nan | −0.141 | 0.008 |
 | 2021 | XGB | nan | nan | nan | nan | nan | 60.78 | 43.89 | 1.145 | 1.019 | 0.413 | 63.78 | 41.31 | 0.740 | 0.791 | 0.318 | nan | −0.058 | 0.043 |
@@ -156,7 +163,7 @@ a computation error, consistent with U-02/U-03/S-01's own Tower 2 documentation)
 | 2021 | SARIMAX | nan | nan | nan | nan | nan | 61.75 | 42.02 | 1.069 | 0.949 | 0.386 | 74.21 | 49.08 | 0.923 | 1.111 | 0.317 | nan | −0.036 | −0.742 |
 | 2021 | Ensemble_unweighted | nan | nan | nan | nan | nan | 60.45 | 42.98 | 1.122 | 0.998 | 0.424 | 63.64 | 39.23 | 0.689 | 0.714 | 0.324 | nan | −0.034 | 0.075 |
 | 2021 | Ensemble_MASEweighted | nan | nan | nan | nan | nan | 60.43 | 43.00 | 1.122 | 0.999 | 0.424 | 63.58 | 39.22 | 0.689 | 0.715 | 0.324 | nan | −0.034 | 0.077 |
-| 2021 | TFT | nan | nan | nan | nan | nan | 77.57 | 49.54 | 1.512 | 1.329 | 0.308 | 75.73 | 52.45 | 0.967 | 1.127 | 0.298 | nan | −1.967 | −0.747 |
+| 2021 | TFT | nan | nan | nan | nan | nan | 63.39 | 39.42 | 1.097 | 0.974 | 0.468 | 75.70 | 47.02 | 0.799 | 0.819 | 0.298 | nan | −0.343 | −0.203 |
 | 2021 | TabPFN | nan | nan | nan | nan | nan | 63.49 | 36.78 | 0.891 | 0.791 | 0.425 | 73.29 | 45.48 | 0.776 | 0.765 | 0.440 | nan | 0.058 | −0.133 |
 | 2022 | RF | nan | nan | nan | nan | nan | 39.06 | 28.94 | 1.090 | 1.159 | 0.512 | 39.86 | 30.44 | 1.160 | 1.189 | 0.362 | nan | 0.105 | −0.331 |
 | 2022 | XGB | nan | nan | nan | nan | nan | 38.53 | 27.87 | 1.038 | 1.102 | 0.491 | 37.79 | 28.69 | 1.099 | 1.126 | 0.388 | nan | 0.142 | −0.197 |
@@ -164,7 +171,7 @@ a computation error, consistent with U-02/U-03/S-01's own Tower 2 documentation)
 | 2022 | SARIMAX | nan | nan | nan | nan | nan | 40.09 | 29.75 | 1.112 | 1.181 | 0.504 | 38.18 | 27.67 | 1.044 | 1.069 | 0.307 | nan | 0.063 | −0.143 |
 | 2022 | Ensemble_unweighted | nan | nan | nan | nan | nan | 39.15 | 28.95 | 1.077 | 1.144 | 0.506 | 38.30 | 28.60 | 1.066 | 1.091 | 0.355 | nan | 0.116 | −0.144 |
 | 2022 | Ensemble_MASEweighted | nan | nan | nan | nan | nan | 39.15 | 28.95 | 1.077 | 1.144 | 0.506 | 38.33 | 28.64 | 1.068 | 1.093 | 0.355 | nan | 0.116 | −0.148 |
-| 2022 | TFT | nan | nan | nan | nan | nan | 40.44 | 29.35 | 1.112 | 1.182 | 0.542 | 52.84 | 40.46 | 1.524 | 1.561 | 0.344 | nan | −0.011 | −1.315 |
+| 2022 | TFT | nan | nan | nan | nan | nan | 39.56 | 28.06 | 1.074 | 1.142 | 0.472 | 44.46 | 33.44 | 1.185 | 1.212 | 0.345 | nan | 0.030 | −0.411 |
 | 2022 | TabPFN | nan | nan | nan | nan | nan | 37.60 | 23.16 | 0.880 | 0.936 | 0.549 | 36.39 | 25.79 | 0.932 | 0.953 | 0.412 | nan | 0.171 | 0.046 |
 
 Tower 2 shows real (non-NaN) evaluation only in the 2018 anchor — every other anchor's Tower 2 rows
@@ -181,7 +188,7 @@ evidence the reconstruction is faithful, not just plausible-looking.
 
 **2. A genuinely new finding, invisible with the old metric set: TabPFN's headline strength (best
 MASE in the whole B-09→B-15 sequence) does not extend to RMSE.** TabPFN has the best MASE (0.862)
-and best MAE (30.46) of any model, but its RMSE (54.19) is second-worst, close to TFT's (54.60) and
+and best MAE (30.46) of any model, but its RMSE (54.19) is second-worst, close to TFT's (54.48) and
 clearly worse than every tree model (~51–52). MASE/MAE are linear (each error counted once); RMSE
 squares errors, so it's dominated by TabPFN's worst individual misses in a way MASE never revealed.
 **TabPFN's real strength is consistency relative to a naive baseline, not small worst-case errors**
@@ -194,21 +201,26 @@ consistent-with-everything-else-this-project-has-found context for the whole rec
 sequence: no model, including the standing recommendation, is capturing the real signal strongly by
 this measure either.
 
-**4. RMSE and MASE mostly agree on ranking here** (Ensemble best on both, SARIMAX/TFT worst on
-both) — the divergence is specifically TabPFN's case (finding 2), not a general pattern. Worth
-knowing RMSE doesn't change the standing recommendation (Ensemble_unweighted remains best on R²
-*and* now RMSE), it specifically nuances the TabPFN "genuine alternative" framing from D-57.
+**4. RMSE and MASE mostly agree on ranking here** (Ensemble best on both). On RMSE, TFT is worst
+(54.48); on MASE, SARIMAX is now worst (1.038) with TFT (1.014) sitting ahead of RF (1.024) — a
+split that only emerged after TFT's 2026-07-09 staleness reconciliation (its earlier, more negative
+draw had been worst on both metrics). Worth knowing RMSE doesn't change the standing recommendation
+(Ensemble_unweighted remains best on R² *and* now RMSE), it specifically nuances the TabPFN "genuine
+alternative" framing from D-57.
 
 ## Explicit caveat: what the TFT row does and does not mean
 
-TFT's row in the table above is a **real, honestly-computed result from this specific rerun** —
-not fabricated — but it should **not** be read as superseding or contradicting the originally
-published −0.237 mean R² (D-57). Both numbers are correct; TFT's initial weights are never seeded,
-so two honest runs of the identical recipe land on genuinely different results. This rerun's
-draw happened to be worse, driven substantially by one extreme small-sample-bin outlier. **The
-correct takeaway is the one already established (D-62 addendum): TFT's point estimate carries real
-run-to-run uncertainty that the other 7 models don't, and any single TFT number — including both
-the original and this one — should be read with that in mind.**
+TFT's row in the tables above reflects **one specific, honestly-computed draw** (reconciled
+2026-07-09 after several intervening reruns of `b10_b13_rerun_multi_anchor.py` for unrelated
+purposes had silently redrawn it further — see the "Updated 2026-07-09" footnotes on the headline
+tables) — not fabricated, but it should **not** be read as superseding or contradicting the
+originally published −0.237 mean R² (D-57, Tower-4-only, single-anchor scope). TFT's initial weights
+are never seeded, so two honest runs of the identical recipe land on genuinely different results;
+this all-tower draw (−0.363) is worse than D-57's original but now sits much closer to SARIMAX
+(−0.360, the next-worst model) than the −0.565 draw an earlier rerun this session had produced.
+**The correct takeaway is the one already established (D-62 addendum): TFT's point estimate carries
+real run-to-run uncertainty that the other 7 models don't, and any single TFT number — including
+this one — should be read with that in mind, not as a fixed, reproducible ranking position.**
 
 ## Secondary metric: scored against gap-filled target (exploratory)
 
@@ -250,13 +262,15 @@ should be trusted least even though they are no longer literally `NaN`.
 | SARIMAX | 29.21 | 53.79 | 0.943 | 0.976 | 0.463 | 0.343 | −1.004 | −0.360 |
 | **Ensemble_unweighted** | **25.39** | 51.57 | **0.751** | 0.918 | 0.523 | 0.375 | **−0.189** | **−0.165** |
 | Ensemble_MASEweighted | 25.38 | 51.57 | 0.750 | 0.918 | 0.522 | 0.375 | −0.195 | −0.165 |
-| TFT | 37.53 | 59.23 | 1.195 | 1.047 | 0.248 | 0.260 | −2.850 | −0.565 |
+| TFT | 37.34 | 56.59 | 1.188 | 0.972 | 0.249 | 0.292 | −2.817 | −0.363 |
 | TabPFN | 35.19 | 56.12 | 0.949 | 0.855 | 0.212 | 0.358 | −0.689 | −0.122 |
 | DLinear | 390.93†† | 70.89 | 12.70†† | 1.637 | 0.153 | 0.241 | −6576.70†† | −5.057 |
 | LSTM | 41.84 | 63.22 | 1.331 | 1.151 | 0.168 | 0.212 | −3.769 | −1.357 |
+| TabICLv2 | 36.56 | 57.98 | 1.010 | 0.928 | 0.191 | 0.255 | −0.886 | −0.329 |
 
 Source: `results/b10_b13_rerun_table_vs_gapfilled_all_towers.csv` +
-`results/b10_b13_dl_extension_table_all_towers_vs_gapfilled.csv` (gapfilled) vs.
+`results/b10_b13_dl_extension_table_all_towers_vs_gapfilled.csv` +
+`results/b10_b13_tabicl_extension_table_all_towers_vs_gapfilled.csv` (gapfilled) vs.
 `results/b10_b13_rerun_table_all_towers.csv` + the DLinear/LSTM section below (observed).
 
 ††**DLinear's gap-filled-target R²/RMSE/MASE are dominated by a single catastrophic outlier, not a
@@ -289,11 +303,10 @@ headline table, then averaged with 4 normal anchors — concentrating the outlie
 per-anchor value before diluting it 5-fold. Here, each tower's own 2018 value is averaged with its
 own other 4 anchors independently, which is why DLinear's worst per-tower gapfilled R² (Tower 4,
 −10.33) looks nowhere near as extreme as the pooled −6576.7 above — same underlying data, different
-(and here, less outlier-dominated) aggregation path. Also note: **TFT's numbers here reflect yet
-another independent random draw** (this project's already-documented non-determinism, D-62) — very
-close to, but not bit-identical with, the −2.850/−0.565 cited in the all-tower table above (current
-draw: −2.82 gapfilled all-tower-pooled if recomputed today) — every other model's numbers are
-deterministic and unaffected.
+(and here, less outlier-dominated) aggregation path. Also note: **TFT's per-tower numbers below were
+built more recently than the all-tower headline above** and are already internally consistent with
+it (both reflect the same reconciled draw, updated 2026-07-09, D-65 staleness-fix addendum) — every
+other model's numbers are deterministic and unaffected regardless.
 
 **Tower 2:**
 
@@ -391,7 +404,7 @@ model nested beneath); flattened to `T{tower}_{metric}` for markdown, true neste
 | 2018 | LightGBM | 10.76 | 7.57 | 0.178 | 0.800 | 0.368 | 29.12 | 20.29 | 0.801 | 0.698 | 0.483 | 28.01 | 19.50 | 0.826 | 0.512 | 0.567 | −0.277 | 0.038 | 0.232 |
 | 2018 | RF | 10.17 | 7.49 | 0.176 | 0.771 | 0.392 | 30.21 | 22.21 | 0.884 | 0.783 | 0.478 | 25.87 | 17.62 | 0.813 | 0.497 | 0.641 | −0.069 | −0.073 | 0.305 |
 | 2018 | SARIMAX | 20.33 | 17.66 | 0.390 | 2.133 | 0.087 | 31.63 | 25.89 | 1.036 | 0.919 | 0.503 | 44.60 | 40.35 | 2.414 | 1.389 | 0.557 | −5.706 | −0.254 | −3.310 |
-| 2018 | TFT | 20.97 | 16.24 | 0.360 | 2.127 | 0.081 | 45.33 | 33.80 | 1.261 | 1.110 | 0.201 | 54.00 | 39.32 | 1.900 | 1.110 | 0.055 | −8.956 | −1.461 | −4.246 |
+| 2018 | TFT | 28.45 | 20.40 | 0.470 | 2.333 | −0.235 | 39.58 | 28.46 | 1.162 | 0.994 | 0.133 | 58.53 | 42.21 | 2.038 | 1.199 | −0.111 | −12.032 | −1.056 | −5.296 |
 | 2018 | TabPFN | 13.93 | 9.65 | 0.236 | 0.858 | −0.228 | 37.36 | 26.11 | 1.002 | 0.847 | 0.303 | 56.84 | 43.92 | 1.578 | 1.000 | nan | −0.521 | −0.468 | −1.627 |
 | 2018 | XGB | 11.11 | 7.86 | 0.183 | 0.846 | 0.313 | 29.38 | 20.62 | 0.796 | 0.685 | 0.459 | 25.91 | 17.35 | 0.818 | 0.495 | 0.579 | −0.392 | 0.072 | 0.253 |
 | 2019 | Ensemble_MASEweighted | 20.13 | 14.13 | 0.874 | 0.657 | 0.432 | 26.46 | 17.31 | 0.599 | 0.598 | 0.539 | 34.64 | 22.22 | 0.612 | 0.493 | 0.733 | −0.012 | −0.393 | 0.417 |
@@ -399,7 +412,7 @@ model nested beneath); flattened to `T{tower}_{metric}` for markdown, true neste
 | 2019 | LightGBM | 19.90 | 13.84 | 0.850 | 0.638 | 0.411 | 26.73 | 17.06 | 0.621 | 0.620 | 0.538 | 36.75 | 24.51 | 0.707 | 0.558 | 0.704 | 0.053 | −0.824 | 0.216 |
 | 2019 | RF | 19.69 | 13.94 | 0.872 | 0.651 | 0.454 | 27.28 | 18.32 | 0.694 | 0.692 | 0.527 | 35.63 | 23.51 | 0.640 | 0.518 | 0.722 | 0.010 | −1.354 | 0.405 |
 | 2019 | SARIMAX | 22.18 | 16.29 | 1.049 | 0.795 | 0.312 | 31.28 | 24.31 | 0.738 | 0.739 | 0.560 | 38.17 | 24.50 | 0.667 | 0.544 | 0.731 | −0.594 | −0.070 | 0.335 |
-| 2019 | TFT | 32.42 | 23.53 | 1.431 | 1.063 | −0.102 | 38.89 | 28.17 | 1.010 | 1.008 | 0.323 | 61.94 | 44.23 | 1.244 | 1.002 | 0.125 | −1.534 | −3.060 | −0.906 |
+| 2019 | TFT | 32.29 | 25.04 | 1.602 | 1.212 | 0.042 | 33.68 | 23.60 | 0.872 | 0.870 | 0.341 | 52.91 | 36.56 | 0.997 | 0.809 | 0.334 | −2.385 | −3.546 | −0.288 |
 | 2019 | TabPFN | 28.66 | 20.05 | 1.236 | 0.907 | −0.189 | 40.05 | 28.45 | 0.808 | 0.808 | 0.522 | 66.09 | 45.12 | 1.237 | 1.000 | nan | −1.030 | −0.659 | −1.001 |
 | 2019 | XGB | 20.64 | 14.29 | 0.875 | 0.659 | 0.337 | 27.11 | 17.62 | 0.648 | 0.647 | 0.517 | 35.24 | 23.32 | 0.652 | 0.523 | 0.708 | −0.014 | −1.045 | 0.354 |
 | 2020 | Ensemble_MASEweighted | 14.94 | 10.72 | 0.806 | 0.628 | 0.420 | 38.91 | 22.37 | 0.869 | 0.623 | 0.502 | 36.36 | 23.77 | 0.728 | 0.594 | 0.644 | 0.147 | 0.243 | 0.339 |
@@ -407,7 +420,7 @@ model nested beneath); flattened to `T{tower}_{metric}` for markdown, true neste
 | 2020 | LightGBM | 15.06 | 10.48 | 0.789 | 0.612 | 0.407 | 40.06 | 23.73 | 0.953 | 0.678 | 0.449 | 36.30 | 24.54 | 0.751 | 0.612 | 0.643 | 0.125 | 0.173 | 0.343 |
 | 2020 | RF | 15.53 | 11.20 | 0.841 | 0.658 | 0.427 | 37.92 | 22.46 | 0.908 | 0.647 | 0.517 | 37.82 | 25.38 | 0.773 | 0.630 | 0.619 | 0.095 | 0.237 | 0.283 |
 | 2020 | SARIMAX | 16.36 | 13.01 | 0.982 | 0.763 | 0.438 | 39.66 | 23.12 | 0.856 | 0.623 | 0.505 | 37.32 | 24.07 | 0.752 | 0.615 | 0.604 | −0.021 | 0.248 | 0.273 |
-| 2020 | TFT | 23.22 | 16.45 | 1.281 | 0.906 | 0.137 | 43.22 | 25.92 | 1.054 | 0.743 | 0.412 | 47.25 | 30.47 | 1.002 | 0.805 | 0.256 | −1.203 | −0.026 | −0.336 |
+| 2020 | TFT | 24.53 | 18.59 | 1.451 | 1.062 | 0.298 | 43.97 | 27.54 | 1.173 | 0.808 | 0.400 | 48.55 | 31.31 | 1.030 | 0.828 | 0.301 | −1.355 | −0.192 | −0.423 |
 | 2020 | TabPFN | 22.72 | 15.25 | 1.186 | 0.855 | −0.109 | 44.11 | 22.95 | 0.910 | 0.641 | 0.460 | 47.73 | 30.62 | 0.917 | 0.742 | 0.334 | −0.985 | −0.007 | −0.134 |
 | 2020 | XGB | 15.13 | 10.25 | 0.770 | 0.601 | 0.367 | 40.25 | 23.49 | 0.936 | 0.666 | 0.436 | 36.43 | 24.11 | 0.743 | 0.605 | 0.630 | 0.119 | 0.172 | 0.327 |
 | 2021 | Ensemble_MASEweighted | 13.01 | 9.82 | 0.873 | 0.598 | 0.219 | 42.05 | 31.30 | 0.952 | 0.731 | 0.542 | 26.62 | 17.70 | 0.553 | 0.487 | 0.545 | −0.173 | 0.135 | 0.173 |
@@ -415,7 +428,7 @@ model nested beneath); flattened to `T{tower}_{metric}` for markdown, true neste
 | 2021 | LightGBM | 13.93 | 10.55 | 0.926 | 0.631 | 0.238 | 42.09 | 31.51 | 0.963 | 0.742 | 0.534 | 27.72 | 18.92 | 0.615 | 0.574 | 0.471 | −0.388 | 0.094 | −0.122 |
 | 2021 | RF | 12.98 | 10.68 | 0.971 | 0.659 | 0.360 | 43.89 | 32.70 | 1.070 | 0.802 | 0.523 | 27.43 | 18.77 | 0.609 | 0.592 | 0.551 | −0.156 | −0.088 | −0.168 |
 | 2021 | SARIMAX | 15.46 | 11.58 | 1.069 | 0.724 | 0.061 | 43.23 | 30.36 | 0.867 | 0.678 | 0.521 | 36.00 | 27.67 | 0.947 | 0.920 | 0.586 | −0.783 | 0.172 | −1.337 |
-| 2021 | TFT | 23.37 | 17.11 | 1.551 | 0.964 | 0.227 | 48.77 | 32.47 | 1.123 | 0.797 | 0.410 | 43.09 | 31.33 | 1.235 | 1.178 | 0.431 | −2.626 | −0.967 | −4.599 |
+| 2021 | TFT | 30.73 | 22.96 | 2.109 | 1.334 | 0.063 | 46.68 | 30.36 | 1.065 | 0.775 | 0.536 | 47.15 | 32.65 | 1.116 | 1.009 | 0.309 | −5.664 | −0.521 | −2.277 |
 | 2021 | TabPFN | 21.59 | 17.21 | 1.415 | 0.887 | −0.119 | 47.15 | 28.09 | 0.791 | 0.612 | 0.515 | 34.92 | 24.86 | 0.769 | 0.636 | 0.510 | −1.733 | 0.091 | −0.275 |
 | 2021 | XGB | 13.01 | 9.70 | 0.839 | 0.574 | 0.215 | 42.72 | 32.17 | 0.991 | 0.756 | 0.528 | 27.70 | 19.09 | 0.611 | 0.557 | 0.492 | −0.111 | 0.046 | −0.041 |
 | 2022 | Ensemble_MASEweighted | 12.89 | 8.91 | 0.462 | 0.561 | 0.712 | 22.72 | 16.99 | 0.871 | 1.223 | 0.576 | 23.43 | 17.99 | 0.911 | 0.951 | 0.451 | −0.076 | −2.428 | −0.561 |
@@ -423,7 +436,7 @@ model nested beneath); flattened to `T{tower}_{metric}` for markdown, true neste
 | 2022 | LightGBM | 13.56 | 9.96 | 0.524 | 0.636 | 0.674 | 24.57 | 18.64 | 0.984 | 1.435 | 0.527 | 27.04 | 21.93 | 1.119 | 1.167 | 0.434 | −0.250 | −5.336 | −1.271 |
 | 2022 | RF | 14.16 | 11.01 | 0.588 | 0.720 | 0.664 | 23.75 | 18.09 | 1.026 | 1.526 | 0.595 | 25.45 | 20.37 | 1.130 | 1.195 | 0.470 | −0.420 | −6.169 | −1.724 |
 | 2022 | SARIMAX | 14.11 | 10.38 | 0.507 | 0.624 | 0.566 | 23.88 | 17.94 | 0.953 | 1.332 | 0.530 | 23.99 | 17.84 | 0.923 | 0.995 | 0.382 | −0.054 | −3.047 | −0.919 |
-| 2022 | TFT | 17.42 | 12.77 | 0.690 | 0.832 | 0.252 | 23.12 | 17.13 | 1.032 | 1.501 | 0.597 | 39.90 | 30.74 | 1.748 | 1.805 | 0.320 | −1.253 | −5.106 | −6.470 |
+| 2022 | TFT | 20.39 | 15.34 | 0.771 | 0.938 | 0.305 | 25.00 | 17.92 | 0.987 | 1.404 | 0.579 | 27.64 | 21.29 | 0.972 | 0.998 | 0.439 | −1.869 | −4.547 | −0.810 |
 | 2022 | TabPFN | 20.86 | 14.86 | 0.715 | 0.893 | −0.108 | 23.50 | 14.75 | 0.697 | 0.935 | 0.689 | 22.40 | 15.95 | 0.734 | 0.759 | 0.401 | −1.303 | −0.627 | −0.049 |
 | 2022 | XGB | 13.95 | 9.94 | 0.521 | 0.629 | 0.626 | 22.91 | 16.85 | 0.940 | 1.385 | 0.559 | 24.28 | 18.93 | 1.087 | 1.142 | 0.471 | −0.366 | −5.248 | −1.653 |
 
@@ -493,13 +506,12 @@ holds at Tower 2/9 too, not just Tower 4.
 
 **Note on the merged-table question.** These two models are deliberately reported in their own
 standalone tables above, not merged into the primary 8-model "All-tower summary"/"Tower-4-only
-table" sections — merging would require re-deriving TFT's numbers from the currently-saved
-`results/b10_b13_rerun_summary.csv`, whose TFT row has (independently, while this DLinear/LSTM work
-was underway) drifted to a **third** random draw since the primary tables above were built
-(Tower-4-only TFT R² is currently −0.232 in that file vs. −0.568 cited above) — yet another
-manifestation of TFT's already-documented non-determinism, but here surfacing as a staleness
-mismatch between sibling artifacts rather than a single-run caveat. Flagged plainly rather than
-silently picking whichever TFT draw is convenient; not resolved in this pass.
+table" sections — this originally reflected a real staleness mismatch (TFT's row had drifted to a
+third random draw independently of these tables being built). **Resolved 2026-07-09**: the primary
+tables' TFT row was reconciled against the currently-live `results/b10_b13_rerun_summary.csv` draw
+(all-tower R²=−0.363, Tower-4-only R²=−0.228) — see the "Updated 2026-07-09" footnotes above. The
+tables remain separate regardless (DLinear/LSTM were added as a standalone model-roster extension,
+not merged into the original 8-model sweep), but the staleness gap itself no longer exists.
 
 ### Tower × year × model breakdown (DLinear + LSTM)
 
@@ -520,6 +532,97 @@ Tower 2 is only reachable in the 2018 anchor (same data-scarcity pattern as ever
 this document). The 2018/Tower-4/DLinear cell (R²=−25.93) is the one confirmed non-deterministic
 outlier discussed above — read as "this specific run's draw for a known-fragile anchor/model
 combination," not a re-validated number.
+
+## Model-roster extension: TabICLv2 (D-66)
+
+**TabICLv2** (`tabicl` package, `TabICLForecaster`) is a tabular foundation model released Feb 2026
+(ICML 2026) — the first version of TabICL with regression support. Its own documentation describes
+it as "heavily inspired by TabPFN-TS," and this integration mirrors `rr.tabpfn_forecast()`'s exact
+block structure: **per-tower, per-anchor, never pooled** (the `predict_df` API has no
+static-covariate/pooling support, same limitation as TabPFN), `hist_target = y_observed` (real data
+only, deliberately not `y_gapfilled`, same rationale as TabPFN), covariates = the full `FX_B`
+daily `fx_`-prefixed column set (not the narrower 8-column `EXOG_B` SARIMAX uses).
+
+**API contract verified empirically before writing any real integration** (not assumed from
+documentation, which was incomplete on this point): `TabICLForecaster.predict_df(context_df,
+future_df=...)` takes covariates as plain extra columns on both dataframes — identical convention to
+`tabpfn_forecast()`'s own `context_df`/`future_df` construction — but returns a DataFrame with a
+`(item_id, timestamp)` MultiIndex (string timestamps) and **always** includes the default quantile
+grid `[0.1..0.9]` alongside `target`, regardless of the `quantiles=` argument (unlike
+`tabpfn_forecast`, which only computes quantiles when explicitly asked). **Local-only inference
+confirmed**: downloads a checkpoint from Hugging Face Hub once (cached thereafter — first call ~33s
+including download+GPU warmup, ~24s on a cached call at realistic 700-day-history/34-covariate/
+365-day-horizon scale), no token/API key required (unlike TabPFN's `TABPFN_TOKEN`). Full
+3-tower × 5-anchor sweep completed in **under 30 seconds total** — dramatically cheaper than every
+other model in this sequence.
+
+**A genuine, already-precedented limitation surfaced immediately**: Tower 9's 2018 and 2019 anchors
+have **zero real `y_observed` values in their entire pre-anchor history** (confirmed: 715/1080
+pre-anchor rows, 0 non-null `y_observed`). Since `hist_target` deliberately never falls back to
+`y_gapfilled`, the model has nothing real to condition on and produces a degenerate near-flat
+forecast (~0.0 for the whole 365-day window). **This is not a new bug** — TabPFN, which uses the
+identical `hist_target = y_observed` convention, shows the exact same flat-zero pattern for these
+same two (tower, anchor) combinations (confirmed by direct comparison against
+`results/b10_b13_rerun_chains.csv`). A shared, already-accepted limitation of this whole
+"real-data-only, no gap-filled fallback" design at Tower 9's data-scarce early anchors.
+
+**A second, genuine implementation bug was found and fixed 2026-07-10, after the user pushed back on
+how much worse TabICLv2 looked than TabPFN despite the two being architecturally close** ("heavily
+inspired by TabPFN-TS," per TabICLv2's own docs). `tabicl_forecast()` originally extracted its point
+forecast from `TabICLForecaster`'s `target` column — the library's default `point_estimate='mean'`.
+CH4 flux is heavily right-skewed/spike-dominated (this project's own recurring "MASE<1 alongside
+near-zero/negative R² = spike-tail signature" finding, D-44b), so a **mean**-based point estimate
+gets dragged far above the typical value by the model's own upper-tail belief. Direct comparison on a
+4-anchor/tower spot check (same context/covariates, only the extracted column differed) confirmed the
+`target` column was 2-10x higher than the true evaluation-window mean (e.g. Tower 2/anchor 2018:
+`target` mean=30.7 vs. true mean=2.98, vs. the model's own **median** (`0.5`) quantile column=6.3 —
+much closer). Separately confirmed covariates were genuinely being used (perturbing `future_df`'s
+`fx_` columns 3x measurably shifted the forecast) — this was a point-estimate-choice bug, not a
+covariate-plumbing bug. Fixed by switching `tabicl_forecast()`'s point-only branch to return the
+`0.5` quantile column instead of `target` (`src/models/recursive_rollout.py`, the only change) and
+rerunning the full 3-tower × 5-anchor sweep. **All numbers below are post-fix.**
+
+**All-tower pooled:**
+
+| Model | RMSE (gapfilled) | RMSE (observed) | MASE (gapfilled) | MASE (observed) | Correlation (gapfilled) | Correlation (observed) | R² (gapfilled) | R² (observed) |
+|---|---|---|---|---|---|---|---|---|
+| TabICLv2 | 36.56 | 57.98 | 1.010 | 0.928 | 0.191 | 0.255 | −0.886 | −0.329 |
+
+**Per-tower:**
+
+| Tower | RMSE (gapfilled) | RMSE (observed) | MASE (gapfilled) | MASE (observed) | Correlation (gapfilled) | Correlation (observed) | R² (gapfilled) | R² (observed) |
+|---|---|---|---|---|---|---|---|---|
+| T2 | 21.77 | 18.44 | 0.984 | 0.240 | −0.010 | 0.181 | −1.227 | −0.219 |
+| T4 | 40.75 | 56.69 | 0.953 | 0.961 | 0.402 | 0.294 | −0.694 | −0.290 |
+| T9 | 47.17 | 67.05 | 1.093 | 0.952 | 0.182 | 0.241 | −0.737 | −0.312 |
+
+**Tower × year (observed target):**
+
+| Year | Model | T2_RMSE | T2_MAE | T2_MASE | T2_WAPE | T2_Correlation | T4_RMSE | T4_MAE | T4_MASE | T4_WAPE | T4_Correlation | T9_RMSE | T9_MAE | T9_MASE | T9_WAPE | T9_Correlation | T2_R2 | T4_R2 | T9_R2 |
+|---:|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| 2018 | TabICLv2 | 18.44 | 13.01 | 0.240 | 0.957 | 0.181 | 55.09 | 34.46 | 1.129 | 1.391 | −0.021 | nan | nan | nan | nan | nan | −0.219 | −1.088 | nan |
+| 2019 | TabICLv2 | nan | nan | nan | nan | nan | 58.01 | 34.18 | 0.845 | 0.846 | 0.425 | 91.60 | 56.28 | 1.087 | 1.000 | 0.156 | nan | −0.158 | −0.460 |
+| 2020 | TabICLv2 | nan | nan | nan | nan | nan | 67.35 | 33.13 | 0.937 | 0.829 | 0.259 | 63.70 | 35.62 | 0.914 | 1.004 | 0.082 | nan | −0.055 | −0.508 |
+| 2021 | TabICLv2 | nan | nan | nan | nan | nan | 64.43 | 39.17 | 0.972 | 0.842 | 0.425 | 76.10 | 48.22 | 0.809 | 0.800 | 0.419 | nan | −0.251 | −0.217 |
+| 2022 | TabICLv2 | nan | nan | nan | nan | nan | 38.55 | 24.00 | 0.922 | 0.981 | 0.384 | 36.78 | 25.97 | 0.996 | 1.021 | 0.307 | nan | 0.102 | −0.063 |
+
+Tower 9's 2019 row is unchanged by the fix (still the degenerate near-zero forecast — see the
+limitation above: zero real `y_observed` context means both the mean and median quantile collapse
+near 0 regardless of which is used, so this specific row was never affected by the point-estimate
+bug). Every other row moved substantially.
+
+**Verdict (revised)**: the mean/median point-estimate bug explains nearly the entire gap to TabPFN
+that originally looked like a real model-capability difference. Post-fix, TabICLv2's all-tower
+observed R² (−0.329) is now **better than SARIMAX (−0.360) and TFT (−0.363)**, and its MASE (0.928)
+is 4th-best of all 10 models in the sequence — beating LightGBM, RF, TFT, and SARIMAX, and comfortably
+below 1.0 (beats naive persistence), which the pre-fix number never did. It remains behind TabPFN
+(R²=−0.122, MASE=0.855) and behind the standing recommendation (Ensemble_unweighted, R²=−0.165,
+MASE=0.918), so **the standing recommendation is unchanged** — but TabICLv2 is now a genuinely
+competitive mid-pack model, not a near-bottom one. **Given its dramatically lower compute cost** (a
+full 15-combo sweep in ~10 seconds, vs. minutes-to-tens-of-minutes for every other model in this
+sequence) this makes it the best accuracy-per-compute-second result in the whole sequence, not merely
+an "informative negative result" as the pre-fix write-up concluded. Reported plainly, including the
+mistake and its correction, matching this project's established honest-reporting convention.
 
 ## Files
 
@@ -562,6 +665,28 @@ were generated by an ad-hoc, uncommitted script that never saved its underlying 
   anchor did not, as expected from its documented non-determinism).
 - `results/b10_b13_rerun_table_per_tower_gf_vs_observed.csv` (per-tower breakdown, all 10 models,
   gap-filled vs. observed side by side — used in the "Per-tower breakdown" section above)
+
+**TabICLv2 (D-66)**:
+- `notebooks/05_benchmarking/b10_b13_tabicl_extension.py` (new, committed — TabICLv2 model-roster
+  addition, mirrors the TabPFN block + `b10_b13_dl_extension.py`'s sibling-script pattern)
+- `src/models/recursive_rollout.py` (+`tabicl_forecast()`, additive only)
+- `results/b10_b13_tabicl_extension_summary.csv` (90 rows: 1 model × 3 towers × 5 anchors × 6 bins),
+  `..._summary_vs_gapfilled.csv` (90 rows, +`real_frac`), `..._chains.csv` (5,475 rows)
+- `results/b10_b13_tabicl_extension_table_all_towers.csv`, `_table_per_tower.csv`,
+  `_table_by_tower_year.csv` (observed target), plus `_vs_gapfilled` siblings of the first two
+  (gap-filled target) — TabICLv2's own standalone aggregated tables
+
+**Figures (same-day follow-up, now a standing convention — see `CLAUDE.md`)**:
+`results/b10_b13_full_chains.csv` updated to include TabICLv2 (now 11 models, zero missing
+predictions). New **committed** `notebooks/05_benchmarking/b10_b13_chain_plots.py` — a permanent
+replacement for the ad-hoc, uncommitted plotting scripts every prior `results/figures/b10_chains/`
+figure came from (confirmed lost via repo-wide search). Regenerated **all 165** figures (11 models ×
+3 towers × 5 anchors) from `b10_b13_full_chains.csv` — closes the two genuine coverage gaps found in
+the process: **TFT previously had only 1 of 15 figures**, and **TabICLv2 had none**. (TabPFN, despite
+earlier being assumed missing, was already at full 15/15 coverage — corrected in the discussion
+before acting on the wrong assumption.) Spot-checked: regenerated deterministic-model figures (RF)
+show identical underlying data to the archived originals (same trajectory/spike pattern; pixel
+dimensions differ slightly since the original lost script's exact `figsize` was never recorded).
 
 No `benchmarks.csv` rows (a metrics backfill + verification exercise on already-logged results,
 same precedent as D-44b's own backfill).

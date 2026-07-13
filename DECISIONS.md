@@ -656,6 +656,171 @@ determinism. New files: `results/b10_b13_dl_extension_summary_vs_gapfilled.csv`,
 
 ---
 
+### D-66 — 2026-07-09 — TabICLv2 added to the B-10/B-13 recursive-rollout sequence
+**Decision:** Added **TabICLv2** (`tabicl` package, `TabICLForecaster` class) — a tabular foundation
+model released Feb 2026 (ICML 2026), the first version of TabICL with regression support (v1 was
+classification-only). Its own documentation describes it as "heavily inspired by TabPFN-TS," so the
+integration mirrors `rr.tabpfn_forecast()`'s exact block structure: **per-tower, per-anchor, never
+pooled** (the `predict_df` API has no static-covariate/pooling support, same limitation as TabPFN),
+`hist_target = y_observed` (real data only, never `y_gapfilled`, same rationale as TabPFN),
+covariates = the full `FX_B` daily `fx_`-prefixed column set (not the narrower 8-column `EXOG_B`
+SARIMAX uses). New `rr.tabicl_forecast()` (`src/models/recursive_rollout.py`, additive only) and a
+new standalone sibling script `notebooks/05_benchmarking/b10_b13_tabicl_extension.py` (mirrors
+`b10_b13_dl_extension.py`'s minimal-file-output pattern) — no edits to `b10_b13_rerun_multi_anchor.py`,
+`b10_b13_dl_extension.py`, or any historical B-13 notebook. Assigned a new decision number (not a
+further D-65 addendum) because this introduces a genuinely new model to the project, unlike
+DLinear/LSTM which closed an existing gap for models already in scope — matches the precedent that
+TFT/TabPFN's own original addition got its own number (D-57).
+
+**API contract verified empirically before writing the real integration** (documentation was
+incomplete on this point): `TabICLForecaster.predict_df(context_df, future_df=...)` takes covariates
+as plain extra columns on both dataframes — identical convention to `tabpfn_forecast()`'s own
+`context_df`/`future_df` construction — but returns a DataFrame with a `(item_id, timestamp)`
+MultiIndex (string timestamps) and **always** includes the default quantile grid `[0.1..0.9]`
+alongside `target`, regardless of the `quantiles=` argument (unlike `tabpfn_forecast`, which only
+computes quantiles when explicitly asked). **Local-only inference confirmed**: downloads a
+Hugging Face Hub checkpoint once (cached thereafter — ~33s first call incl. download+GPU warmup,
+~24s on a cached call at realistic scale), no token/API key required (unlike TabPFN's
+`TABPFN_TOKEN`). Installed via `python -m pip install "tabicl[forecast]"` — caught and fixed a
+`pip`/`python` environment mismatch in this repo along the way (bare `pip` resolved to a different
+Python environment than `python` itself; `python -m pip` is now the safer invocation to use going
+forward for any future dependency installs in this repo).
+
+**Full 3-tower × 5-anchor sweep completed in under 30 seconds total** — dramatically cheaper than
+every other model in this sequence (TabPFN/SARIMAX take tens of seconds to minutes per anchor;
+TabICLv2 took ~1-4s per tower/anchor combination).
+
+**A genuine, already-precedented limitation surfaced immediately, not a new bug**: Tower 9's 2018
+and 2019 anchors have zero real `y_observed` values in their entire pre-anchor history (715/1080
+pre-anchor rows, 0 non-null). Since `hist_target` never falls back to `y_gapfilled`, the model has
+nothing real to condition on and produces a degenerate near-flat forecast (~0.0 for the whole
+365-day window). TabPFN — using the identical `hist_target = y_observed` convention — shows the
+exact same flat-zero pattern for these same two (tower, anchor) combinations, confirmed by direct
+comparison against `results/b10_b13_rerun_chains.csv`. A shared, already-accepted limitation of the
+"real-data-only, no gap-filled fallback" design at Tower 9's data-scarce early anchors, not specific
+to this integration.
+
+**Result — full coverage, both target metrics:** all-tower pooled R²=−1.929 (observed), −4.472
+(gap-filled); RMSE 64.80/40.75; MASE 1.424/1.418; Correlation 0.256/0.205. **TabICLv2 underperforms
+every model in the sequence except DLinear** — its observed R² sits between LSTM (−1.357) and
+DLinear (−5.057), well behind TFT (−0.363, reconciled 2026-07-09 — see addendum below) and well
+behind the standing recommendation (Ensemble_unweighted, −0.165). Given its
+dramatically lower compute cost, this is treated as a genuinely informative negative result, not a
+wasted effort — a zero-shot foundation model this cheap being this uncompetitive is itself worth
+knowing, and is consistent with TabPFN's own more moderate but still sub-ensemble showing
+(all-tower observed R²=−0.122) — one-shot foundation-model forecasters as a class are not yet
+closing the gap to the tuned tree ensemble on this task.
+
+**Scope, explicitly bounded (matches TabPFN's own staged-rollout precedent — its presence in
+I-02/U-02/U-03 was each added later, as separate numbered work, not part of its original B-13
+integration):** point-forecast integration into the B-10/B-13 rerun sequence only. No quantile
+wiring this pass (flagged as a likely-easy follow-on given `TabICLForecaster`'s native quantile
+support — richer out-of-the-box than TabPFN's original integration needed). No retrofit into
+I-02/U-02/U-03. No new HPO — `TabICLForecaster()` used with its own defaults (zero-shot foundation
+model, matching TabPFN's own "zero training/HPO" precedent).
+
+New files: `notebooks/05_benchmarking/b10_b13_tabicl_extension.py`, `src/models/recursive_rollout.py`
+(+`tabicl_forecast()`), `results/b10_b13_tabicl_extension_summary.csv` (90 rows),
+`..._summary_vs_gapfilled.csv` (90 rows), `..._chains.csv` (5,475 rows), plus the derived all-tower/
+per-tower/tower-year table CSVs (both target metrics). New section in `b10_b13_metrics_rerun.md`
+("Model-roster extension: TabICLv2"); TabICLv2 also added as a new row to the existing "Secondary
+metric" section's all-tower gap-filled comparison table. `BEST_RESULTS.md`/`CONTEXT.md` updated with
+a one-line pointer, not promoted into any quick-reference table (does not beat the standing
+recommendation). Cross-ref D-57 (TFT/TabPFN's original addition, the precedent for "new model = new
+decision number"), D-65 (the metric set and secondary-metric convention this reuses), D-53/D-54
+(DLinear's own precedent for a cheap-but-uncompetitive model still being worth reporting honestly).
+
+**Same-day follow-up — figures + consolidated chains now a standing convention.** User-prompted:
+`results/b10_b13_full_chains.csv` updated to include TabICLv2 (11 models, zero missing predictions).
+New **committed** `notebooks/05_benchmarking/b10_b13_chain_plots.py` replaces the ad-hoc,
+uncommitted plotting process every prior `results/figures/b10_chains/` figure came from (confirmed
+lost via repo-wide search — same "ad-hoc, not committed" pattern this project has repeatedly had to
+retroactively fix). Regenerated all 165 figures (11 models × 3 towers × 5 anchors); found and closed
+two real coverage gaps in the process — **TFT had only 1 of 15 figures**, **TabICLv2 had none**
+(TabPFN was initially assumed missing too but was already at full 15/15 coverage — corrected before
+acting on the wrong assumption). Spot-checked regenerated deterministic-model figures (RF) against
+the archived originals — identical underlying trajectory/data, pixel dimensions differ slightly
+since the original lost script's exact `figsize` was never recorded. New standing rule added to
+`CLAUDE.md` ("Forecasting work: always generate figures and keep the consolidated chains CSV
+current") so this doesn't recur for future model additions.
+
+**Second same-day follow-up — TFT staleness reconciled across `b10_b13_metrics_rerun.md`
+(2026-07-09).** User-flagged: "I see its currently a little bit inconsistent." Root cause (already
+partly documented above and in the D-65 second addendum's own note): TFT's row in
+`results/b10_b13_rerun_summary.csv` redraws every time `b10_b13_rerun_multi_anchor.py` runs (its
+initial weights are never seeded, D-62 addendum), and that script was rerun several times this
+session for unrelated purposes (the gap-filled secondary metric, the raw-chains export) — each rerun
+silently moved TFT further from the numbers already published in this document's tables, without any
+of them being reconciled at the time. Fixed by recomputing every TFT-only row directly from the
+currently-live `results/b10_b13_rerun_summary.csv` / `..._vs_gapfilled.csv` (every other model's row
+in these files reconfirmed bit-for-bit unchanged first) and propagating into: the 5 underlying CSVs
+(`b10_b13_rerun_table_all_towers.csv`, `..._table.csv` [Tower-4-only], `..._table_by_tower_year.csv`,
+`..._table_vs_gapfilled_all_towers.csv`, `..._table_vs_gapfilled_by_tower_year.csv` — TFT rows only,
+all other rows left untouched) and every markdown table/prose reference in
+`b10_b13_metrics_rerun.md` (all-tower summary, Tower-4-only table, tower×year breakdown ×5 rows,
+gap-filled all-tower table, gap-filled tower×year breakdown ×5 rows, the "Findings" section's
+RMSE/MASE ranking claims, the "Explicit caveat" section, the DLinear/LSTM merged-table note, and this
+D-66 entry's own stale citation above). **Corrected headline numbers**: all-tower R²=−0.363 (was
+−0.565), Tower-4-only R²=−0.228 (was −0.568) — a real ranking shift, since TFT now sits much closer
+to SARIMAX (−0.360 all-tower) than before, and on Tower-4-only MASE, TFT (1.014) is no longer the
+single worst model — SARIMAX (1.038) is. Also fixed, found during this pass: the TabICLv2 verdict
+paragraph's claim that TabICLv2 (−1.929) "sits between TFT (−0.565) and LSTM (−1.357)" was
+mathematically wrong even under the old TFT number (−1.929 is not between −0.565 and −1.357) —
+corrected to "sits between LSTM (−1.357) and DLinear (−5.057)." `BEST_RESULTS.md`'s two TFT rows
+(Section 3) updated to match. **This does not change the standing recommendation**
+(Ensemble_unweighted remains best on R²/RMSE in every table) — it only corrects TFT's own reported
+position, which was already flagged as carrying real run-to-run uncertainty (D-62 addendum) and
+remains so; a future rerun of `b10_b13_rerun_multi_anchor.py` for any purpose will redraw TFT again
+and reopen this same staleness gap unless the propagation step above is repeated at that time.
+
+**Third same-day follow-up — a real point-estimate bug in `tabicl_forecast()` found and fixed
+(2026-07-10), prompted by the user's own skepticism.** After being told TabICLv2 (all-tower observed
+R²=−1.929) ranked far below TabPFN (R²=−0.122) despite the two being architecturally close
+("heavily inspired by TabPFN-TS," per TabICLv2's own docs), the user pushed back directly:
+"I am skeptical how TabICLv2 is the exact opposite of TabPFN here." Investigation (comparing
+`tabicl_forecast()`'s and `tabpfn_forecast()`'s input construction line-by-line, confirmed
+byte-identical, then inspecting `TabICLForecaster.predict_df()`'s raw output columns directly)
+found the actual bug: `tabicl_forecast()` extracted its point forecast from `TabICLForecaster`'s
+`target` column, which uses the library's default `point_estimate='mean'`. CH4 flux is heavily
+right-skewed and spike-dominated (this project's own recurring "MASE<1 alongside near-zero/negative
+R² = spike-tail signature" finding, D-44b) — a **mean**-based point estimate is dragged far above
+the typical value by the model's own upper-tail belief. Direct evidence, same context/covariates,
+only the extracted column differing: Tower 2/anchor 2018, `target` (mean) column mean=30.7 vs. true
+evaluation-window mean=2.98, vs. the model's own **median** (`0.5`) quantile column mean=6.3 — much
+closer. Separately confirmed covariates were genuinely being used (perturbing `future_df`'s `fx_`
+columns 3x measurably shifted the forecast, from a `target` mean of 30.7 to 186) — ruling out a
+covariate-plumbing bug; this was purely a point-estimate-choice bug. A 4-anchor/tower spot check
+swapping `target`→`0.5` before the full fix confirmed R² improved by ~1-4 points and MASE dropped
+below 1 (beat persistence) in 3/4 cases, vs. never for `target`.
+
+**Fix**: `tabicl_forecast()`'s point-only branch (`quantiles=None`) now returns the `0.5` quantile
+column instead of `target` (`src/models/recursive_rollout.py` — the only code change; TabICLv2's
+own default quantile grid `[0.1..0.9]` is always present regardless of the `quantiles=` argument, so
+`0.5` is always available with no extra request needed). Full 3-tower × 5-anchor sweep rerun
+(~10 seconds total, still dramatically cheaper than every other model).
+
+**Corrected result — reverses the original finding almost entirely**: all-tower observed R²=−0.329
+(was −1.929), MASE=0.928 (was 1.424). TabICLv2 now **beats SARIMAX (−0.360) and TFT (−0.363) on R²**,
+and its MASE is 4th-best of all 10 models in the sequence (beating LightGBM, RF, TFT, SARIMAX),
+comfortably below 1.0 — the pre-fix number never beat persistence at all. It remains behind TabPFN
+(R²=−0.122, MASE=0.855) and the standing recommendation (Ensemble_unweighted, R²=−0.165,
+MASE=0.918), so **the standing recommendation is unchanged** — but TabICLv2 is now a genuinely
+competitive mid-pack model at a fraction of the compute cost of everything ahead of it, not a
+near-bottom one. Tower 9's 2019 anchor is the one row unaffected by the fix (already-documented
+zero-real-context degenerate case, D-66 original entry — both mean and median collapse near 0 when
+there is no real signal to condition on). Updated: `b10_b13_metrics_rerun.md` ("Model-roster
+extension: TabICLv2" section and the "Secondary metric" all-tower table's TabICLv2 row),
+`results/b10_b13_tabicl_extension_summary.csv` + all 6 derived table CSVs (all-tower/per-tower ×
+observed/gap-filled, tower×year), `results/b10_b13_tabicl_extension_chains.csv`. Per the standing "always generate figures and keep
+the consolidated chains CSV current" convention: `results/b10_b13_full_chains.csv`'s `TabICLv2`
+column was refreshed from the corrected chains (sanity check: its overall mean moved from 35.3 to
+10.2, now closely matching TabPFN's own 10.2 — direct evidence the two models' predictions are now
+comparably scaled, not the biased-high mean output from before) and
+`notebooks/05_benchmarking/b10_b13_chain_plots.py` was rerun, regenerating all 165 figures including
+TabICLv2's 15. `BEST_RESULTS.md`/`CONTEXT.md` updated to match.
+
+---
+
 ### D-44b — 2026-06-30 — additional point-forecast metrics: WAPE, MASE, sMAPE, MAPE (backfilled B01–B07)
 **Decision:** Track 4 more point-forecast metrics alongside the existing RMSE/MAE/R²/MBE, centralised in a new
 shared module `src/evaluation/metrics.py` (`rmse/mae/r2/mbe/wape/mase/smape/mape/full_metrics`), imported by

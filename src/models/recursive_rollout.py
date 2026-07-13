@@ -467,3 +467,72 @@ def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local
     for q in quantiles:
         out[q] = preds[q].values if q in preds.columns else np.nan
     return out
+
+
+# ---------------------------------------------------------------- TabICLv2 one-shot forecast (D-66)
+# NOT a rollout in the iterative sense -- same one-shot, non-autoregressive architecture as
+# tabpfn_forecast() above (tabicl's own docs describe TabICLForecaster as "heavily inspired by
+# TabPFN-TS"). Per-tower only -- predict_df has no static-covariate/pooling support, mirroring
+# TabPFN's own scope. Local-only inference by construction -- TabICLForecaster downloads a
+# checkpoint from Hugging Face Hub once (cached thereafter, confirmed empirically: 33s first call
+# incl. ~15s download+GPU warmup, 24s on a fully-cached second call at realistic 700-day-history/
+# 34-covariate/365-day-horizon scale) and runs entirely locally; no token/API key, unlike TabPFN's
+# TABPFN_TOKEN.
+
+def tabicl_forecast(hist_target, hist_covariates, future_covariates, quantiles=None):
+    """hist_target: pandas Series, real y_observed history (gaps allowed as NaN) -- same rationale
+    as tabpfn_forecast(): deliberately NOT y_gapfilled, avoiding the gap-filler-optimism issue
+    flagged for every other model's training target.
+    hist_covariates/future_covariates: DataFrames indexed by date, same columns in both -- real
+    historical / perfect-foresight future fx_ drivers, same convention as tabpfn_forecast().
+    quantiles: optional list of quantile levels (e.g. [0.05, 0.5, 0.95]). Default (None) returns a
+    single Series of the point forecast using TabICLForecaster's **median (0.5 quantile) column**,
+    NOT its 'target' column. When quantiles is given, returns a DataFrame (columns = the requested
+    quantile levels as floats, plus 'median').
+
+    Point-estimate choice fixed 2026-07-10 (was 'target', TabICLForecaster's default
+    point_estimate='mean'): empirically confirmed this was a real, quantified bug, not just "the
+    model is worse." On a 4-anchor/tower spot check, the mean-based 'target' column was 2-10x higher
+    than the true evaluation-window mean (e.g. Tower 2/anchor 2018: target mean=30.7 vs. true
+    mean=2.98, vs. median column=6.3) -- CH4 flux is heavily right-skewed/spike-dominated (this
+    project's own recurring "MASE<1 alongside near-zero/negative R2 = spike-tail signature" finding,
+    D-44b), so a MEAN-based point estimate gets dragged far above the typical value by the model's
+    upper-tail belief, while the median does not. Swapping to the median on the same 4 spot-check
+    combos raised R2 by ~1-4 points and dropped MASE below 1 (beats persistence) in 3/4 cases, vs.
+    never for the mean. Confirmed separately that covariates ARE being used (perturbing future_df's
+    fx_ columns 3x measurably shifted the forecast) -- this was a point-estimate-choice bug, not a
+    covariate-plumbing bug.
+
+    Verified empirically (2026-07, smoke test) rather than assumed from docs alone:
+    TabICLForecaster.predict_df(context_df, future_df=...) expects covariates as plain extra columns
+    on both context_df/future_df (identical convention to tabpfn_forecast()'s context_df/future_df
+    construction below) but returns a DataFrame with a (item_id, timestamp) MultiIndex -- item_id
+    defaults to a single group (0) when omitted -- and STRING timestamps, plus a 'target' column and
+    the DEFAULT quantile grid [0.1..0.9] ALWAYS present regardless of the quantiles= argument (unlike
+    tabpfn_forecast's pipeline, which only computes quantile columns when explicitly asked) -- so 0.5
+    is always available to use as the point value, with no quantiles= request required."""
+    from tabicl import TabICLForecaster
+
+    context_df = hist_covariates.copy()
+    context_df["timestamp"] = context_df.index
+    context_df["target"] = hist_target.reindex(context_df.index).values
+    context_df = context_df.reset_index(drop=True)
+
+    future_df = future_covariates.copy()
+    future_df["timestamp"] = future_df.index
+    future_df = future_df.reset_index(drop=True)
+
+    forecaster = TabICLForecaster()
+    kwargs = {"quantiles": list(quantiles)} if quantiles is not None else {}
+    preds = forecaster.predict_df(context_df, future_df=future_df, **kwargs)
+    preds = preds.reset_index()
+    idx = pd.to_datetime(preds["timestamp"])
+
+    if quantiles is None:
+        return pd.Series(preds[0.5].values, index=idx)
+
+    out = pd.DataFrame(index=idx)
+    out["median"] = preds[0.5].values
+    for q in quantiles:
+        out[q] = preds[q].values if q in preds.columns else np.nan
+    return out

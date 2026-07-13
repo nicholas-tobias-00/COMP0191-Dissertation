@@ -117,7 +117,7 @@ Tower-4-only table is kept below for continuity with earlier citations:
 | SARIMAX | −0.360 | 53.79 | 36.06 | 0.976 | 1.105 | 0.343 |
 | **Ensemble_unweighted** | **−0.165** | 51.57 | 33.75 | **0.918** | 0.998 | **0.375** |
 | Ensemble_MASEweighted | −0.165 | 51.57 | 33.74 | 0.918 | 0.998 | 0.375 |
-| TFT (one unseeded draw) | −0.565 | 59.23 | 37.37 | 1.047 | 1.096 | 0.260 |
+| TFT (one unseeded draw) | −0.363 | 56.59 | 35.62 | 0.972 | 1.045 | 0.292 |
 | TabPFN | −0.122 | 56.12 | 33.14 | 0.855 | 0.899 | 0.358 |
 
 **Tower-4-only (original scope, kept for continuity):**
@@ -130,7 +130,7 @@ Tower-4-only table is kept below for continuity with earlier citations:
 | SARIMAX | −0.039 | 52.39 | 35.23 | 1.038 | 1.047 | 0.379 |
 | **Ensemble_unweighted** | **0.012** | **50.96** | 33.18 | 0.975 | 0.977 | 0.396 |
 | Ensemble_MASEweighted | 0.011 | 50.96 | 33.17 | 0.975 | 0.977 | 0.396 |
-| TFT (one unseeded draw) | −0.568 | 54.60 | 33.67 | 1.045 | 1.050 | 0.329 |
+| TFT (one unseeded draw) | −0.228 | 54.48 | 33.43 | 1.014 | 1.020 | 0.315 |
 | TabPFN | −0.006 | 54.19 | 30.46 | **0.862** | 0.860 | 0.391 |
 
 **Every model's R² drops once T9/T2 are included** (Ensemble 0.012→−0.165) while MASE holds or
@@ -168,6 +168,24 @@ added to the gap-filled-target secondary-metric table — DLinear's pooled R² t
 dominated by a genuine numerical divergence in the 2018 anchor's non-deterministic draw (MAE up to
 ~7,545 nmol m⁻² s⁻¹, physically implausible), amplified by scoring against the low-variance
 gap-filled target; excluding that one anchor gives R²=−7.035, still worst but interpretable.
+
+**TabICLv2 (D-66, corrected 2026-07-10):** new tabular foundation model (ICML 2026, "heavily
+inspired by TabPFN-TS"), added as a new sibling script (`b10_b13_tabicl_extension.py`), mirroring
+TabPFN's per-tower/per-anchor/never-pooled integration. **A real point-estimate bug was found and
+fixed** after the user was skeptical of an initial result that looked implausibly worse than
+TabPFN's: `tabicl_forecast()` was extracting a **mean**-based point column (`TabICLForecaster`'s
+default) rather than the median, badly biased high on this heavy-tailed, spike-dominated flux
+distribution. Fixed to use the median (`0.5`) quantile column instead. **Corrected all-tower
+R²=−0.329 (observed), −0.886 (gap-filled)** — now beats SARIMAX (−0.360) and TFT (−0.363), and its
+MASE (0.928) is 4th-best of all 10 models, comfortably below 1.0. Still behind TabPFN (−0.122) and
+the standing recommendation (Ensemble_unweighted, −0.165), so the standing recommendation is
+unchanged — but TabICLv2 is a genuinely competitive mid-pack model, not a near-bottom one. Full
+3-tower × 5-anchor sweep completes in **~10 seconds total**, still far cheaper than every other
+model here — the best accuracy-per-compute-second result in the sequence. Shares TabPFN's exact
+Tower-9/2019 degenerate-forecast limitation (zero real `y_observed` in pre-anchor history → flat
+~0.0 prediction, unaffected by the point-estimate fix) — a known, already-accepted data-scarcity
+issue, not new. See "Model-roster extension: TabICLv2" section,
+`notebooks/05_benchmarking/b10_b13_metrics_rerun.md`.
 
 **Standing production recommendation: B-10's ensemble** — but see Section 5, U-03: this ensemble
 is **not immune** to extrapolation risk under scenario-style inputs, inherited from its SARIMAX
