@@ -844,3 +844,306 @@ already covered by FC-01/B-03/B-04. **Deferred:** the gap-filling phase (R-01 th
 several with expensive 5×4/5×5 bootstrap loops) — staged for a later pass per the user's explicit choice to
 prioritise the forecasting phase first, given remaining timeline (deadline 1 Sept). Cross-ref D-37 (skill vs
 baseline framing), D-40 (UQ metrics precedent for additive benchmarks.csv columns).
+
+---
+
+### D-67 — 2026-07-10 — F-10: extended feature engineering (livestock species, land-use regime,
+### catchment flow, fertilizer richness, bonus liveweight density) — Stage 1 build + signal check
+
+**Decision:** After D-66 showed the whole B-09→B-15 recursive-rollout sequence has converged to
+roughly the same ceiling (R²≈0, MASE≈0.85–0.98) regardless of model architecture/HPO, the user
+pivoted the search for improvement from models to features — directly supported by this project's
+own history (B-03/B-04's enriched features lifted point-forecast R² by +0.08–0.10, more than any
+model change anywhere in this project). Four leads were named (livestock-type granularity,
+fertilizer richness, catchment flow instrumentation, a possible Tower-2 land-use regime shift) and
+confirmed real via research before any code was written:
+
+- **`forecast_daily_v2.csv`'s zero fertilizer/management columns** — even `mgmt_t{t}_cut_recency`/
+  `manure_recency` (F-05/D-32-validated small-positive on the old hourly harness) never reached
+  the daily matrix.
+- **Livestock species identity discarded, not missing** — `gapfill_rfm.py: frame()` sums
+  `cattle_Catchment N`/`sheep_Catchment N`/`lamb_Catchment N` (present through
+  `consolidated_hourly_SMS_MET.csv`) into one `lsu_dens` scalar; F-01's own SHAP ablation already
+  found `cattle_Catchment 4` carries independent signal (#4 top feature) before this collapse.
+  `livestock_weight_long.csv`/per-animal location files exist, used by zero scripts.
+- **Catchment flume instrumentation (17 parameters/catchment, incl. `Flow (l/s)` at 87-91%
+  coverage — better than SWC's own coverage) is fully ingested through `consolidated_hourly.csv`
+  but never reaches any forecasting feature matrix** — an oversight (`build_forecasting_matrix_v2.py`
+  selects features via 2 hardcoded literal constants that never match flow/chemistry names), not a
+  documented exclusion (no `DECISIONS.md` entry ever decided against it).
+- **Tower 2 (field NW002) underwent a confirmed, genuine permanent-pasture→arable conversion**
+  starting 2019-09-09 (first `Plough`)/2019-10-02 (first wheat drill), continuing as a cereal
+  rotation through 2024; raw livestock headcounts at Catchment 2 are genuinely 0.0 (not imputed)
+  from 2019 onward. Independently re-confirmed Towers 4/9's own fields (NW005/NW006, NW013/NW039)
+  show **zero** arable operations across 2017-2024 — Tower-2-only regime shift. See D-68 for the
+  separate documentation-reconciliation entry this motivated.
+
+**Stage 1 (this entry): build + cheap signal check, all 3 towers.** New, purely additive files
+(nothing existing edited): `src/features/build_bodyweight_density.py` (bonus family (e) — a
+last-observed-carried-forward per-animal location×weight join; feasibility confirmed empirically,
+location files genuinely resolve to real NWFP field codes, not just shed labels, contrary to the
+original planning-time uncertainty), `src/features/build_forecasting_matrix_v3.py` (reads
+`forecast_daily_v2.csv` read-only + raw `load_ext()`/`management_features.csv`/
+`Field_Event_Data_Format_1.csv`, left-merges 18 new columns, writes `data/Hourly/
+forecast_daily_v3.csv`, 8,772 rows × 66 cols), `notebooks/04_feature_engineering/
+f10_signal_check.py` (Stage 1 ablation), `F10_extended_features.ipynb` + `F10_results.md`.
+
+**Two real implementation bugs caught and fixed during verification, not after:**
+1. `fx_is_arable`'s first implementation used `build_management_features.classify()=="cultiv"` as
+   its trigger — too broad, also fires on routine grassland renovation (a single `Chain harrow` at
+   Tower 4 in 2022, `Chain harrow`/clover-blend `Grass seeding (overseeding)` at Tower 9),
+   producing false arable flips at both towers that contradicted the very field-record check that
+   motivated the feature. Fixed to a narrower, empirically-verified trigger (literal `Plough`, or a
+   Drill/Broadcast-Seed operation whose `Application` names an actual cereal crop —
+   wheat/oat/barley/bean, not grass/clover) — confirmed `Plough`/cereal-drilling only ever occurs
+   at NW002/NW003/NW004/NW015/NW019/NW047, never at Towers 4/9's own fields. **Result: Tower 2
+   flips 2019-09-09, Towers 4/9 never flip (`fx_is_arable.sum()==0` unconditionally)** — matches
+   the direct field-event check exactly.
+2. `fx_flow_lag{7,14,21,28}` were built on the raw hourly-indexed frame before resampling to daily,
+   so `.shift(L)` shifted by L *hours*, producing wholly-NaN columns. Fixed by resampling to daily
+   first (matching `build_forecasting_matrix_v2.py`'s own pattern) — confirmed non-NaN, 87-92%
+   coverage at all 3 towers post-fix.
+
+Every family's verification checklist item passed after these fixes: exact LSU-linearity identity
+(<1e-9) confirming the species split is a lossless refinement of `fx_lsu_dens`; `fx_flow_roll7`
+matches a manual recompute; a spot-checked fertiliser event's `fx_mgmt_fertN_recency` shows the
+correct τ=14 exponential decay with no leakage/off-by-one.
+
+**Stage 1 signal check (cheap, bounded, single-seed leave-one-group-in RF ablation — B-03/B-10's
+exact daily-track hyperparameters, no new HPO): none of the 5 families clear the pre-registered
+go/no-go bar (ΔR²>+0.01 consistent across towers/horizons, or a top-10 SHAP rank that survives a
+collinearity check).** Harness sanity-checked first: `BASE`'s own R² (T4 h=1=0.365, h=14=0.280;
+T9 h=14=0.359) reproduces `BEST_RESULTS.md`'s published B-03 numbers almost exactly. `fx_cattle_dens`/
+`fx_total_liveweight_dens` draw real SHAP attention (#1/#2 of 18 new columns) but `fx_cattle_dens`
+correlates with the existing `fx_lsu_dens` at r=0.972 — a follow-up `SWAP_species_for_lsu` test
+(replace rather than add) shows a genuine tower-specific pattern (+0.008/+0.019 R² at Tower 4,
+where I-02 already found livestock density dominant; −0.013/−0.021 at Tower 9) that nets to
+~−0.002 once both towers are weighted equally — not a consistent win. `BASE+ALL` (all 18 columns
+at once) is worse than `BASE` everywhere, consistent with this project's repeated "weak features
+stacked can hurt" pattern. Management richness did **not** reproduce D-28's Tower-9 collapse this
+time (plausibly because the richer v2/v3 base feature set no longer relies on management signal as
+heavily) but showed no positive signal either — neutral, not actively harmful.
+
+**Verdict: Stage 2 (B-16 full point-forecast/recursive-rollout retrain) is NOT triggered this
+round** — per the plan's own explicit rule, families that don't clear the bar are reported as null
+results and dropped, not carried forward. `BEST_RESULTS.md` is unchanged. This is an honest null
+result, not a wasted round — two real bugs were caught (see above), and `fx_is_arable` is a
+genuine, now-correctly-implemented mechanistic feature with real documentation/interpretability
+value (D-68) even though it doesn't move a direct-forecast R² (expected, given it's largely
+redundant with the `is_t2`/`is_t4`/`is_t9` dummies already in every model).
+
+**Caveats, stated plainly:** this is a single-seed, no-CV, direct-h-forecast smoke test, not a
+final word — flow's null result doesn't rule out its mechanistic hypothesis (a direct h-day-ahead
+forecast with only mean+lag/roll features may not be the right lens for a cumulative, event-driven
+waterlogging signal); the species/liveweight tower-specific pattern is a genuine finding worth
+remembering if a tower-specific (not pooled) model is ever tried; Tower 2 could not be evaluated
+directly in this check (zero real 2022-2023 rows, the same well-documented data-scarcity finding
+as everywhere else in this project).
+
+New files: `src/features/build_bodyweight_density.py`, `src/features/build_forecasting_matrix_v3.py`
+(+`data/Hourly/forecast_daily_v3.csv`, `data/Hourly/bodyweight_density.csv`),
+`notebooks/04_feature_engineering/f10_signal_check.py`, `F10_extended_features.ipynb`,
+`F10_results.md`, `results/f10_signal_check_{summary,shap,deltas}.csv`. **No existing file edited**
+(`build_forecasting_matrix_v2.py`, `gapfill_rfm.py`, `build_management_features.py`, every
+B01-B15/I01-I02/U01-U03/S01 artifact untouched). Cross-ref D-28/D-29/D-30 (management-overfit
+precedent), D-61/I-02 (livestock dominance, motivating the species-disaggregation test), D-46
+(fertiliser recency's prior scoping), D-41 (bounded-iteration norm — one round of build + one round
+of signal check, no iterative re-tuning given the mixed/null result).
+
+**Addendum — Stage 2b: recursive-rollout confirmation (2026-07-10), run despite Stage 1's null
+result, per direct user instruction.** User: "run the rollout test (recursive forecasting). The
+point of this experiment is to test on forecasting performance improvements, no gap-filing." Stage
+1's signal check only exercised a direct, non-autoregressive point forecast (B-03-style); the
+actual model/HPO ceiling that motivated pivoting from models to features in the first place lives
+specifically in the recursive rollout (B-09→B-15), a genuinely different failure mode (error
+compounding, spike-blindness) a one-shot forecast never exercises — so a point-forecast null result
+doesn't necessarily transfer, and was worth checking directly rather than assumed.
+
+New file `notebooks/05_benchmarking/b16_recursive_rollout_v3.py` (committed) — reuses
+`b10_b13_rerun_multi_anchor.py`'s exact methodology (same hyperparameters, same unmodified
+`tree_rollout`/`bin_metrics` from `recursive_rollout.py`, same SARIMAX order-search) for 6 configs
+(`BASE` = v2's feature set, plus each of the 5 families added individually) × all 3 towers × all 5
+anchors × the full RF/XGB/LightGBM/SARIMAX ensemble. SARIMAX fit once per (anchor, tower), reused
+across all 6 configs (its `EXOG_B` set is unaffected by any new family). One implementation note,
+not a bug: this script had to be run via the explicit anaconda Python path
+(`/c/ProgramData/anaconda3/python.exe`), not the bash shell's default `python` (which resolved to a
+different, package-incomplete environment, `ModuleNotFoundError: xgboost`) — the same class of
+pip/python environment mismatch already documented in D-66, confirming that lesson generalizes
+beyond `pip install` to plain script execution in this environment too.
+
+**Sanity check passed first**: `BASE`'s `Ensemble_unweighted` reproduces `BEST_RESULTS.md`'s
+published all-tower headline almost exactly (R²=−0.1652 vs. published −0.165, MASE=0.9169 vs.
+0.918). **Result: none of the 5 families beat `BASE` on the ensemble** (all-tower R²: BASE −0.165,
+species −0.167, arable −0.169, mgmt −0.169, bodyweight −0.170, flow −0.172) — species comes
+closest (ΔR²≈−0.001, essentially noise) but does not improve on it. Checked individually for RF,
+XGB, and LightGBM too (not just the ensemble) — same null pattern holds on every single tree model.
+Per-tower breakdown for species (the closest contender) replicates Stage 1's exact tower-specific
+pattern: small gain at Tower 4 (R² +0.0054, the tower I-02 already found livestock-density-dominant)
+offset by small losses at Towers 2 and 9 — twice-replicated, not a fluke, but not a net win either.
+
+**Final verdict: two independent forecasting evaluations (point-forecast and recursive-rollout,
+both scoped to forecasting only — the gap-filling pipeline was never touched by any part of F-10)
+agree that none of the 5 new feature families improve forecasting performance.**
+`BEST_RESULTS.md` is unchanged; B-10's `Ensemble_unweighted` remains the standing recommendation.
+New files: `notebooks/05_benchmarking/b16_recursive_rollout_v3.py`,
+`results/b16_recursive_rollout_v3_summary.csv` (3,240 rows), `results/b16_recursive_rollout_v3_chains.csv`.
+
+**Second addendum — `BASE+ALL` follow-up (2026-07-10), closing a gap the user asked about.** The
+original Stage 2b sweep tested `BASE` + each of the 5 families individually but omitted a
+`BASE+ALL` (all 18 columns stacked) config — an oversight, not a deliberate scope decision (Stage
+1's point-forecast check *did* include `BASE+ALL`). New script
+`notebooks/05_benchmarking/b16_recursive_rollout_v3_all.py` fills this in cheaply, reusing the
+already-fitted SARIMAX chains from the first Stage 2b run (its `EXOG_B` set is unaffected by any
+family, so refitting would be pure waste) and refitting only RF/XGB/LightGBM on the full
+18-column set — ~5 minutes instead of another ~28. **Result: `BASE+ALL` (R²=−0.168) still loses to
+`BASE` (−0.165), but lands in the middle of the pack** — better than 4 of the 5 individual
+families (arable, mgmt, bodyweight, flow), worse only than the species family alone. **This is a
+genuinely different pattern than Stage 1's point-forecast check**, where stacking all 18 columns
+was clearly the *worst* config by a wide margin (~0.04–0.05 R² gap to `BASE`) — here the stacking
+penalty is much milder and not the single worst outcome. Both harnesses still agree on the
+headline (nothing beats `BASE`), but not on the specific shape of how excess features hurt —
+worth remembering that a failure mode confirmed on one evaluation harness doesn't automatically
+describe the other's behavior. New files:
+`notebooks/05_benchmarking/b16_recursive_rollout_v3_all.py`,
+`results/b16_recursive_rollout_v3_all_{summary,chains}.csv` (also appended into the main
+`b16_recursive_rollout_v3_summary.csv`, now 3,780 rows / 7 configs).
+
+**Third addendum — MASE re-read + foundation models (2026-07-10), materially changes the
+"final verdict" above.** Two follow-ups, both user-requested:
+
+1. **MASE prioritized as the primary forecasting metric going forward** (new `CLAUDE.md` standing
+   convention — CH4's spike-tail behavior repeatedly destabilizes R², MASE (error relative to
+   naive persistence) is far more robust to it). Re-reading the tree-ensemble table under MASE:
+   **`BASE+species` (MASE=0.9161) is actually marginally the best config**, edging out `BASE`
+   (0.9169) — a real, if small, reversal of the R²-led framing above (which had `BASE+species`
+   losing by ΔR²=−0.0014). Every other family remains worse than `BASE` on both metrics.
+2. **TabPFN and TabICLv2 tested across all 7 configs** (new script
+   `b16_foundation_models_v3.py`, zero-shot, no retraining needed per config), per the user's
+   request to show "all models from SARIMAX to TabICLv2." **Result: unlike the trees, both
+   foundation models show real, substantial, broadly-consistent gains from several families** —
+   verified not a single-tower/single-anchor artifact. Headline: **`TabPFN+species`
+   (MASE=0.840, R²=−0.084) is the best single-model result in the entire B-09→B-15 sequence**,
+   beating the standing `Ensemble_unweighted` recommendation (MASE=0.917) outright. `TabICLv2`'s
+   best config is `BASE+ALL` (MASE=0.871, R²=−0.155), also a large improvement over its own
+   `BASE` (0.928/−0.329). `fx_is_arable` shows exactly zero effect on either model (numerically
+   identical to `BASE`) — expected, not a bug: it's a constant flag within nearly every per-tower
+   rollout window, giving neither model anything to condition on.
+
+**The "Final verdict: ... none of the 5 new feature families improve forecasting performance"
+statement above is superseded by this addendum — it was true for trees/SARIMAX/ensemble only, not
+for the foundation models.** TFT/DLinear/LSTM are being tested next (required building a new
+hourly-track matrix, `forecast_features_v3.csv`, via `build_forecasting_matrix_v3_hourly.py`,
+since these models read the hourly track which F-10's original scope never touched) before the
+final, complete verdict across all 11 models is written up. New files:
+`notebooks/05_benchmarking/b16_foundation_models_v3.py`,
+`results/b16_foundation_models_v3_summary.csv` (1,260 rows), `src/features/
+build_forecasting_matrix_v3_hourly.py`, `data/Hourly/forecast_features_v3.csv`.
+
+**Fourth addendum — final all-11-model verdict + gap-filled secondary metric (2026-07-10).**
+TFT/DLinear/LSTM tested the same way (new `b16_dl_models_v3.py`; `forecasting_dl.py` needed **zero
+code changes** — it already auto-detects `fx_`-prefixed columns into a module-level `FX` list read
+at call time by `tower_series()`, so the script just reassigns that list per config before each
+training/rollout call). Ran in ~7 minutes (much cheaper than the tree sweep). **Result: TFT shows
+the same pattern as the foundation models, and it's dramatic** — `BASE` alone (MASE=1.063) loses to
+naive persistence; `BASE+ALL` (MASE=0.941) beats it, a genuine flip. LSTM/DLinear also improve with
+extra features (species/bodyweight respectively) but remain far behind every other model in
+absolute terms, consistent with their well-documented instability (D-53/D-54).
+
+**Complete picture, best config per model, MASE-ranked**: TabPFN+species (0.840) > TabICLv2+ALL
+(0.871) > Ensemble_unweighted+species (0.916) ≈ Ensemble_MASEweighted+species (0.916) >
+XGB+ALL (0.919) > LightGBM/BASE (0.939) > TFT+ALL (0.941) > RF+species (0.964) > SARIMAX/BASE
+(0.974) > LSTM+species (1.086) > DLinear+bodyweight (1.374). **Trees/SARIMAX show no meaningful
+gain from any family; every attention-based or foundation model (TFT, TabPFN, TabICLv2, and to a
+lesser extent LSTM/DLinear) shows real, often large, gains** — the opposite conclusion a
+tree-only smoke test would have suggested, and exactly why the user's push to test "all models"
+mattered.
+
+**Headline recommendation: `TabPFN+species` (MASE=0.840, R²=−0.084) — a new best single-model
+result for the whole B-09→B-15 sequence, beating the standing `Ensemble_unweighted` recommendation
+(MASE=0.918/R²=−0.165) outright, at near-zero adoption cost** (TabPFN is zero-shot/no-training; the
+species family is only 3 extra columns). Promoted to `BEST_RESULTS.md`.
+
+**Gap-filled secondary metric added for every model's own best config** (per user request, matching
+the established D-65 second-addendum pattern and the `b10_b13_metrics_rerun.md` table style):
+tree/ensemble chains recomputed from already-saved chains (no refit, new script
+`b16_recursive_rollout_v3_gapfilled.py`); TabPFN/TabICLv2/TFT/DLinear/LSTM scripts extended to score
+both targets inline and rerun. **One real bug caught while writing the tree-recompute script**: the
+saved chains CSV has each config's rows appended separately (a UNION of columns across configs), so
+naively grouping by (tower, anchor) and reading a config's column mixed in NaN-prediction rows from
+other configs' rows and crashed `r2_score` — fixed by filtering to `.notna()` rows for the specific
+column being scored before calling `bin_metrics`. **Result, corrected after direct user
+questioning of the initial (wrong) "doesn't change the ranking" claim: the gap-filled/observed
+comparison splits cleanly in two, and the ranking DOES flip for the headline comparison.** Trees/
+SARIMAX/both ensembles score *better* on gap-filled than observed (e.g. `Ensemble_unweighted`:
+0.916→0.749 MASE) — because these models are fit by directly regressing onto `y_gapfilled` as
+their training label, so the circularity risk already flagged for this secondary metric
+("agreement can partly reflect forecaster resembles gap-filler") works directly in their favor.
+TabPFN/TabICLv2/TFT/LSTM/DLinear score *worse* on gap-filled (e.g. TabPFN: 0.840→0.944 MASE) —
+their targets are `y_observed`, so they get no such boost, and this is the ordinary variance-
+normalization artifact (D-65). **Consequence: under gap-filled scoring, the OLD standing
+recommendation (`Ensemble_unweighted`, MASE=0.749) beats the NEW "winner" (`TabPFN+species`,
+MASE=0.944) by a wide margin** — the full ranking flips, not just narrows. The observed-target
+ranking remains the one to trust (D-36/D-37's "train on gap-filled, evaluate on observed"
+convention — `y_observed` is the intended validation target, specifically because it isn't
+inflated by this circularity), but the "TabPFN+species is unambiguously the new best" framing
+from the third addendum was too strong: it is best **on the primary, convention-endorsed metric
+only**, and this must be stated plainly, not left as an implied unconditional claim. Within-model
+(species vs. that model's own `BASE`) the two targets DO agree on direction for TabPFN
+specifically (0.854→0.840 observed, 0.949→0.944 gap-filled) — the feature-family finding itself is
+robust to target choice; it's specifically the across-model "who's best overall" comparison that
+isn't. New files: `notebooks/05_benchmarking/b16_dl_models_v3.py`,
+`b16_recursive_rollout_v3_gapfilled.py`; `results/b16_dl_models_v3_summary.csv` (3,780 rows, both
+targets), `results/b16_recursive_rollout_v3_summary_vs_gapfilled.csv` (7,560 rows), `results/
+b16_full_comparison_{all_models,vs_gapfilled}.csv`, `results/
+b16_final_table_vs_gapfilled_best_config.csv`. Full write-up:
+`notebooks/04_feature_engineering/F10_results.md`.
+
+---
+
+### D-68 — 2026-07-10 — documentation reconciliation: Tower 2's land-use regime shift was already
+### correctly identified (D-28/D-30/D-34), later write-ups (D-63/D-64) re-described it as generic
+### "data sparsity" without cross-referencing the earlier, correct explanation
+
+**Decision:** A colleague's review (relayed by the user) suggested Tower 2's `fx_lsu_dens=0`
+finding (U-03/D-63: "exactly 0.0 for the entire 365-day rollout window in 4 of 5 anchors") might
+reflect a real land-use regime shift (permanent pasture→arable) rather than plain data scarcity.
+**Investigation confirmed this is correct — and, further, that it was already correctly identified
+earlier in this project, then lost in translation at a later stage:**
+
+- **`DECISIONS.md` D-28** (2026-06-16) already states: *"Tower 2 = Red farmlet (arable from 2019) —
+  deferred"* and *"management-timing distribution shift (Red-farmlet conversion)."*
+- **D-30** (2026-06-16): *"weakest for soil/land-use features at Tower 2 (arable)... Tower 2
+  benefits most from the dummy... it is the most 'different' tower (Red→arable, 6.65 ha)."*
+- **D-34** (2026-06-25), most explicit: *"Tower 2 EC CH4 exists only Oct 2017–Jun 2019 (grassland;
+  analyser relocated to Tower 9 Jul 2019 at the Red-farmlet arable conversion). Catchment 2 had ~10
+  cattle in 2018 (FCH4 ≈ 42) but zero livestock in early 2019 (FCH4 ≈ 2)."*
+- **D-63** (2026-07-07, U-03) re-describes the identical fact purely as *"T2's known data
+  sparsity"* / *"records essentially no grazing there,"* with no cross-reference back to D-28/D-30/
+  D-34's already-correct causal explanation.
+
+**Direct field-record confirmation this session** (F-10, D-67): field NW002 ("Great Field",
+6.65 ha, Catchment 2) shows a clean transition — last silage/grazing event 2019-08-21, first
+`Plough` 2019-09-09, first `Drill Seed 'Wheat (Crusoe)'` 2019-10-02, continuing as a wheat/oats/
+beans rotation through 2024 (`Field_Event_Data_Format_1.csv`). Raw livestock headcounts at
+Catchment 2 are genuinely `0.0` (not `NaN`, not imputed) from 2019 onward — `fx_lsu_dens=0` at
+Tower 2 is a real reading of a real regime change, not a data gap. Independently confirmed Towers
+4/9's own fields (NW005/NW006, NW013/NW039) show zero arable operations across the whole 2017-2024
+record — this is a Tower-2-only shift, not a general pattern.
+
+**This is a documentation cross-reference fix, not a new empirical finding — no numbers change.**
+D-63's and D-64's "data sparsity" framing was not wrong (Tower 2's real `y_observed` coverage is
+genuinely thin), it was simply incomplete — the *cause* of the livestock-related symptom
+specifically was already on record at D-28/D-30/D-34 and should have been cited. Going forward,
+Tower 2's `fx_lsu_dens=0` behavior (and any future scenario-analysis or interpretability work
+touching it) should be read as reflecting a **genuine land-use regime shift**, not merely sparse
+telemetry — a mechanistically meaningful distinction for the methods chapter (Tower 2's field has
+no enteric/dung CH4 source at all post-2019, not just under-recorded livestock). F-10 (D-67) built
+a corresponding `fx_is_arable` feature for this reason, even though it did not move a direct-
+forecast R² in Stage 1's signal check (expected — it's a coarse, mostly-static per-tower flag,
+largely redundant with the `is_t2`/`is_t4`/`is_t9` dummies already present in every model; its
+value is interpretive/mechanistic, not predictive-accuracy).
+
+**No files changed beyond this entry** — `U03_results.md`/`s01_results.md` are not retroactively
+edited (matches this project's append-only decision-log convention: corrections are logged forward,
+not rewritten into prior entries). Cross-ref D-28, D-30, D-34, D-63, D-64, D-67 (F-10's
+`fx_is_arable` feature).

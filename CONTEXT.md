@@ -601,6 +601,59 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      unaffected by the point-estimate fix — not a new bug). New decision number (not a D-65
      addendum), matching the D-57 precedent that a genuinely new model gets its own number. See
      D-66, `notebooks/05_benchmarking/b10_b13_metrics_rerun.md` ("Model-roster extension: TabICLv2").
+   - **D-67/D-68 (2026-07-10): F-10, extended feature engineering — Stage 1 (build + signal check),
+     reopening the `04_feature_engineering` phase.** User pivoted the search for improvement from
+     models to features, given the whole B-09→B-15 sequence has converged to roughly the same
+     ceiling regardless of model/HPO. Built 5 new feature families onto a new
+     `forecast_daily_v3.csv` (additive clone of v2, nothing existing edited): livestock species
+     disaggregation (`fx_cattle_dens`/`sheep`/`lamb`, exact-lossless refinement of `fx_lsu_dens`),
+     a land-use regime flag (`fx_is_arable`, Tower 2 flips 2019-09-09, Towers 4/9 never flip),
+     catchment flow (`fx_flow_mean`+lags/rolls, 87-92% coverage), previously-unused fertilizer/
+     management recency columns, and a bonus liveweight-density feature. **Two real implementation
+     bugs caught and fixed during verification**: `fx_is_arable`'s first trigger was too broad
+     (fired on routine grassland renovation, not just genuine arable conversion) and produced false
+     positives at Towers 4/9; `fx_flow_lag*` was wholly NaN from an hourly-vs-daily indexing bug.
+     **Stage 1's cheap signal check (leave-one-group-in RF ablation, all 3 towers, h∈{1,14}) found
+     none of the 5 families clear the pre-registered go/no-go bar** — reported honestly as a null
+     result (D-31/D-32/F-01-P2 precedent). `fx_cattle_dens`/liveweight density draw real SHAP
+     attention but a follow-up swap test shows a tower-specific pattern (helps T4, hurts T9) that
+     nets to ~zero, not a consistent win. **Stage 2b (recursive-rollout confirmation) run anyway
+     per direct user instruction** ("test forecasting performance improvements, no gap-filling") —
+     the real B-10 ensemble, all 3 towers, all 5 anchors, 6 configs. `BASE` reproduced the
+     published headline almost exactly (R²=−0.1652 vs. −0.165); **none of the 5 families beat it**
+     on the ensemble or any individual tree model, same tower-specific species pattern replicated
+     independently. **Follow-up `BASE+ALL` run** (all 18 columns stacked, cheaply reusing the
+     already-fitted SARIMAX chains): still loses to `BASE` but lands mid-pack, unlike Stage 1's
+     point-forecast check where stacking everything was clearly the worst config — the two
+     harnesses agree on the headline (nothing beats `BASE`) but not on the exact shape of the
+     stacking penalty. **MASE promoted to the primary forecasting metric** (new `CLAUDE.md`
+     convention — CH4's spike-tail behavior repeatedly destabilizes R²); re-read under MASE,
+     `BASE+species` is actually marginally the best tree-ensemble config (0.9161 vs `BASE`'s
+     0.9169), a small reversal of the earlier R²-led framing. **Stage 2c/2d: tested "all models
+     from SARIMAX to TabICLv2" per user request** (TabPFN/TabICLv2 — zero-shot, cheap; TFT/DLinear/
+     LSTM — required a new hourly-track matrix, `forecast_features_v3.csv`, since `forecasting_dl.py`
+     needed zero code changes to consume it). **Result: the tree-only finding does NOT generalize —
+     every attention-based/foundation model shows real, often large, gains from feature families**
+     (TFT's `BASE` loses to persistence, MASE=1.063; `BASE+ALL` beats it, MASE=0.941). **New
+     observed-target best: `TabPFN+species`, MASE=0.840/R²=−0.084 — beats the standing B-10
+     ensemble recommendation outright on this metric, at near-zero adoption cost. Promoted to
+     `BEST_RESULTS.md`.** Gap-filled secondary metric added for every model's best config too (per
+     user request, D-65 second-addendum pattern) — **caught and corrected an overstated initial
+     claim here after direct user questioning**: the gap-filled/observed comparison does NOT
+     uniformly make every model worse — it splits cleanly by whether the model's own training
+     target is `y_gapfilled` (trees/SARIMAX/ensembles score *better* on gap-filled, a circularity
+     artifact from directly regressing onto that series) or `y_observed` (TabPFN/TabICLv2/TFT/
+     LSTM/DLinear score worse, no such boost). **Consequence: under gap-filled scoring the OLD
+     standing ensemble (MASE=0.749) beats the NEW winner (`TabPFN+species`, MASE=0.944) by a wide
+     margin — the full ranking flips.** The observed-target ranking remains the one to trust
+     (D-36/D-37 convention specifically favors it, since it isn't inflated by that circularity),
+     but "TabPFN+species is the new best" is true on that metric only, stated plainly rather than
+     unconditionally. Neither track touched the gap-filling pipeline at all — F-10 was scoped to
+     forecasting only throughout. **D-68 (separate,
+     documentation-only)**: reconciles D-63/D-64's "Tower 2 data sparsity" framing with D-28/D-30/
+     D-34's already-correct "Red-farmlet arable conversion" explanation — the same underlying fact,
+     just not cross-referenced later; no numbers change. See D-67 (+ 4 addenda), D-68,
+     `notebooks/04_feature_engineering/F10_results.md`.
    - **Next (in order): (1) 07 scenario analysis, extending S-01** — SSP5-8.5, realization-level
      (not just ensemble-mean) spread, a self-consistent mechanistic livestock-scenario construction,
      and (if time permits) the SPACSYS process-model route for the trend/level component. B-08
@@ -614,7 +667,12 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-09 (D-66 second same-day addendum: TFT staleness reconciled across
+_Last updated: 2026-07-10 (D-67, F-10: new standing recursive-rollout best is `TabPFN+species`,
+MASE=0.840/R²=−0.084, beating B-10's ensemble outright — see "Current status" bullets above and
+`BEST_RESULTS.md` §3 for full detail. MASE is now this project's primary forecasting metric,
+CLAUDE.md. Earlier note retained below.)_
+
+_Previously updated: 2026-07-09 (D-66 second same-day addendum: TFT staleness reconciled across
 `b10_b13_metrics_rerun.md` -- several unrelated reruns of `b10_b13_rerun_multi_anchor.py` (TFT is
 unseeded, D-62) had let TFT's published tables drift from its live CSV values without ever being
 fixed. Recomputed every TFT row from the live summary CSVs and propagated into all 5 underlying

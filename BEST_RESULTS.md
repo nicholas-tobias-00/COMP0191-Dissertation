@@ -21,7 +21,7 @@ row, and bump "last verified."
 |---|---|---|---|---|
 | Gap-filling | External-sourced pooled RFm, full-period gap-CV | R² T2=0.574, T4=0.402, T9=0.418 | D-35, D-49 (F-09a) | 2026-07-02 |
 | Forecasting — point/direct | B-03 enriched RF/XGB, daily track | R² T4 h1=0.365 h14=0.280; T9 h14=0.359 | D-41, D-49 | 2026-07-02 |
-| Forecasting — recursive rollout | B-10 ensemble (best ensemble) | All-tower: R²=−0.165, MASE=0.918; T4-only: R²=0.012, MASE=0.975 | D-54, D-65 | 2026-07-07 |
+| Forecasting — recursive rollout | **TabPFN+species (F-10)** — best single model overall | All-tower: MASE=0.840, R²=−0.084 | D-67 | 2026-07-10 |
 | Interpretability | I-02 | `fx_lsu_dens` dominant, importance grows with lead time | D-61 | 2026-07-06 |
 | Uncertainty quantification | U-02 (calibration) + U-03 (its limits) | Calibrated PICP ≈0.89; SARIMAX extrapolation outlier +150%/+380% max | D-62, D-63 | 2026-07-07 |
 | Scenario analysis (Phase 07) | S-01 level-residual hybrid (proof-of-mechanism) | 3x livestock: +138%/+105% at T4/T9 (vs. trees-alone +21-23%, U-03) | D-64 | 2026-07-07 |
@@ -87,18 +87,55 @@ Original D-41 headline (pre-D-48 fix, historical reference only): daily best R²
 
 ## 3. Forecasting — recursive rollout
 
-Three distinct "bests" by different criteria — recursive-rollout R² is inherently much lower than
-point-forecast R² (a genuinely harder task: 365-day autoregressive forecasting with no real recent
-AR data), so these numbers are not directly comparable to Section 2 above.
+**Standing best overall, on the observed-target metric specifically (2026-07-10, F-10/D-67):
+`TabPFN+species`** — TabPFN (zero-shot, zero training) fed the daily feature matrix plus
+`fx_cattle_dens`/`fx_sheep_dens`/`fx_lamb_dens` (livestock disaggregated by species instead of the
+single combined `fx_lsu_dens`), all 3 towers, all 5 anchors. **MASE=0.840, R²=−0.084 (observed
+target)** — beats every other model/config tested in this entire project on this metric, at
+near-zero adoption cost (no retraining, only 3 extra input columns). MASE is this project's
+primary forecasting metric (CLAUDE.md convention, added 2026-07-10 — CH4's spike-tail behavior
+repeatedly destabilizes R²).
+
+**Important caveat, not a footnote: this ranking is target-dependent, and the choice of target
+matters here more than usual.** Scored against `y_gapfilled` instead, the OLD standing
+recommendation (`Ensemble_unweighted`, MASE=**0.749** gap-filled) beats this NEW "winner"
+(`TabPFN+species`, MASE=**0.944** gap-filled) by a wide margin — the ranking fully flips, not just
+narrows. Reason: trees/SARIMAX/ensembles are fit by directly regressing onto `y_gapfilled` as
+their training label, so they mechanically track it well (the exact circularity risk already
+flagged for this secondary metric, here working in their favor); TabPFN's target is `y_observed`
+only, so it gets no equivalent boost. **The observed-target ranking above is still the one to
+trust** — it's this project's established primary evaluation convention (D-36/D-37: "train on
+gap-filled, evaluate on observed" — `y_observed` is the intended validation target specifically
+because it isn't inflated by that circularity) — but "TabPFN+species is the new best" should be
+read as "best on the metric this project treats as authoritative," not as an unconditional
+statement true under every scoring choice. Full detail:
+`notebooks/04_feature_engineering/F10_results.md`, `results/
+b16_final_table_vs_gapfilled_best_config.csv`.
+
+**Historical "bests" by different criteria, kept for continuity** — recursive-rollout R² is
+inherently much lower than point-forecast R² (a genuinely harder task: 365-day autoregressive
+forecasting with no real recent AR data), so these numbers are not directly comparable to Section 2
+above; note F-10's finding above now supersedes both rows below on the "best single model" question:
 
 | Criterion | Winner | Metric | Decision |
 |---|---|---|---|
-| Best ensemble | B-10 (RF+XGB+LightGBM+SARIMAX, unweighted) | R²=0.012, MASE=0.975 | D-54 |
-| Best single model, MASE | TabPFN (B-13, zero-shot, zero HPO) | MASE=0.862, R²=−0.006 | D-57 |
-| Best single model, R² | LightGBM, rollout-tuned (B-15) | R²=0.017 | D-59 |
+| Best ensemble (pre-F-10 model roster, unenriched features) | B-10 (RF+XGB+LightGBM+SARIMAX, unweighted) | R²=0.012, MASE=0.975 (T4-only) / R²=−0.165, MASE=0.918 (all-tower) | D-54, D-65 |
+| Best single model, MASE (pre-F-10, unenriched features) | TabPFN (B-13, zero-shot, zero HPO) | MASE=0.862, R²=−0.006 (T4-only) / MASE=0.855, R²=−0.122 (all-tower) | D-57, D-65 |
+| Best single model, R² (single-tower, does not transfer) | LightGBM, rollout-tuned (B-15) | R²=0.017 | D-59 |
 
 B-15's tuned LightGBM (`num_leaves=7, min_child_samples=20, learning_rate=0.05`) does **not**
 transfer cross-tower (T9 R²=−0.388 reusing T4's config) — a single-tower result, flagged as such.
+
+**F-10 finding, all 11 models tested (D-67): feature enrichment splits sharply by model class.**
+Trees/SARIMAX (RF, XGB, LightGBM, SARIMAX, both B-10 ensembles) show no meaningful gain from any of
+5 new feature families (livestock-species split, a Tower-2 land-use `fx_is_arable` flag, catchment
+flow, fertilizer/management recency, liveweight density) — flat to mildly negative throughout.
+**Every attention-based or foundation model (TFT, TabPFN, TabICLv2, and to a lesser extent
+LSTM/DLinear) shows real, often large, gains** — TFT's `BASE` alone loses to naive persistence
+(MASE=1.063) while `BASE+ALL` beats it (MASE=0.941); TabICLv2's best config (`BASE+ALL`,
+MASE=0.871) is a large improvement over its own `BASE` (0.928). `fx_is_arable` shows negligible
+effect on every model (it's constant within nearly every per-tower rollout window) — its value is
+documentation/interpretability (D-68's Tower-2 land-use reconciliation), not predictive accuracy.
 
 **Full metric set, all 3 towers (D-65 + addendum)** — `bin_metrics()` originally tracked only
 R²/MAE/MASE; RMSE, WAPE, and Correlation (Pearson r) were added, and B-10+B-13 rerun for **all 3
