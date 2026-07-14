@@ -684,6 +684,32 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      2024 held-out EC data. If S-02's PPFD/RN/WS candidates are pursued further, address the
      100%-extrapolation caveat first (e.g. test against individual GCM/realization trajectories,
      not just the ensemble mean).
+   - **D-70 (2026-07-14): S-03, driver-availability ablation — isolates scenario-mode
+     feature-degradation cost from extrapolation cost (supervisor request, Prof. Paul Harris).**
+     Distinct from U-03/D-63 (distribution shift on real anchors) and S-01/D-64 (real scenario
+     pipeline but no ground truth at 2050) — S-03 holds test data real/historical (same 2018-2022
+     anchors as B-10/D-65) and only changes the feature set. Model 1 = B-10's full-feature ensemble
+     (not rerun, read from D-65's tables). Model 2 = same architecture, two variants on a 24-column
+     degraded set (`RESAMPLED_COLS+DROPPED_COLS`, imported from `build_scenario_drivers.py`, not
+     retyped — resolves the PPFD/RN ambiguity: both already in `RESAMPLED_COLS`, no real
+     contradiction with S-02): **Variant A (removal)** drops the columns entirely; **Variant B
+     (resample)** keeps them real in training but climatology-resamples the rollout-time values
+     (pre-anchor-only history — a deliberate fix vs. S-01's own full-record call, necessary since
+     this experiment evaluates on real historical anchors, not a genuinely blind future). Both
+     column lists are independently customizable script parameters, per direct user request.
+     **Genuinely surprising headline, reported plainly: neither degraded variant costs accuracy
+     pooled across all 3 towers — both modestly beat Model 1.** `Ensemble_unweighted` pooled MASE:
+     0.918 (Model 1) → 0.926 (Variant A) → **0.892 (Variant B)**; R²: −0.165 → −0.108 → **−0.089**.
+     Plausible explanation: many of the 24 degraded columns were already low-SHAP-importance
+     (I-01/I-02) — smoothing/dropping noisy low-signal inputs may reduce overfitting in a 365-day
+     rollout more than it costs real signal. Secondary gap-filled-target metric disagrees for
+     Variant A specifically (looks clearly worse there) — flagged as a likely circularity artifact
+     (diverges further from the gap-filler's own feature space), not necessarily a real accuracy
+     loss. Practical implication: this isolated driver-availability cost is small — the documented
+     scenario risk (U-03/S-01) concentrates in extrapolation/SARIMAX, not in losing these 24 sensor
+     channels. Chain figures generated and merged into `b10_b13_full_chains.csv`/`b10_chains` figure
+     set per direct user request (180 new figures, 12 new variant-suffixed columns, verified
+     additive). See D-70, `notebooks/07_scenario_analysis/s03_results.md`.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.

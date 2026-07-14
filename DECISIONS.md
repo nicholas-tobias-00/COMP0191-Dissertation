@@ -1229,3 +1229,88 @@ S02_driver_reconstruction_feasibility.ipynb`, `results/s02_driver_reconstruction
 (per-tower detail), `results/s02_driver_reconstruction_pooled.csv` (all-tower verdict). Cross-ref
 D-50 (correlation evidence), D-52 (the climatology baseline this compares against), D-64
 (USTAR/SHF's separate, unrevisited exclusion), D-26 (`fco2_gapfill.py`'s architecture precedent).
+
+### D-70 — 2026-07-14 — S-03: driver-availability ablation — isolating scenario-mode
+### feature-degradation cost from extrapolation cost
+
+**Decision:** Supervisor request (Prof. Paul Harris, relayed by the user): isolate how much
+forecasting accuracy is lost purely from **not having access to real-time sensor variables that a
+CMIP6 climate scenario can never supply** — distinct from two effects already tested, both of which
+conflate this question with something else. **U-03/D-63** tests calibration/model robustness under
+an out-of-envelope `fx_lsu_dens` perturbation — real historical anchors, but the shock is an extreme
+covariate value, not a feature-set change. **S-01/D-64** builds the real scenario pipeline but
+evaluates on unscored 2041–2060 data, so it cannot separate "the drivers are degraded" from "2050 is
+out of the training envelope." S-03 fixes this: test data stays real and historical (same 2018–2022
+anchors, same 3 towers as B-10/D-65) — only the feature set changes.
+
+**Design:** Model 1 = B-10's unweighted RF+XGB+LightGBM+SARIMAX ensemble, full feature set —
+**not rerun**, read directly from the existing D-65 tables. Model 2 = same architecture/
+hyperparameters/ensemble, two variants on a **24-column degraded set** (imported directly from
+`build_scenario_drivers.py`'s `RESAMPLED_COLS`+`DROPPED_COLS` — S-01's own production list, not
+retyped, resolving the PPFD/RN ambiguity flagged going in: both are already in `RESAMPLED_COLS`,
+S-01 already treats them the same as WS/VPD/SWC/TS). User-confirmed the list also includes wind
+direction and grazing features (S-01's own treatment). `fx_lsu_dens` (the scenario lever) and all AR
+features (real recent history genuinely exists at a historical anchor, unlike a genuinely blind 2050
+future) stay real/untouched in both variants — the design choice that keeps this experiment
+isolating driver-availability cost specifically.
+- **Variant A (removal)**: the 24 columns dropped entirely, never seen in training or rollout.
+- **Variant B (resample)**: same columns real in training (identical to Model 1); only the
+  rollout-time/test-window values are day-of-year-climatology-resampled via `rr.doy_climatology()`.
+  **One deliberate, necessary deviation from S-01's own call**: `doy_climatology()`'s history is
+  restricted to **pre-anchor-only** data (`dft.loc[:anchor, col]`), not S-01's full-record call
+  (correct for S-01, which has no real anchor — it projects from the end of history to 2050; using
+  the full record here would leak a historical anchor's own future values into its own test-window
+  climatology). Verified via assertion on every substitution call.
+
+Both column lists are **independently customizable parameters** (`remove_cols`/`resample_cols` in
+`s03_driver_availability_ablation.py`'s `main()`, both defaulting to the 24-column list), per direct
+user request, so a follow-up sensitivity check (e.g. resampling only soil variables) is a one-line
+notebook call with a distinct `run_label`, not a script edit. Full 3-tower × 5-anchor × 2-variant
+coverage; no new HPO; TFT/TabPFN out of scope (Model 1/2 are specifically B-10's 4-model
+architecture). Scored via `bin_metrics()` (unmodified) against both `y_observed` (primary) and
+`y_gapfilled` (secondary, D-65's addendum convention, with `real_frac`).
+
+**Headline result — genuinely surprising, reported plainly:** neither degraded variant costs
+accuracy relative to Model 1, pooled across all 3 towers — if anything, both modestly beat it.
+`Ensemble_unweighted` pooled: MASE 0.918 (Model 1) → 0.926 (Variant A) → **0.892 (Variant B)**; R²
+−0.165 → −0.108 → **−0.089**. Variant B (resample) beats Model 1 on MASE for all 6 model rows and on
+R² for 5 of 6; Variant A (removal) beats Model 1 on R² for every model but is a near-wash on MASE.
+Per-tower: Variant B wins/ties at T4 and T9 on both metrics; Variant A narrowly wins at T2. Plausible
+explanation (not directly measured in this pass): many of the 24 degraded columns (USTAR, wind,
+VPD, PPFD/RN) were already flagged low-SHAP-importance in I-01/I-02 — dropping or smoothing
+low-signal, noisy sensor inputs may reduce overfitting in a 365-day recursive rollout more than it
+costs real signal, consistent with (not contradicting) `fx_lsu_dens`'s already-established dominance.
+
+**Secondary gap-filled-target metric disagrees for Variant A specifically, stated plainly rather
+than smoothed over**: under the observed target Variant A looks roughly competitive; under the
+gap-filled target it looks clearly worse than both Model 1 and Variant B across every model (e.g.
+`Ensemble_unweighted` R² −0.189 → −1.027). Plausible read: `y_gapfilled` is itself a pooled RFm
+gap-filler's output trained on met/soil features Variant A's models never see, so Variant A's
+predictions diverge further from the gap-filler's own output space specifically — a circularity
+artifact (D-65's own established caveat for this secondary metric), not necessarily a real accuracy
+difference.
+
+**Practical implication for Phase 07**: this particular, isolated driver-availability cost looks
+small — the documented scenario risk (U-03/S-01) concentrates in extrapolation and SARIMAX's
+unbounded response, not in losing these 24 specific sensor channels. This does not mean scenario
+forecasting overall is risk-free — only that this specific, isolated cost is small.
+
+**Chain figures generated and merged** (per direct user request, extending the standing
+`b10_b13_chain_plots.py`/`b10_b13_full_chains.csv` convention to this ablation): 12 new
+variant-suffixed model columns (`{model}_S03_A_removal`/`{model}_S03_B_resample`) merged into
+`results/b10_b13_full_chains.csv` via a left join on `(date, tower, anchor_year)` — verified row
+count unchanged (5,475 → 5,475), only new columns added. 180 new figures in
+`results/figures/b10_chains/` (12 models × 15 tower/anchor combos); `MODEL_COLORS` in
+`b10_b13_chain_plots.py` extended with 12 new entries (muted tints of each base model's own hue).
+
+**Purely additive** — `B10_daily_improvements.ipynb`, `S01_first_scenario.ipynb`, S-02's notebook,
+`build_scenario_drivers.py`, `scenario_hybrid.py`, `recursive_rollout.py`,
+`b10_b13_rerun_multi_anchor.py`, and every existing D-65 results CSV are untouched (verified via
+`git status`). New files: `notebooks/07_scenario_analysis/s03_driver_availability_ablation.py`,
+`compile_s03_results.py`, `S03_driver_availability_ablation.ipynb`, `s03_results.md`;
+`results/s03_summary.csv`, `s03_summary_vs_gapfilled.csv`, `s03_chains.csv`,
+`s03_table_all_towers.csv`, `s03_table_by_tower.csv`, `s03_table_vs_gapfilled_all_towers.csv`,
+`s03_table_vs_gapfilled_by_tower.csv`. Cross-ref D-63 (U-03, the distribution-shift test this
+disentangles from), D-64 (S-01, the extrapolation test this disentangles from), D-65 (Model 1's
+source numbers, `bin_metrics()`/chain-figure conventions reused), D-69 (S-02, the excluded
+proxy-reconstruction alternative), D-52 (the RESAMPLED_COLS/DROPPED_COLS list this reuses).

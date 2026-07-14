@@ -1,0 +1,9 @@
+,Model1,Model1,Model1,Model1,Model1,Model1,VariantA_removal,VariantA_removal,VariantA_removal,VariantA_removal,VariantA_removal,VariantA_removal,VariantB_resample,VariantB_resample,VariantB_resample,VariantB_resample,VariantB_resample,VariantB_resample
+,R2,RMSE,MAE,MASE,WAPE,Correlation,R2,RMSE,MAE,MASE,WAPE,Correlation,R2,RMSE,MAE,MASE,WAPE,Correlation
+model,,,,,,,,,,,,,,,,,,
+RF,-0.593,25.852,18.25,0.8,0.756,0.529,-2.116,28.636,20.639,0.912,0.912,0.418,-0.767,28.362,19.316,0.798,0.762,0.402
+XGB,-0.502,25.717,17.705,0.761,0.718,0.483,-1.341,27.708,18.972,0.822,0.805,0.379,-0.506,28.175,18.578,0.763,0.714,0.378
+LightGBM,-0.48,26.106,18.202,0.774,0.728,0.496,-1.061,28.264,19.492,0.826,0.798,0.401,-0.577,28.967,19.333,0.78,0.729,0.376
+SARIMAX,-1.004,29.213,21.664,0.943,0.919,0.463,-1.211,30.431,22.455,0.989,0.945,0.302,-0.968,29.783,21.448,0.912,0.9,0.305
+Ensemble_unweighted,-0.189,25.391,17.664,0.751,0.704,0.523,-1.027,27.599,19.298,0.834,0.812,0.427,-0.459,27.876,18.689,0.762,0.729,0.398
+Ensemble_MASEweighted,-0.195,25.383,17.651,0.75,0.704,0.522,-1.032,27.593,19.281,0.833,0.812,0.426,-0.46,27.881,18.677,0.761,0.728,0.398

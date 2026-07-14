@@ -39,6 +39,16 @@ MODEL_COLORS = {
     "Ensemble_unweighted": "tab:purple", "Ensemble_MASEweighted": "tab:pink",
     "TFT": "tab:brown", "TabPFN": "tab:cyan",
     "DLinear": "tab:olive", "LSTM": "orchid", "TabICLv2": "teal",
+    # S-03 driver-availability ablation (D-70): variant-suffixed model columns merged into
+    # b10_b13_full_chains.csv -- reuse each base model's own hue, distinguished by line style
+    # is not available here (plot_chain draws one color per call), so a lighter/muted tint per
+    # variant keeps them visually distinct from Model 1's own full-feature chains above.
+    "RF_S03_A_removal": "yellowgreen", "RF_S03_B_resample": "darkgreen",
+    "XGB_S03_A_removal": "navajowhite", "XGB_S03_B_resample": "darkorange",
+    "LightGBM_S03_A_removal": "lightskyblue", "LightGBM_S03_B_resample": "navy",
+    "SARIMAX_S03_A_removal": "lightcoral", "SARIMAX_S03_B_resample": "darkred",
+    "Ensemble_unweighted_S03_A_removal": "plum", "Ensemble_unweighted_S03_B_resample": "indigo",
+    "Ensemble_MASEweighted_S03_A_removal": "lightpink", "Ensemble_MASEweighted_S03_B_resample": "deeppink",
 }
 
 

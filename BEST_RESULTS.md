@@ -339,6 +339,13 @@ conformal intervals NOT attached (only ever valid for in-AOA points per U-03).
 self-consistent mechanistic livestock-scenario construction, and (if time permits) SPACSYS
 (already validated at North Wyke, Wu et al. 2016) for the trend/level component.
 
+**Related diagnostic, not a production-config change (D-70)**: S-03 isolated the cost of
+scenario-mode driver unavailability from extrapolation, on real historical anchors — found the
+cost is small-to-negative pooled across towers (neither dropping nor climatology-resampling 24
+scenario-unavailable columns beat Model 1's full feature set; resample modestly beats it). Supports
+the standing recommendation that scenario risk concentrates in extrapolation/SARIMAX, not driver
+loss. See D-70, `notebooks/07_scenario_analysis/s03_results.md`.
+
 **Sources:** `notebooks/07_scenario_analysis/S01_first_scenario.ipynb`, `s01_results.md`,
 `src/features/build_scenario_drivers.py`, `src/models/scenario_hybrid.py`,
 `results/s01_scenario_summary.csv`, `results/figures/s01_*.png` (4 figures),
