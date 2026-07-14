@@ -1,0 +1,7 @@
+target,rf_r2,rf_rmse,clim_r2,clim_rmse,n_total,winner
+fx_PPFD_mean,0.507,79.4097,0.2903,103.467,2190.0,RF
+fx_RN_mean,0.449,30.6253,0.354,34.8287,2190.0,RF
+fx_WS_mean,0.3632,1.2217,0.0376,1.504,2190.0,RF
+fx_VPD_mean,-0.0004,2.672,-0.3146,2.954,2190.0,RF
+fx_SWC_mean,-0.6619,5.479,-0.4408,5.5197,2190.0,Climatology
+fx_TS_mean,-1.2568,2.7787,-1.0434,2.7627,2190.0,Climatology

@@ -654,12 +654,36 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      D-34's already-correct "Red-farmlet arable conversion" explanation — the same underlying fact,
      just not cross-referenced later; no numbers change. See D-67 (+ 4 addenda), D-68,
      `notebooks/04_feature_engineering/F10_results.md`.
+   - **D-69 (2026-07-13): S-02, driver-reconstruction feasibility (preparation, not yet
+     integrated).** New idea, confirmed never considered in D-52/D-64: train proxy models
+     predicting CMIP6's 6 missing scenario variables (`fx_WS_mean`, `fx_VPD_mean`, `fx_PPFD_mean`,
+     `fx_RN_mean`, `fx_TS_mean`, `fx_SWC_mean`) from the 4 it provides (`Tmin/Tmax/Rain/RAD`), using
+     real historical NWFP data, then compare against the current climatology-resampling baseline
+     (D-52) — more scenario-responsive in principle, since climatology ignores how extreme a given
+     future day's available drivers actually are. Correlation evidence (D-50) predicted a mixed
+     picture; **user chose to attempt all 6 anyway** for a complete picture. New notebook
+     `notebooks/07_scenario_analysis/preparation/S02_driver_reconstruction_feasibility.ipynb`
+     (`fco2_gapfill.py`'s exact RF architecture, D-26, reused). **Two genuine surprises reversing
+     the pre-registered expectation**: wind speed (weakest correlation, r=−0.11 to 0.31) is the
+     *strongest* RF win (R²=0.363 vs. climatology's 0.038) — linear correlation missed nonlinear
+     structure RF could exploit. Soil temperature (*strongest* correlation, r=0.742) fails for
+     *both* methods — root-caused to a real train/test variance shift (test-period std roughly
+     half of training-period std at Tower 4), not evidence the underlying relationship is weak.
+     **PPFD/RN/WS show genuine validated skill over climatology; VPD is a wash; TS/soil moisture
+     lose.** Extrapolation check (reusing S-01's `dissimilarity_index()`): **100% of 2041–2060
+     SSP2-4.5 scenario days fall outside the training envelope at all 3 towers** — a serious
+     caveat for any winning model, plausibly partly an artifact of the CMIP6 ensemble-mean's own
+     smoothing. **Explicitly a preparation pass — `build_scenario_drivers.py`/`S01_first_scenario.ipynb`
+     untouched**, adopting any winning proxy is a deliberate separate follow-up. See D-69,
+     `notebooks/07_scenario_analysis/preparation/S02_driver_reconstruction_feasibility.ipynb`.
    - **Next (in order): (1) 07 scenario analysis, extending S-01** — SSP5-8.5, realization-level
      (not just ensemble-mean) spread, a self-consistent mechanistic livestock-scenario construction,
      and (if time permits) the SPACSYS process-model route for the trend/level component. B-08
      remains available separately for the point-forecast track but is not on this critical path.
      Deferred: coarser/cumulative eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase
-     2024 held-out EC data.
+     2024 held-out EC data. If S-02's PPFD/RN/WS candidates are pursued further, address the
+     100%-extrapolation caveat first (e.g. test against individual GCM/realization trajectories,
+     not just the ensemble mean).
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.

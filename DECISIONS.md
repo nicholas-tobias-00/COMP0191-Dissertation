@@ -1147,3 +1147,85 @@ value is interpretive/mechanistic, not predictive-accuracy).
 edited (matches this project's append-only decision-log convention: corrections are logged forward,
 not rewritten into prior entries). Cross-ref D-28, D-30, D-34, D-63, D-64, D-67 (F-10's
 `fx_is_arable` feature).
+
+---
+
+### D-69 — 2026-07-13 — S-02: driver-reconstruction feasibility — proxy models for CMIP6's missing
+### scenario variables (preparation, not yet integrated)
+
+**Decision:** The user proposed a genuinely new idea, confirmed via research to have never been
+considered in D-52/D-64 (which only weighed a raw Copernicus CMIP6 pull vs. the historical-day-
+climatology-resampling that was actually adopted): train small proxy models predicting the
+variables CMIP6 doesn't provide (`fx_WS_mean`, `fx_VPD_mean`, `fx_PPFD_mean`, `fx_RN_mean`,
+`fx_TS_mean`, `fx_SWC_mean`) from the 4 it does (`Tmin, Tmax, Rain, RAD`), using real historical
+NWFP data to fit/validate, then applying the trained relationship to the actual simulated future
+driver trajectory — more scenario-responsive than climatology, which ignores how extreme a given
+future day's available drivers actually are. `fx_USTAR_mean`/`fx_SHF_mean` stay out of scope
+(D-64's reasoning for dropping them is physical/data-availability based, not statistical).
+
+**Pre-registered feasibility argument** (given to the user before building anything, per their
+explicit request): D-50's own correlation matrix showed a mixed picture — strong for soil temp
+(`TA`-`TS` r=0.742), moderate for PPFD/RN (r=0.48–0.56), weak for wind speed/VPD (r=−0.11 to 0.35,
+also both already in I-01's lowest SHAP tier). **User chose to attempt all 6 variables anyway**
+(not a narrower pilot), for a complete, honest picture.
+
+**New notebook**: `notebooks/07_scenario_analysis/preparation/
+S02_driver_reconstruction_feasibility.ipynb` — reuses `src/data/fco2_gapfill.py`'s exact
+architecture (RF regressor, `n_estimators=500, min_samples_leaf=5, random_state=42`, calendar-based
+train/test split, D-26) adapted to daily/6-target/pooled-across-towers (D-30's partial-pooling
+default), plus `build_scenario_drivers.load_towers()`/`load_cmip6_climatology()` and
+`recursive_rollout.doy_climatology()` and `scenario_hybrid.dissimilarity_index()` — all reused,
+none reimplemented. Train 2018–2021, test 2022–2023 (D-04). Climatology baseline built the same
+way `build_scenario_drivers.py` already does it (per-tower `doy_climatology()` on that tower's own
+training history) — the critical, otherwise-missing comparison: does a trained proxy actually beat
+what's already being done, not just "does it have positive R²."
+
+**Results — real, not pre-judged, with two genuinely surprising reversals of the pre-registered
+expectation:**
+
+| Variable | RF R² | Climatology R² | Winner |
+|---|---|---|---|
+| `fx_PPFD_mean` | **0.507** | 0.290 | RF |
+| `fx_RN_mean` | **0.449** | 0.354 | RF |
+| `fx_WS_mean` | **0.363** | 0.038 | RF (largest relative win) |
+| `fx_VPD_mean` | −0.000 | −0.315 | RF (both weak — climatology is just worse) |
+| `fx_SWC_mean` | −0.662 | **−0.441** | Climatology |
+| `fx_TS_mean` | −1.257 | **−1.043** | Climatology |
+
+1. **Wind speed is the strongest relative RF win, despite being the correlation-evidence's weakest
+   candidate (r=−0.11 to 0.31).** Confirms the reasoning flagged before running anything: linear
+   Pearson r misses nonlinear/interaction structure a tree model can exploit — pre-judging
+   feasibility from correlation alone would have wrongly written this one off.
+2. **Soil temperature and soil moisture fail for BOTH methods** (strongly negative R²), despite
+   `TS` having the *strongest* linear correlation with `TA` (r=0.742) of any candidate — the
+   opposite of what the pre-registered argument expected. Root-caused with a quick, honest
+   follow-up check (not pre-planned, done live after seeing the anomaly): **test-period
+   (2022–2023) variance is roughly half of training-period (2018–2021) variance for these two
+   variables at Tower 4** (`fx_TS_mean` std 3.56→1.53; `fx_SWC_mean` std 6.96→3.57) — a real
+   train/test distributional shift that makes R² (which divides by test-set variance) punishing for
+   *any* predictor here, not evidence the underlying TA–TS relationship is actually weak.
+3. **Extrapolation check (reusing `dissimilarity_index()`, unmodified): 100% of 2041–2060 SSP2-4.5
+   scenario days are flagged outside the real historical training envelope, at all 3 towers.**
+   Stronger than "some risk" — every proxy model, including the genuine winners, would be applied
+   entirely outside its validated range if used for real scenario projection as currently
+   constructed. Plausibly partly an artifact of the CMIP6 ensemble-mean's own smoothing (averaged
+   across 500 GCM×realization files, so it has less day-to-day texture than any single real year)
+   rather than purely a climate-shift signal — but a real, serious caveat regardless.
+
+**Verdict: PPFD, RN, and WS show genuine, validated within-envelope skill over climatology and are
+real candidates for a follow-up integration decision** (only after addressing the 100%-
+extrapolation caveat — e.g. re-testing against individual GCM/realization trajectories, which
+would have real day-to-day texture, rather than the smoothed ensemble mean). VPD shows no real
+skill either way. TS/soil moisture are not good candidates for this specific approach as built —
+though the variance-shift root cause suggests the underlying idea isn't necessarily disproven for
+soil variables, just under-tested here.
+
+**Explicitly a preparation/feasibility pass — nothing wired into production.**
+`src/features/build_scenario_drivers.py` and `notebooks/07_scenario_analysis/
+S01_first_scenario.ipynb` are untouched; adopting any winning proxy model is a deliberate, separate
+follow-up decision, not assumed from this pass alone. No new HPO (`fco2_gapfill.py`'s exact
+hyperparameters reused verbatim). New files: `notebooks/07_scenario_analysis/preparation/
+S02_driver_reconstruction_feasibility.ipynb`, `results/s02_driver_reconstruction_summary.csv`
+(per-tower detail), `results/s02_driver_reconstruction_pooled.csv` (all-tower verdict). Cross-ref
+D-50 (correlation evidence), D-52 (the climatology baseline this compares against), D-64
+(USTAR/SHF's separate, unrevisited exclusion), D-26 (`fco2_gapfill.py`'s architecture precedent).
