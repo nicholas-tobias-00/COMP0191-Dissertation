@@ -1,6 +1,6 @@
 """S-03: builds the 3-way comparison (Model 1 / Variant A removal / Variant B resample) from
-s03_driver_availability_ablation.py's raw output, reading Model 1's numbers directly from the
-existing D-65 files (results/b10_b13_rerun_table_all_towers.csv) -- NOT recomputed, per the plan's
+s03_driver_availability_ablation.py's + s03_model_roster_extension.py's raw output, reading Model
+1's numbers directly from the existing D-65/D-65-addendum files -- NOT recomputed, per the plan's
 explicit scope (Model 1 is an existing result, referenced only).
 
 Per-target tables are built first (observed / gap-filled separately: s03_table_all_towers.csv /
@@ -13,9 +13,17 @@ VariantB}, metric). The gap-filled column carries D-65's own circularity caveat 
 history_init and shares feature space with the forecasters) -- read directionally, not as validated
 accuracy, same as everywhere else this secondary metric appears in this project.
 
-Model roster is restricted to the 6 rows Model 1/Model 2 share (B-10's own 4 models + 2 ensembles
--- Model 2 never fits TFT/TabPFN, so those D-65 rows are dropped from the comparison, not silently
-NaN-filled).
+Model roster (D-70 follow-up, model-roster-extension fix): now the FULL 11-model B-10/B-13/B-16
+roster -- originally restricted to the 6 rows B-10's own architecture covers, a real scope gap
+(Model 2 never fit TFT/TabPFN/DLinear/LSTM/TabICLv2) fixed after direct user challenge. Model 1's
+numbers for the 5 extension models were never folded back into `b10_b13_rerun_table_*` -- rather
+than reading each family's own pre-built "table" file (three different shapes, and the by-tower-year
+granularity doesn't exist at all for the extensions' gap-filled target), Model 1 is now built by
+concatenating the three RAW per-bin summary files (`b10_b13_rerun_summary*.csv` +
+`b10_b13_dl_extension_summary*.csv` + `b10_b13_tabicl_extension_summary*.csv` -- all three share the
+exact same bin/n/METRICS/model/anchor_year/tower schema) and reusing `build_pooled`/`build_by_tower`
+-- the SAME aggregation Variant A/B already go through, verified to reproduce the original
+`b10_b13_rerun_table_all_towers.csv` bit-for-bit before adopting this approach.
 """
 import pandas as pd
 import numpy as np
@@ -23,7 +31,8 @@ import numpy as np
 RESULTS = r"c:\Users\Nicholas\Documents\COMP0191 MSc Artificial Intelligence for Sustainable Development Project\results"
 
 METRICS = ["R2", "RMSE", "MAE", "MASE", "WAPE", "Correlation"]
-MODEL_ORDER = ["RF", "XGB", "LightGBM", "SARIMAX", "Ensemble_unweighted", "Ensemble_MASEweighted"]
+MODEL_ORDER = ["RF", "XGB", "LightGBM", "SARIMAX", "Ensemble_unweighted", "Ensemble_MASEweighted",
+               "TFT", "TabPFN", "DLinear", "LSTM", "TabICLv2"]
 TOWERS = [2, 4, 9]
 
 
@@ -62,13 +71,25 @@ def three_way(model1_df, variantA_df, variantB_df):
     return out
 
 
-def run_for_target(summary_path, model1_all_towers_path, model1_by_tower_year_path, suffix):
+def load_model1_raw(target_suffix):
+    """Model 1's raw per-bin predictions, all 11 models -- concatenates the 3 files each model
+    family was originally computed in (never merged upstream): `b10_b13_rerun_summary*.csv` (8
+    models), `b10_b13_dl_extension_summary*.csv` (DLinear/LSTM), `b10_b13_tabicl_extension_summary
+    *.csv` (TabICLv2). target_suffix: "" for observed, "_vs_gapfilled" for gap-filled."""
+    core = pd.read_csv(f"{RESULTS}/b10_b13_rerun_summary{target_suffix}.csv")
+    dl = pd.read_csv(f"{RESULTS}/b10_b13_dl_extension_summary{target_suffix}.csv")
+    tabicl = pd.read_csv(f"{RESULTS}/b10_b13_tabicl_extension_summary{target_suffix}.csv")
+    return pd.concat([core, dl, tabicl], ignore_index=True)
+
+
+def run_for_target(summary_path, model1_suffix, suffix):
     df = pd.read_csv(summary_path)
     df_A = df[df["variant"] == "A_removal"]
     df_B = df[df["variant"] == "B_resample"]
+    model1_raw = load_model1_raw(model1_suffix)
 
     # ---- All-towers pooled ----
-    model1_all = pd.read_csv(model1_all_towers_path, index_col=0).reindex(MODEL_ORDER)
+    model1_all = build_pooled(model1_raw)
     varA_all = build_pooled(df_A)
     varB_all = build_pooled(df_B)
     table_all = three_way(model1_all, varA_all, varB_all)
@@ -77,15 +98,7 @@ def run_for_target(summary_path, model1_all_towers_path, model1_by_tower_year_pa
     print(f"[OK] Saved {out_path}")
 
     # ---- Per-tower (anchors averaged) ----
-    # Model 1's by-tower-year file has anchor_year x model index, tower x metric columns --
-    # collapse to (tower, model) by averaging across the 5 anchor_year rows.
-    m1_ty = pd.read_csv(model1_by_tower_year_path, index_col=[0, 1], header=[0, 1])
-    m1_by_tower = {}
-    for t in TOWERS:
-        sub = m1_ty[str(t)] if str(t) in m1_ty.columns.get_level_values(0) else m1_ty[t]
-        m1_by_tower[t] = sub.groupby(level="model").mean().round(3).reindex(MODEL_ORDER)
-    model1_bt = pd.concat(m1_by_tower, names=["tower", "model"])
-
+    model1_bt = build_by_tower(model1_raw)
     varA_bt = build_by_tower(df_A)
     varB_bt = build_by_tower(df_B)
     table_bt = three_way(model1_bt, varA_bt, varB_bt)
@@ -107,19 +120,9 @@ def combine_and_overwrite(obs_table, gf_table, out_path):
 
 def main():
     print("=== Observed target ===")
-    obs_all, obs_bt = run_for_target(
-        f"{RESULTS}/s03_summary.csv",
-        f"{RESULTS}/b10_b13_rerun_table_all_towers.csv",
-        f"{RESULTS}/b10_b13_rerun_table_by_tower_year.csv",
-        "",
-    )
+    obs_all, obs_bt = run_for_target(f"{RESULTS}/s03_summary.csv", "", "")
     print("\n=== Gap-filled target (secondary, exploratory -- see circularity caveat) ===")
-    gf_all, gf_bt = run_for_target(
-        f"{RESULTS}/s03_summary_vs_gapfilled.csv",
-        f"{RESULTS}/b10_b13_rerun_table_vs_gapfilled_all_towers.csv",
-        f"{RESULTS}/b10_b13_rerun_table_vs_gapfilled_by_tower_year.csv",
-        "_vs_gapfilled",
-    )
+    gf_all, gf_bt = run_for_target(f"{RESULTS}/s03_summary_vs_gapfilled.csv", "_vs_gapfilled", "_vs_gapfilled")
 
     print("\n=== Combining into primary (headline) tables ===")
     combine_and_overwrite(obs_all, gf_all, f"{RESULTS}/s03_table_all_towers.csv")

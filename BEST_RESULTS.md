@@ -344,7 +344,30 @@ scenario-mode driver unavailability from extrapolation, on real historical ancho
 cost is small-to-negative pooled across towers (neither dropping nor climatology-resampling 24
 scenario-unavailable columns beat Model 1's full feature set; resample modestly beats it). Supports
 the standing recommendation that scenario risk concentrates in extrapolation/SARIMAX, not driver
-loss. See D-70, `notebooks/07_scenario_analysis/s03_results.md`.
+loss. **Extended (D-70 addendum, 2026-07-15) to the full 11-model roster** (originally B-10's
+4-model architecture only, a real scope gap fixed after direct user challenge) — the small/beneficial
+finding **holds for the production ensemble and most models, but not uniformly**: TFT's R² gets
+measurably worse under the resample variant (-0.363→-0.492), the one model where this diagnostic's
+reassurance does not transfer. Still not a production-config change (B-10's ensemble / TabPFN+species
+remain the standing recommendations). See D-70 addendum, `notebooks/07_scenario_analysis/s03_results.md`.
+
+**Methodology check, not a production-config change (D-71, 2026-07-15)**: user asked whether
+chain-persistence (MASE's denominator throughout this project, D-37) is a valid baseline for a
+seasonal series, given Hyndman & Koehler's own convention recommends seasonal-naive scaling
+instead. Extended B-09's `doy_climatology()` baseline (previously single tower/anchor only) to full
+3-tower × 5-anchor coverage and rescored all 11 B-10/B-13 models' MASE against it. **Result reverses
+the motivating hypothesis**: pooled, climatology is the *weaker* baseline (own MAE 43.79 vs.
+persistence's 37.50 against real `y_true`), likely because FCH₄'s spike-dominated record makes a
+±7-day day-of-year average over sparse real history a noisy estimate, not a stable seasonal curve.
+Reinforces keeping persistence as the primary MASE denominator going forward — not merely for
+cross-table consistency, but because the available seasonal alternative isn't empirically more
+reliable here. Climatology-scaled MASE kept as a secondary comparison column only. See
+`results/b10_b13_climatology_mase_table_all_towers.csv`/`_by_tower.csv`.
+**Follow-up (same day): fairness fix.** Original comparison used real `y_observed` for climatology
+vs. `y_gapfilled` for persistence's anchor value — not apples-to-apples. A gap-filled-basis
+climatology variant (`Climatology_gf`) narrows the gap (pooled MAE 40.74 vs. persistence's 37.50,
+vs. the original 43.79) and reverses at Tower 2 (climatology-gf wins there). Conclusion unchanged
+pooled, but tower-dependent. See `results/b10_b13_climatology_gf_mase_table_all_towers.csv`.
 
 **Sources:** `notebooks/07_scenario_analysis/S01_first_scenario.ipynb`, `s01_results.md`,
 `src/features/build_scenario_drivers.py`, `src/models/scenario_hybrid.py`,

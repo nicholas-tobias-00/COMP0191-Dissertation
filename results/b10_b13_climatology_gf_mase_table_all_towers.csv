@@ -1,0 +1,12 @@
+model,MASE_persistence,MASE_climatology_obs,MASE_climatology_gf,R2
+RF,0.968,0.837,0.869,-0.241
+XGB,0.922,0.797,0.824,-0.184
+LightGBM,0.941,0.804,0.837,-0.206
+SARIMAX,0.976,0.882,0.901,-0.36
+Ensemble_unweighted,0.918,0.796,0.828,-0.165
+Ensemble_MASEweighted,0.918,0.795,0.827,-0.165
+TFT,0.972,0.841,0.878,-0.363
+TabPFN,0.855,0.733,0.773,-0.122
+DLinear,1.46,1.265,1.308,-2.068
+LSTM,1.151,0.956,1.018,-1.357
+TabICLv2,0.93,0.782,0.82,-0.33

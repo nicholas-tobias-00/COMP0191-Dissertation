@@ -49,13 +49,21 @@ MODEL_COLORS = {
     "SARIMAX_S03_A_removal": "lightcoral", "SARIMAX_S03_B_resample": "darkred",
     "Ensemble_unweighted_S03_A_removal": "plum", "Ensemble_unweighted_S03_B_resample": "indigo",
     "Ensemble_MASEweighted_S03_A_removal": "lightpink", "Ensemble_MASEweighted_S03_B_resample": "deeppink",
+    # S-03 model-roster extension (D-70 follow-up): TFT/TabPFN/DLinear/LSTM/TabICLv2 variants,
+    # same muted-tint-per-variant convention as the tree/ensemble models above.
+    "TFT_S03_A_removal": "burlywood", "TFT_S03_B_resample": "saddlebrown",
+    "TabPFN_S03_A_removal": "paleturquoise", "TabPFN_S03_B_resample": "darkcyan",
+    "DLinear_S03_A_removal": "khaki", "DLinear_S03_B_resample": "darkolivegreen",
+    "LSTM_S03_A_removal": "violet", "LSTM_S03_B_resample": "purple",
+    "TabICLv2_S03_A_removal": "lightseagreen", "TabICLv2_S03_B_resample": "darkslategray",
 }
 
 
 def plot_chain(sub, tower, yr, model):
     fig, ax = plt.subplots(figsize=(13, 5))
     ax.plot(sub.date, sub.y_gapfilled, ":", color="gray", linewidth=1, label="Gap-filled FCH4")
-    y_true_col = "y_true_tft" if model in ("TFT", "DLinear", "LSTM") else "y_true"
+    base_model = model.split("_S03_")[0]
+    y_true_col = "y_true_tft" if base_model in ("TFT", "DLinear", "LSTM") else "y_true"
     ax.plot(sub.date, sub[y_true_col], "-", color="black", linewidth=1, label="Actual FCH4 (observed)")
     color = MODEL_COLORS.get(model, "tab:gray")
     ax.plot(sub.date, sub[model], "-", color=color, linewidth=1.2, label=f"{model} (predicted)")

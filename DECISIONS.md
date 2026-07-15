@@ -1314,3 +1314,136 @@ count unchanged (5,475 → 5,475), only new columns added. 180 new figures in
 disentangles from), D-64 (S-01, the extrapolation test this disentangles from), D-65 (Model 1's
 source numbers, `bin_metrics()`/chain-figure conventions reused), D-69 (S-02, the excluded
 proxy-reconstruction alternative), D-52 (the RESAMPLED_COLS/DROPPED_COLS list this reuses).
+
+**Addendum (2026-07-15): model-roster extension — TFT/TabPFN/DLinear/LSTM/TabICLv2 were missing, a
+real scope gap, not a deliberate exclusion.** S-03's original design explicitly scoped Model 1/2 to
+"B-10's 4-model architecture" — true when written, but the project's standing model roster had grown
+to 11 models by B-13/D-66 (TFT/TabPFN, then DLinear/LSTM/TabICLv2), and S-03 was never extended to
+match. Caught only after the user asked directly whether S-03 covered TabPFN/TabICLv2 — it did not,
+and the user flagged this as a mistake to rectify. Fixed via a new script
+(`s03_model_roster_extension.py`) running the exact same two variants against all 5 remaining
+models: TabPFN/TabICLv2 (zero-shot, per-tower/anchor, mirrors `b16_foundation_models_v3.py`) and
+TFT/DLinear/LSTM (pooled per anchor, hourly Track B, mirrors `b16_dl_models_v3.py`/
+`b10_b13_dl_extension.py`, exact D-45/B-13a and B-09 recipes, no new HPO). Of the 24 daily degraded
+columns, 12 have a verified direct hourly analogue (traced to `build_forecasting_matrix_v2.py`'s
+source — the daily columns are literally `.resample("D").mean()` of these hourly series); the
+remaining 12 (the SWC/TS daily lag/rolling ladder) have no hourly equivalent at all and are
+explicitly out of scope for the hourly DL track, not silently dropped. Smoke-tested (1 anchor, all 3
+towers/models) before the full 5-anchor sweep — all results non-degenerate before committing.
+
+**Result refines, rather than confirms, the original finding**: on MASE, Variant B (resample) beats
+or ties Model 1 for 9 of 11 models (only TFT is genuinely worse); Variant A (removal) is much more
+mixed across the extended roster (clear win for SARIMAX/TabPFN/DLinear, flat-to-worse for
+RF/XGB/LightGBM/both ensembles/TFT/LSTM/TabICLv2). **TFT is a genuine reversal**: R² gets measurably
+worse under Variant B specifically (-0.363 → -0.492), the opposite direction from every other model
+tested — flagged as a hypothesis (attention's possible sensitivity to the resampling-boundary
+discontinuity) for future interpretability work, not a proven mechanism. Practical implication
+updated: the "driver-availability cost is small" finding holds for the production-recommended
+ensemble and most of the extended roster, but not uniformly — does not transfer to TFT.
+
+A latent bug was caught and fixed while merging: `b10_b13_chain_plots.py`'s `plot_chain()` selected
+the ground-truth column via `model in ("TFT","DLinear","LSTM")` verbatim, which silently missed every
+variant-suffixed column this addendum adds (e.g. `TFT_S03_A_removal`), always falling back to the
+wrong ground-truth series for those 6 new columns. Fixed to strip the `_S03_*` suffix before the
+check; verified visually on a regenerated figure before trusting the full 495-figure regeneration.
+
+Canonical files extended in place (row counts verified unchanged where expected, backed up before
+writing): `results/s03_summary.csv`/`s03_summary_vs_gapfilled.csv` (1,080→1,980 rows),
+`results/s03_chains.csv` (10,950 rows, +5 model columns +`y_true_tft`),
+`results/b10_b13_full_chains.csv` (5,475 rows, +10 variant-suffixed columns). `compile_s03_results.py`
+extended to build Model 1's numbers for the 5 new models from the raw per-bin summary files
+(`b10_b13_dl_extension_summary*.csv`, `b10_b13_tabicl_extension_summary*.csv`) rather than each
+family's differently-shaped pre-built table — verified to reproduce the previously-published
+`b10_b13_rerun_table_all_towers.csv` bit-for-bit before adopting this approach. Full write-up:
+`s03_results.md`'s "Addendum: model-roster extension" section.
+
+---
+
+### D-71 — 2026-07-15 — is chain-persistence a valid MASE baseline for a seasonal series? Extended B-09's climatology baseline to full coverage to check
+
+**Question raised (user, live discussion):** this project's MASE denominator throughout (D-37) is
+chain-persistence — the anchor day's real value, held flat for the full 365-day rollout. For a
+series with real seasonality (FCH4), Hyndman & Koehler's own MASE recommendation is to scale
+against a *seasonal-naive* baseline instead, since a flat hold ignores season entirely and can be
+trivially beaten at long lead times by any model that merely tracks the seasonal cycle. This
+project already has a seasonal-mean analogue — `rr.doy_climatology()` (day-of-year mean, ±7-day
+window, from strictly pre-anchor real `y_observed` history) — but it had only ever been computed
+for a single tower/anchor, informally, inside B-09's original smoke test (D-53), never extended to
+full coverage or used to rescale B-10/B-13's headline MASE.
+
+**Fix:** new script `b10_b13_climatology_baseline.py` (committed) — reproduces B-09's exact
+climatology recipe for all 3 towers × 5 anchors (2018–2022), merges the result into
+`b10_b13_full_chains.csv` as a new `Climatology` column, then reruns `rr.bin_metrics()` (unmodified)
+per (tower, anchor, model) with `y_persist=Climatology` instead of `persistence` — recomputing MASE
+only (R²/RMSE/MAE/WAPE/Correlation are baseline-independent, unchanged) for the full 11-model B-10/
+B-13 roster. No models refit — reuses the predictions already in `b10_b13_full_chains.csv`. One
+real, expected NaN case: Tower 9 has zero pre-anchor real `y_observed` history for its 2018/2019
+anchors (confirmed directly), so climatology is undefined there (730/5,475 rows) — handled by
+falling back to `y_persist=None` for those two (tower, anchor) combos rather than crashing on
+sklearn's NaN-intolerant `mean_absolute_error`.
+
+**Result — genuinely surprising, and the opposite of the motivating hypothesis: pooled across all
+3 towers, climatology is the *weaker* baseline, not the harder one.** Directly checked both
+baselines' own MAE against real `y_true`, pooled (n-weighted): persistence MAE=37.50 vs
+**climatology MAE=43.79** — climatology's own forecast error is *higher* than flat persistence's.
+Every model's MASE therefore looks numerically better when scaled against climatology (range
+0.797–1.265) than against persistence (0.855–1.460) for all 11 models — not because any model
+forecasts better, but because the climatology denominator is bigger for everyone equally.
+
+**Per-tower breakdown shows this isn't uniform, and the reason likely isn't a coincidence**: at
+**Tower 2**, climatology genuinely is the harder baseline (matches the original hypothesis) —
+e.g. RF's MASE goes 0.346 (vs persistence) → 0.672 (vs climatology), *worse*-looking under
+climatology. At **Towers 4 and 9** (paradoxically the towers with *more* real-data coverage),
+climatology is the weaker baseline in most anchors — e.g. Tower 9 RF: 0.944 → 0.767, *better*-
+looking under climatology. Plausible explanation (not proven): FCH4 is spike-dominated (D-44b's
+established finding), and a ±7-day day-of-year window averaged over only a handful of real
+historical years per tower is itself a noisy estimate that a few extreme spike days can distort —
+so "climatology" here is a low-sample, high-variance seasonal estimate, not the smooth stable
+curve the term usually implies, and it doesn't reliably outperform simply holding one real
+anchor-day value flat.
+
+**Practical implication: this is a reason to keep, not abandon, the project's standing
+persistence-scaled MASE convention (D-37)** — not merely for cross-table consistency (the original
+reason), but because the empirical alternative this project actually has available
+(`doy_climatology`) turns out not to be a more reliable baseline given how sparse/spiky the real
+FCH4 record is. The climatology-scaled MASE is retained as a secondary, exploratory comparison
+column (not a replacement), consistent with this project's habit of adding secondary metrics
+alongside rather than instead of the primary one (cf. the `y_gapfilled` secondary-target
+convention, D-65's addendum).
+
+**Files added:** `notebooks/05_benchmarking/b10_b13_climatology_baseline.py` (committed).
+`results/b10_b13_full_chains.csv` extended in place (+1 `Climatology` column, 5,475 rows, row count
+verified unchanged; backed up before writing). New: `results/b10_b13_climatology_mase_summary.csv`
+(990 rows, raw per-bin/anchor/tower/model), `results/b10_b13_climatology_mase_table_all_towers.csv`
+(pooled comparison, persistence vs. climatology MASE + R², all 11 models),
+`results/b10_b13_climatology_mase_table_by_tower.csv` (per-tower breakdown). No `benchmarks.csv`
+rows (same exclusion precedent as every other diagnostic/ablation pass this session — not a
+point-forecast/interval-calibration benchmark in its own right). Cross-ref D-37 (the original
+persistence convention), D-53 (climatology's first, single-anchor appearance), D-65 (the
+`bin_metrics()`/multi-anchor aggregation conventions reused here).
+
+**Follow-up same day — fairness caveat identified and fixed.** User noticed the comparison wasn't
+apples-to-apples: `Climatology` was built from real `y_observed` history only (B-09's original
+recipe), while `persistence`'s single anchor value comes from `y_gapfilled` (dense, can itself be a
+gap-filler's smoothed model output on days the anchor wasn't a real observation) — so part of
+climatology's apparent weakness could be "real vs. gap-filled data source," not "flat vs. seasonal."
+Added `b10_b13_climatology_gf_baseline.py`: identical `doy_climatology()` recipe, sourced from
+`y_gapfilled` instead, producing a second new column `Climatology_gf`.
+
+**Refined result: climatology is still the weaker baseline pooled, even on a fair (gap-filled-vs-
+gap-filled) basis — but the gap narrows substantially, and reverses at Tower 2.** Pooled MAE against
+real `y_true`: persistence 37.50, climatology (y_observed-basis) 43.79, **climatology (y_gapfilled-
+basis) 40.74** — roughly halfway between the two, still worse than persistence but much less so.
+Tower 2 flips outright: climatology-gf (MAE 25.86) clearly *beats* persistence (51.94) there —
+stronger than the original y_observed-basis climatology (37.26) at the same tower. Towers 4/9 still
+favor persistence under either climatology variant. Conclusion stands (persistence remains the
+better-justified primary MASE denominator, pooled), but the fair comparison shows climatology's
+disadvantage is smaller than the first pass suggested and tower-dependent, not a blanket result.
+
+Files added: `notebooks/05_benchmarking/b10_b13_climatology_gf_baseline.py` (committed).
+`results/b10_b13_full_chains.csv` extended again in place (+1 `Climatology_gf` column, 42 cols
+total, row count unchanged). New: `results/b10_b13_climatology_gf_mase_summary.csv`,
+`_table_all_towers.csv`, `_table_by_tower.csv`. `results/b10_b13_mase_baseline_comparison.csv`
+(the per-bin deep-dive file) extended to carry all three MASE variants side by side
+(`MASE_persistence`, `MASE_climatology_obs`, `MASE_climatology_gf`). `results/figures/b09_chains/`
+(165 figures) regenerated with the third baseline overlaid.

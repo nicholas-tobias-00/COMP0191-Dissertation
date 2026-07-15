@@ -1,0 +1,12 @@
+model,MASE_persistence,MASE_climatology,R2,verdict
+RF,0.968,0.837,-0.241,better (lower) vs climatology
+XGB,0.922,0.797,-0.184,better (lower) vs climatology
+LightGBM,0.941,0.804,-0.206,better (lower) vs climatology
+SARIMAX,0.976,0.882,-0.36,better (lower) vs climatology
+Ensemble_unweighted,0.918,0.796,-0.165,better (lower) vs climatology
+Ensemble_MASEweighted,0.918,0.795,-0.165,better (lower) vs climatology
+TFT,0.972,0.841,-0.363,better (lower) vs climatology
+TabPFN,0.855,0.733,-0.122,better (lower) vs climatology
+DLinear,1.46,1.265,-2.068,better (lower) vs climatology
+LSTM,1.151,0.956,-1.357,better (lower) vs climatology
+TabICLv2,0.93,0.782,-0.33,better (lower) vs climatology

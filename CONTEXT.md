@@ -710,6 +710,50 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      channels. Chain figures generated and merged into `b10_b13_full_chains.csv`/`b10_chains` figure
      set per direct user request (180 new figures, 12 new variant-suffixed columns, verified
      additive). See D-70, `notebooks/07_scenario_analysis/s03_results.md`.
+   - **D-70 addendum (2026-07-15): model-roster extension — TFT/TabPFN/DLinear/LSTM/TabICLv2 were
+     missing from S-03, a real scope gap caught only after the user asked directly** ("does S-03
+     have TabPFN and TabICL??"). S-03's original scope ("B-10's 4-model architecture") was true when
+     written but never revisited once the project's standing roster grew to 11 models (B-13/D-66).
+     New `s03_model_roster_extension.py` runs the same two variants against all 5 remaining models
+     (TabPFN/TabICLv2 zero-shot per-tower/anchor mirroring `b16_foundation_models_v3.py`; TFT/
+     DLinear/LSTM pooled hourly Track-B mirroring `b16_dl_models_v3.py`, exact existing recipes, no
+     new HPO) — smoke-tested before the full 5-anchor sweep. **Result refines the original finding
+     rather than confirming it uniformly**: on MASE, Variant B (resample) beats/ties Model 1 for 9 of
+     11 models; Variant A (removal) is much more mixed on the extended roster (clear win only for
+     SARIMAX/TabPFN/DLinear). **TFT is a genuine reversal** — R² gets measurably *worse* under
+     Variant B (-0.363→-0.492), opposite every other model, flagged as an untested attention-
+     sensitivity hypothesis for future interpretability work. Also caught and fixed a latent bug in
+     `b10_b13_chain_plots.py` (ground-truth column selection silently broke for variant-suffixed
+     TFT/DLinear/LSTM columns). Canonical files extended in place: `s03_summary*.csv` (1,080→1,980
+     rows), `s03_chains.csv`/`b10_b13_full_chains.csv` (row counts unchanged, new columns added),
+     `compile_s03_results.py` extended to all 11 models (verified bit-for-bit against the
+     previously-published Model-1 table before adopting the new aggregation path). 495 total chain
+     figures now in `results/figures/b10_chains/`. See `s03_results.md`'s "Addendum: model-roster
+     extension" section.
+   - **D-71 (2026-07-15): is chain-persistence a valid MASE baseline for a seasonal series?**
+     User-raised concern: MASE's flat-persistence denominator (D-37) ignores seasonality entirely,
+     so Hyndman & Koehler's own MASE convention would recommend a seasonal-naive baseline instead —
+     this project already has one (`rr.doy_climatology()`) but it had only ever run for a single
+     tower/anchor inside B-09's original smoke test (D-53). Extended to full coverage (3 towers × 5
+     anchors) via new `b10_b13_climatology_baseline.py`, then reran `bin_metrics()` for all 11 B-10/
+     B-13 models with climatology in place of persistence as MASE's denominator. **Result reverses
+     the motivating hypothesis**: pooled, climatology is the *weaker* baseline (own MAE 43.79 vs.
+     persistence's 37.50 against real `y_true`) — likely because FCH₄'s spike-dominated record
+     (D-44b) makes a ±7-day day-of-year average, built from only a handful of real historical years
+     per tower, a noisy estimate rather than a stable seasonal curve. Per-tower breakdown shows this
+     isn't uniform: Tower 2 matches the original hypothesis (climatology genuinely harder), but
+     Towers 4/9 show the reversal. **Practical implication: reinforces keeping persistence as the
+     primary MASE denominator** (D-37) — not just for cross-table consistency, but because the
+     available seasonal alternative isn't empirically more reliable given how sparse the real data
+     is. Climatology-scaled MASE retained as a secondary comparison column, not a replacement. See
+     `results/b10_b13_climatology_mase_table_all_towers.csv`/`_by_tower.csv`.
+     **Follow-up same day**: user flagged a fairness gap — climatology was built from real
+     `y_observed` while persistence's anchor value comes from `y_gapfilled`. Added a second,
+     gap-filled-basis climatology variant (`b10_b13_climatology_gf_baseline.py`) for a fair
+     comparison. Refined result: climatology-gf narrows the gap substantially (pooled MAE 40.74 vs.
+     persistence's 37.50, vs. the original 43.79) and **reverses at Tower 2** (climatology-gf clearly
+     wins there) — conclusion (keep persistence as primary) still stands pooled, but is tower-
+     dependent, not uniform. `results/figures/b09_chains/` (165 figures) now show all 3 baselines.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.
@@ -717,10 +761,26 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-10 (D-67, F-10: new standing recursive-rollout best is `TabPFN+species`,
+_Last updated: 2026-07-15 (D-71: is chain-persistence a valid MASE baseline for a seasonal series?
+Extended B-09's `doy_climatology()` baseline from a single tower/anchor to full 3-tower × 5-anchor
+coverage and reran `bin_metrics()` for all 11 B-10/B-13 models with climatology as MASE's
+denominator instead of persistence. Result reverses the motivating hypothesis: pooled, climatology
+is the *weaker* baseline (own MAE 43.79 vs. persistence's 37.50) — reinforces keeping persistence as
+the primary MASE denominator (D-37) rather than switching. See "Current status" bullets above.)_
+
+_Previously updated: 2026-07-15 (D-70 addendum: S-03's model-roster extension — TFT/TabPFN/DLinear/LSTM/
+TabICLv2 were missing from the driver-availability ablation, a real scope gap caught only after the
+user asked directly whether S-03 covered TabPFN/TabICLv2. Fixed via `s03_model_roster_extension.py`
+(smoke-tested, then full 5-anchor sweep); result refines rather than confirms the original finding
+— Variant B (resample) beats/ties Model 1 on MASE for 9/11 models, but TFT is a genuine reversal on
+R² (-0.363→-0.492 under resampling). Also fixed a latent ground-truth-column bug in
+`b10_b13_chain_plots.py` that would have broken for the new variant-suffixed DL columns. See
+"Current status" bullets above and `s03_results.md`'s addendum section for full detail.)_
+
+_Previously updated: 2026-07-10 (D-67, F-10: new standing recursive-rollout best is `TabPFN+species`,
 MASE=0.840/R²=−0.084, beating B-10's ensemble outright — see "Current status" bullets above and
 `BEST_RESULTS.md` §3 for full detail. MASE is now this project's primary forecasting metric,
-CLAUDE.md. Earlier note retained below.)_
+CLAUDE.md.)_
 
 _Previously updated: 2026-07-09 (D-66 second same-day addendum: TFT staleness reconciled across
 `b10_b13_metrics_rerun.md` -- several unrelated reruns of `b10_b13_rerun_multi_anchor.py` (TFT is
