@@ -56,13 +56,18 @@ MODEL_COLORS = {
     "DLinear_S03_A_removal": "khaki", "DLinear_S03_B_resample": "darkolivegreen",
     "LSTM_S03_A_removal": "violet", "LSTM_S03_B_resample": "purple",
     "TabICLv2_S03_A_removal": "lightseagreen", "TabICLv2_S03_B_resample": "darkslategray",
+    # Gap-filled-target/-context ablation (D-7x): DLinear/LSTM/TFT trained on y_gapfilled instead of
+    # masked y_observed; TabPFN/TabICLv2 given y_gapfilled as context instead of y_observed. Muted
+    # tint per model, same convention as the S-03 variants above.
+    "DLinear_gf": "darkkhaki", "LSTM_gf": "mediumorchid", "TFT_gf": "peru",
+    "TabPFN_gf": "darkturquoise", "TabICLv2_gf": "seagreen",
 }
 
 
 def plot_chain(sub, tower, yr, model):
     fig, ax = plt.subplots(figsize=(13, 5))
     ax.plot(sub.date, sub.y_gapfilled, ":", color="gray", linewidth=1, label="Gap-filled FCH4")
-    base_model = model.split("_S03_")[0]
+    base_model = model.split("_S03_")[0].split("_gf")[0]
     y_true_col = "y_true_tft" if base_model in ("TFT", "DLinear", "LSTM") else "y_true"
     ax.plot(sub.date, sub[y_true_col], "-", color="black", linewidth=1, label="Actual FCH4 (observed)")
     color = MODEL_COLORS.get(model, "tab:gray")

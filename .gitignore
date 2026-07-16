@@ -28,3 +28,6 @@ Thumbs.db
 CLAUDE.md
 # CONTEXT.md
 # DECISIONS.md
+
+# CSV results in results/
+results/*.csv

@@ -75,9 +75,16 @@ def tower_series(m, t, track):
     return dict(t=t, idx=df.index, ch4=ch4, Y=Y, enc_ex=enc_ex, dec_ex=dec_ex)
 
 
-def make_windows(ser, L, H, stride=1):
-    """Origins (strided) with full lookback + horizon. Returns dict of arrays + origin/target times."""
+def make_windows(ser, L, H, stride=1, y_source="observed"):
+    """Origins (strided) with full lookback + horizon. Returns dict of arrays + origin/target times.
+
+    y_source: "observed" (default, unchanged behavior) targets real y_observed (masked training,
+    sparse); "gapfilled" targets y_gapfilled (dense, ~continuous) instead -- an explicit ablation
+    testing the D-36/D-37 tree/SARIMAX convention against the DL family (D-7x gap-filled-target
+    ablation). Only the training target array changes; encoder history (ch4, already y_gapfilled)
+    and evaluation ground truth elsewhere are untouched."""
     ch4, Y, enc_ex, dec_ex, idx = ser["ch4"], ser["Y"], ser["enc_ex"], ser["dec_ex"], ser["idx"]
+    y_arr = ch4 if y_source == "gapfilled" else Y
     N = len(ch4)
     enc_feat = np.concatenate([ch4[:, None], enc_ex], axis=1)   # (N, 1+22)
     enc_feat = np.nan_to_num(enc_feat, nan=0.0)
@@ -85,16 +92,17 @@ def make_windows(ser, L, H, stride=1):
     oi = np.arange(L - 1, N - H, stride, dtype=int)
     enc = np.stack([enc_feat[i - L + 1:i + 1] for i in oi])     # (n, L, F_enc)
     dec = np.stack([dec_ex[i + 1:i + 1 + H] for i in oi])       # (n, H, F_dec)
-    y   = np.stack([Y[i + 1:i + 1 + H] for i in oi])            # (n, H)
+    y   = np.stack([y_arr[i + 1:i + 1 + H] for i in oi])        # (n, H)
     otime = idx[oi]
     ttime = np.stack([idx[i + 1:i + 1 + H].to_numpy() for i in oi])  # (n, H) datetimes
     return dict(enc=enc, dec=dec, y=y, otime=otime, ttime=ttime, t=ser["t"])
 
 
-def build_windows(m, track):
-    """{tower: window_dict} for a track (uses the track's L/H/stride)."""
+def build_windows(m, track, y_source="observed"):
+    """{tower: window_dict} for a track (uses the track's L/H/stride). See make_windows for
+    y_source."""
     cfg = TRACKS[track]
-    return {t: make_windows(tower_series(m, t, track), cfg["L"], cfg["H"], cfg["stride"])
+    return {t: make_windows(tower_series(m, t, track), cfg["L"], cfg["H"], cfg["stride"], y_source=y_source)
             for t in TOWERS}
 
 

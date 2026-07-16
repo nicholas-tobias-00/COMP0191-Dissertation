@@ -1447,3 +1447,82 @@ total, row count unchanged). New: `results/b10_b13_climatology_gf_mase_summary.c
 (the per-bin deep-dive file) extended to carry all three MASE variants side by side
 (`MASE_persistence`, `MASE_climatology_obs`, `MASE_climatology_gf`). `results/figures/b09_chains/`
 (165 figures) regenerated with the third baseline overlaid.
+
+---
+
+### D-72 — 2026-07-15 — gap-filled-target/-context ablation for the DL family (DLinear/LSTM/TFT/TabPFN/TabICLv2)
+
+**Decision:** The B-09→B-15 sequence already has a project-wide convention (D-36/D-37): tree models
+(RF/XGB/LightGBM) and SARIMAX train their target on `y_gapfilled` (dense, continuous) and are
+evaluated against real `y_observed`. The DL family was the odd one out -- DLinear/LSTM/TFT's training
+loss was masked to real `y_observed` days only (`mask = np.isfinite(y)` in `forecasting_dl.train_model`,
+~45-55% dense depending on tower), even though gap-filled values already feed their AR/encoder
+history; TabPFN/TabICLv2 went further and explicitly rejected `y_gapfilled` as context, with each
+function's docstring (`recursive_rollout.py`) stating this was deliberate, "avoiding the diffuse
+globally-trained-gap-filler optimism flagged for every other model's training target." This
+experiment (user-initiated, live discussion) tests that prior rejection empirically: does extending
+the tree/SARIMAX convention to the DL family help, hurt, or mostly just inflate apparent skill via
+gap-filler mimicry (`y_gapfilled` is itself an RFm regressor's output over met/soil/livestock/mgmt
+features that substantially overlap the forecasters' own `fx_` driver set -- a real, previously-named
+circularity risk, not a new one)?
+
+**Design** (user-confirmed): evaluation always stays on real `y_observed` (`y_true`/`y_true_tft`,
+unchanged) -- only the *fitting* process changes. TFT's validation split (early stopping) also uses
+`y_gapfilled`, consistent with its training target (both are "fitting," not final evaluation).
+TabPFN/TabICLv2's historical context swaps to `y_gapfilled` too, on the same reasoning (context is
+the in-context analogue of training data, not a held-out test set). Full 3-tower x 5-anchor
+(2018-2022) coverage for all 5 models per CLAUDE.md's "full coverage by default" rule. Tree
+models/SARIMAX are out of scope (already use this convention).
+
+**Implementation:** additive `y_source="observed"|"gapfilled"` param added to `forecasting_dl.
+make_windows()`/`build_windows()` (default reproduces prior output bit-for-bit, verified);
+`train_model()` needed no changes (masking/loss already generic over whichever `y` array the windows
+dict carries). Three new sibling scripts, each mirroring its non-gf predecessor's exact recipe with
+only the target/context source changed: `b10_b13_dl_gf_extension.py` (DLinear_gf/LSTM_gf),
+`b10_b13_tft_gf_extension.py` (TFT_gf), `b10_b13_foundation_gf_extension.py` (TabPFN_gf/TabICLv2_gf).
+
+**Result -- dense supervision helps the weakest models most, is a wash for the strongest, and a
+real (if modest) win for both foundation models' previously-rejected choice.** Pooled (all
+towers/anchors) MASE / R2, original -> gf:
+- **DLinear: 1.460 -> 1.059 MASE (-0.401), -2.068 -> -0.540 R2 (+1.528)** -- the largest gain by far,
+  on this project's single most unstable/worst-performing model (D-53's "worst model" finding).
+- **LSTM: 1.151 -> 1.098 MASE (-0.053), -1.357 -> -0.686 R2 (+0.671)** -- clear, smaller gain.
+- **TFT: 0.972 -> 1.005 MASE (+0.033), -0.363 -> -0.439 R2 (-0.076)** -- essentially a wash, marginally
+  worse pooled -- TFT already had the most-regularized recipe in the roster (D-45's `weight_decay`/
+  `patience` regime), so dense-but-noisier-in-effect supervision doesn't help it the way it helps the
+  weaker/less-regularized DLinear/LSTM.
+- **TabPFN: 0.855 -> 0.829 MASE (-0.026), -0.122 -> 0.001 R2 (+0.123)** -- modest but real gain,
+  crossing R2 into positive territory pooled. The "gap-filler optimism" concern that motivated
+  TabPFN's original y_observed-only context choice does not show up as a dominant effect here --
+  evaluation is still against real y_observed throughout, so this is a genuine (if small) improvement,
+  not just agreement-with-the-gap-filler.
+- **TabICLv2: 0.930 -> 0.891 MASE (-0.039), -0.330 -> -0.060 R2 (+0.270)** -- similar modest, real gain.
+
+By-tower breakdown (`b10_b13_gf_ablation_table_by_tower.csv`) shows the DLinear/LSTM gain holds at
+all 3 towers (largest at Tower 4); TFT is roughly flat-to-slightly-worse at all 3; TabPFN/TabICLv2
+are mixed at Tower 2 (small MASE regression) but consistently improve at Towers 4/9.
+
+**Recommendation:** the DL family's original design choice (masked-to-real loss for DLinear/LSTM/TFT,
+observed-only context for TabPFN/TabICLv2) was NOT uniformly the right call -- it left real
+performance on the table for the weaker/less-regularized models (DLinear especially) and for both
+foundation models. It WAS approximately right for TFT specifically. Given this, prefer the
+`_gf`-trained DLinear/LSTM/TabPFN/TabICLv2 over their originals if picking a single variant per model
+going forward; TFT's choice between variants is a toss-up (roughly equal, use the original for
+simplicity). Does not change the overall B-09-B15 ranking conclusion (TFT/TabPFN remain the
+strongest models on MASE either way) -- this closes a design-choice question, not a model-selection
+one. Cross-ref D-36/D-37 (the original convention this generalizes), D-53/D-54 (DLinear's
+already-documented instability, which this substantially mitigates but does not eliminate), D-65
+(the `bin_metrics()`/multi-anchor aggregation conventions reused here).
+
+Files added (all committed): `notebooks/05_benchmarking/b10_b13_dl_gf_extension.py`,
+`b10_b13_tft_gf_extension.py`, `b10_b13_foundation_gf_extension.py`, `b10_b13_gf_merge.py`,
+`b10_b13_gf_comparison_table.py`. `src/models/forecasting_dl.py` extended (`y_source` param,
+additive, default-preserving). `results/b10_b13_full_chains.csv` extended in place (+5 `_gf`
+columns, 47 cols total, 5,475 rows unchanged; backed up first to
+`b10_b13_full_chains_backup_pre_gf.csv`). New: `b10_b13_{dl,tft,foundation}_gf_extension_
+{summary,summary_vs_gapfilled,chains}.csv`, `b10_b13_gf_ablation_{combined_summary,pooled,
+table_all_towers,by_tower,table_by_tower}.csv`. `results/figures/b10_chains/` regenerated (598
+figures total, +75 new `_gf` figures); one spot-checked (Tower 4/anchor 2021, DLinear_gf and
+TabPFN_gf) before trusting the full batch. No `benchmarks.csv` rows -- matches every prior
+diagnostic/ablation precedent in this sequence (a design-choice ablation, not a point-forecast
+benchmark in its own right).

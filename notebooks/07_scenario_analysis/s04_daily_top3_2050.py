@@ -122,7 +122,7 @@ def run_smoke():
 
     n_full = len(SSPS) * N_PER_GCM_B10 * 5 * len(TOWERS) * len(YEARS) * len(MULTIPLIERS)
     est_full_s = elapsed / n_combos * n_full
-    n_rows_full = sum(len(TOP3[t]) for t in TOWERS) * len(SSPS) * N_PER_GCM_B10 * 5 * len(YEARS) * len(MULTIPLIERS) / 3 * 365
+    n_rows_full = n_full * 3 * 365  # every tower's TOP3 has exactly 3 models
     print(f"[OK] Full sweep estimate: {n_full} combos -> ~{est_full_s/3600:.1f}h, "
           f"~{n_rows_full:,.0f} daily rows")
 
