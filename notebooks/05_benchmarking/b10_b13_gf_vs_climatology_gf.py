@@ -4,6 +4,11 @@
 the 5 new `_gf`-suffixed models (DLinear_gf/LSTM_gf/TFT_gf/TabPFN_gf/TabICLv2_gf) that script's
 MODEL_ORDER predates. Persistence remains this project's primary/default MASE denominator (D-71) --
 this is a secondary lens, same caveat-bearing status as the original `Climatology_gf` comparison.
+
+Also recomputes against persistence (`recompute(chains, "persistence")`) purely so RMSSE -- added to
+`bin_metrics()` after the original gf-ablation summary CSVs were generated -- is available under both
+baselines for the 10 gf-ablation models without needing to refit anything (bin_metrics is a pure
+recompute over the predictions already stored in b10_b13_full_chains.csv).
 """
 import numpy as np
 import pandas as pd
@@ -22,10 +27,12 @@ PAIRS = [("DLinear", "DLinear_gf"), ("LSTM", "LSTM_gf"), ("TFT", "TFT_gf"),
          ("TabPFN", "TabPFN_gf"), ("TabICLv2", "TabICLv2_gf")]
 MODELS = [m for pair in PAIRS for m in pair]
 DL_MODELS = {"TFT", "DLinear", "LSTM", "TFT_gf", "DLinear_gf", "LSTM_gf"}  # y_true_tft convention
-METRICS = ["R2", "RMSE", "MAE", "MASE", "WAPE", "Correlation"]
+METRICS = ["R2", "RMSE", "MAE", "MASE", "RMSSE", "WAPE", "Correlation"]
 
 
-def recompute(chains):
+def recompute(chains, baseline_col):
+    """baseline_col: column in `chains` to use as MASE/RMSSE's y_naive -- "Climatology_gf" or
+    "persistence"."""
     all_rows = []
     for tower in TOWERS:
         for yr in ANCHOR_YEARS:
@@ -34,8 +41,8 @@ def recompute(chains):
             sub = sub.sort_values("date")
             anchor = pd.Timestamp(f"{yr}-12-16")
             target_dates = pd.DatetimeIndex(sub["date"])
-            clim_gf = sub["Climatology_gf"].values
-            clim_arg = None if np.isnan(clim_gf).all() else clim_gf
+            baseline = sub[baseline_col].values
+            baseline_arg = None if np.isnan(baseline).all() else baseline
 
             for model in MODELS:
                 if model not in sub.columns:
@@ -44,7 +51,7 @@ def recompute(chains):
                 if np.isfinite(yp).sum() == 0:
                     continue
                 y_true = sub["y_true_tft"].values if model in DL_MODELS else sub["y_true"].values
-                bm = rr.bin_metrics(y_true, yp, target_dates, anchor, y_persist=clim_arg)
+                bm = rr.bin_metrics(y_true, yp, target_dates, anchor, y_persist=baseline_arg)
                 bm["model"] = model
                 bm["anchor_year"] = yr
                 bm["tower"] = tower
@@ -80,15 +87,28 @@ def with_deltas(pooled):
 
 def main():
     chains = pd.read_csv(f"{RESULTS}/b10_b13_full_chains.csv")
-    out = recompute(chains)
+
+    out = recompute(chains, "Climatology_gf")
     out.to_csv(f"{RESULTS}/b10_b13_gf_ablation_vs_climatology_gf_summary.csv", index=False)
     print(f"[OK] Saved b10_b13_gf_ablation_vs_climatology_gf_summary.csv ({len(out)} rows)")
 
     pooled = build_pooled(out)
     cmp = with_deltas(pooled)
     cmp.to_csv(f"{RESULTS}/b10_b13_gf_ablation_vs_climatology_gf_table.csv")
-    print("\n=== Pooled, MASE denominator = Climatology_gf (not persistence) ===")
-    print(cmp[["MASE_orig", "MASE_gf", "MASE_delta", "R2_orig", "R2_gf", "R2_delta"]].to_string())
+    print("\n=== Pooled, MASE/RMSSE denominator = Climatology_gf (not persistence) ===")
+    print(cmp[["MASE_orig", "MASE_gf", "MASE_delta", "RMSSE_orig", "RMSSE_gf", "RMSSE_delta",
+               "R2_orig", "R2_gf", "R2_delta"]].to_string())
+
+    out_p = recompute(chains, "persistence")
+    out_p.to_csv(f"{RESULTS}/b10_b13_gf_ablation_vs_persistence_summary.csv", index=False)
+    print(f"\n[OK] Saved b10_b13_gf_ablation_vs_persistence_summary.csv ({len(out_p)} rows)")
+
+    pooled_p = build_pooled(out_p)
+    cmp_p = with_deltas(pooled_p)
+    cmp_p.to_csv(f"{RESULTS}/b10_b13_gf_ablation_vs_persistence_table.csv")
+    print("\n=== Pooled, MASE/RMSSE denominator = persistence (primary baseline) ===")
+    print(cmp_p[["MASE_orig", "MASE_gf", "MASE_delta", "RMSSE_orig", "RMSSE_gf", "RMSSE_delta",
+                 "R2_orig", "R2_gf", "R2_delta"]].to_string())
 
 
 if __name__ == "__main__":

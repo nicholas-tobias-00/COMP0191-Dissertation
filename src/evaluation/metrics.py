@@ -57,6 +57,16 @@ def mase(y, p, y_naive):
     return float(mae(y, p) / denom) if denom > 0 else np.nan
 
 
+def rmsse(y, p, y_naive):
+    """RMSSE, test-set relative-RMSE form: RMSE(model) / RMSE(naive forecast).
+    The squared-error analogue of mase() -- same y_naive convention (an out-of-sample
+    naive/baseline forecast on the same rows, not Hyndman-Koehler's in-sample scaling).
+    <1 = beats the naive baseline, 1 = ties it, >1 = worse. Returns NaN if the naive
+    forecast's RMSE is 0."""
+    denom = rmse(y, y_naive)
+    return float(rmse(y, p) / denom) if denom > 0 else np.nan
+
+
 def smape(y, p, eps=1e-6):
     """Symmetric MAPE. CAVEAT: still unstable when |y|+|p| ~ 0 (quiet flux periods,
     common for FCH4) -- eps floors the denominator rather than producing inf/nan, but
