@@ -1,0 +1,17 @@
+[NbConvertApp] Converting notebook temp_gap_filing_exploration.ipynb to notebook
+[NbConvertApp] ERROR | Notebook JSON is invalid: Additional properties are not allowed ('execution_count', 'outputs' were unexpected)
+
+Failed validating 'additionalProperties' in markdown_cell:
+
+On instance['cells'][66]:
+{'cell_type': 'markdown',
+ 'execution_count': None,
+ 'id': '6b951a30',
+ 'metadata': {},
+ 'outputs': ['...0 outputs...'],
+ 'source': '## 15. Summary and caveats\n'
+           '\n'
+           '**What this notebook reproduced, end...'}
+C:\ProgramData\anaconda3\Lib\site-packages\zmq\_future.py:724: RuntimeWarning: Proactor event loop does not implement add_reader family of methods required for zmq. Registering an additional selector thread for add_reader support via tornado. Use `asyncio.set_event_loop_policy(WindowsSelectorEventLoopPolicy())` to avoid this warning.
+  self._get_loop()
+[NbConvertApp] Writing 1377612 bytes to temp_gap_filing_exploration.ipynb

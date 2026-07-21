@@ -13,6 +13,10 @@ temp/
 .ipynb_checkpoints/
 */.ipynb_checkpoints/
 
+# Cached fitted models (regenerable, large binaries)
+_model_cache/
+*/_model_cache/
+
 # Python
 __pycache__/
 *.py[cod]
@@ -31,3 +35,6 @@ CLAUDE.md
 
 # CSV results in results/
 results/*.csv
+
+# Not Necessary Images
+results/figures/gapfill_chains/*.png

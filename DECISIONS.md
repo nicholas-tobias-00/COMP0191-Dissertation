@@ -1526,3 +1526,251 @@ figures total, +75 new `_gf` figures); one spot-checked (Tower 4/anchor 2021, DL
 TabPFN_gf) before trusting the full batch. No `benchmarks.csv` rows -- matches every prior
 diagnostic/ablation precedent in this sequence (a design-choice ablation, not a point-forecast
 benchmark in its own right).
+
+### D-73 -- 2026-07-18 -- IMP-01: opens a revisited, more thorough gap-filling/imputation phase (`08_imputation_revisited/`)
+
+**Decision:** user requested a fresh branch of work revisiting gap-filling in more depth, via a
+5-step plan: (1) visualise the feature space and missing values, (2) explore imputation
+algorithms, (3) quantify imputation uncertainty, (4) introduce distributional shifts and repeat
+1-3, (5) fit predictors with that logic and test against masked data. Scoped with the user
+up front on three axes: **feature-space scope = full** (every raw measured column relevant to a
+tower, not just the FCH4 target -- broader than any prior gap-filling replication, R-01 through
+F-09b, which all curated narrow predictor sets); **relation to prior work = a fresh methodology
+going forward, but prior results (R-01-F-09b, best R² 0.40-0.57) are not overwritten/deleted**,
+kept as-is and citable; **step 4's distributional shift = standalone synthetic shifts** (not a
+reuse of Phase 07's CMIP6/livestock-multiplier scenario machinery), deferred to when step 4 is
+actually reached.
+
+**This entry covers step 1 (IMP-01) only.** New reusable helper
+`src/features/tower_feature_space.py` assembles the full per-tower column set (69/67/67 cols at
+T2/T4/T9) via the existing D-18 spatial-alignment rule (`[Tower N]` + `[Catchment N]` +
+`{species}_Catchment N`), tagged into 9 variable families (EC_flux, QC_flag, EC_met, EC_soil,
+EC_fetch, Catchment_water, Catchment_soil, Precipitation, Livestock) for analysis/plotting.
+New notebook `IMP01_missingness_landscape.ipynb`: missingness inventory, NaN%-by-family bar
+charts, a weekly temporal-missingness raster, pooled gap-length distributions per family,
+co-missingness clustering (Pearson corr of the missing-indicator matrix), and seasonal/diurnal
+missingness patterns -- all 3 towers, full feature space, no narrow-scope shortcuts (CLAUDE.md
+"full coverage by default").
+
+**Key findings (full detail: `notebooks/08_imputation_revisited/IMP01_results.md`):**
+- **Missingness is strongly block-structured, not independent per-column or MCAR.** Co-missingness
+  clustering reveals consistent groups across all 3 towers: a large EC/met/turbulence block
+  (near-perfectly co-missing, consistent with shared logger/power failures), a separate footprint
+  (EC_fetch) cluster, a separate catchment water-quality cluster, a separate tower-side soil-probe
+  (TS/SWC) cluster, and livestock (always complete, 0.0% missing at every tower). This argues for
+  block-aware/multivariate imputers in step 2, not naive per-column mean/median fill.
+- **Gap lengths are strongly bimodal at every family/tower**: most gaps are a single missing hour,
+  but EC_soil specifically has gaps up to ~2,500-2,800 days (multi-year blackouts) -- no single
+  imputation method suits both regimes; long blackouts need a proxy/pooled source (as D-16's
+  Tower-9-TS-proxy and F-08's external sourcing already do for specific cases) or an explicit
+  "not reliably imputable" flag.
+- **Real seasonal (May-September elevated) and diurnal (EC_fetch dips in daytime hours) missingness
+  patterns** at all 3 towers -- further evidence against MCAR, in favor of imputers that can
+  condition on season/time-of-day.
+- **Tower-2-specific structural difference**: FCH4/CH4 break out of the main EC co-missingness
+  block and cluster instead with soil-probe/precipitation variables -- unlike Towers 4/9, where
+  FCH4 sits inside the main EC cluster. Consistent with Tower 2 already being flagged
+  project-wide as structurally different (D-15, F-07, D-68) but a new, specific mechanism
+  (independent CH4-analyzer failure history) not previously documented.
+- Raw (pre-QC) FCH4 NaN%: T2 88.5%, T4 56.5%, T9 75.0% -- consistent with, but numerically
+  distinct from, the previously-reported QC-filtered valid% figures (T2 12.1%, T4 44.6%, T9
+  25.6%) since these are different filter stages of the same underlying data.
+
+**Files added:** `src/features/tower_feature_space.py`,
+`notebooks/08_imputation_revisited/IMP01_missingness_landscape.ipynb`,
+`notebooks/08_imputation_revisited/IMP01_results.md`,
+`results/imp01_missingness_inventory.csv`, `results/imp01_gap_length_summary.csv`,
+`results/figures/imp01_missingness/` (8 figures). No `benchmarks.csv` rows -- this is an EDA/
+diagnostic step, not a point-forecast or gap-filling accuracy benchmark.
+
+**Next:** step 2 (imputation algorithms) -- explore candidate imputers informed directly by
+this notebook's findings (block structure, bimodal gaps, MAR/MNAR seasonal signal, Tower 2's
+FCH4-specific mechanism).
+
+### D-74 -- 2026-07-19 -- F-11: SAITS gap-filling evaluated, tested and not adopted
+
+**Decision:** user asked to (1) retrieve the current best-recorded gap-filling result, then (2)
+plan, evaluate feasibility of, and (if feasible) implement SAITS (Self-Attention-based Imputation
+for Time Series, Du et al. 2023, via the `pypots` package) as a candidate gap-filler for FCH4,
+under `notebooks/04_feature_engineering/F11_SAITS_Implementation.ipynb`.
+
+**Part 1 answer (research only, no new experiment):** current best is the partial-pooled,
+external-sourced RFm under full-period gap-CV (D-35/D-49): R² T2=0.574, T4=0.402, T9=0.418
+(`results/f09a_summary.csv`, `BEST_RESULTS.md` §1).
+
+**Environment fix required:** `pypots` was not installed; installing it surfaced a real blocker
+unrelated to SAITS itself -- `pypots.imputation.__init__` eagerly imports every bundled model
+(including `TimeLLM`, which needs `transformers` -> `torchvision`), and the environment's
+`torchvision` (0.21.0+cu124) was ABI-mismatched against `torch` (2.11.0+cu128), crashing the
+import. Fixed by reinstalling `torchvision` from the matching cu128 index (`0.26.0+cu128`) --
+no `torch` version change, and fixed the project's separately-broken `pytorch-lightning` import
+as a bonus side effect.
+
+**Methodology (deliberate, stated deviations from RFm's own evaluation):** reused the exact same
+`insert_calendar_gaps` held-out-timestamp generator F08 used (identical `SCENARIOS`/`MASK_FRAC`/
+`DOMAIN`/seed) so every scored point matches RFm's evaluation point-for-point. But RFm retrains a
+fresh model per `(tower, scenario, rep)` (75 cheap fits); SAITS is a deep model, so this
+experiment instead trains **one pooled SAITS model** (T2+T4+T9 + tower one-hot channels, matching
+RFm's own pooled config) on the **union** of all 25 held-out sets per tower excluded from
+training -- zero leakage, but a harder training regime for SAITS than any single RFm run gets
+(RFm's per-scenario retrain still had the other 4 scenarios' held-out points available). Feature
+set = RFm's EXT-variant channels minus the hand-engineered SWC/TS lag columns (redundant once
+SAITS sees raw temporal context via 336h/24h-stride windowing). One architecture, no HPO sweep
+(`n_layers=2, d_model=128, epochs=100, patience=10`).
+
+**Phase 1 smoke test (Tower 4 solo, scenario `m`, 1 rep) -- GO:** 35.9s wall time, R²=0.027,
+RMSE/MAE in the same physical range as RFm's own numbers (confirms scaling/inverse-transform
+correctness); loss still falling at the 20-epoch smoke-test cap, not a red flag.
+
+**Phase 2 full pooled run (all 3 towers x 5 scenarios) result -- SAITS loses at every tower, by
+a wide margin, and reproduces closely on an independent rerun:**
+
+| Tower | SAITS median R² | RFm champion R² | delta |
+|---|---|---|---|
+| T2 | 0.027-0.034 | 0.574 | ~-0.55 |
+| T4 | -0.003-0.000 | 0.402 | ~-0.40 |
+| T9 | -0.019--0.016 | 0.418 | ~-0.44 |
+
+Full pooled fit took 300.5s (early-stopped epoch 97, best epoch 87) -- compute was never the
+constraint. **Diagnosis (not a mystery, not a bug):** every single scenario/tower row has a large
+negative MBE (-9 to -35 nmol m-2 s-1) -- SAITS systematically under-predicts. Most likely
+compounding causes: (1) FCH4 is far sparser (25-45% valid even before any masking) than SAITS's
+design target of a mostly-dense multivariate series with occasional gaps, and the union-mask
+design (excluding ~35% of T4's domain from the one training fit) compounds this specifically in
+the target channel while covariates stay dense; (2) FCH4's heavy right-skew/spike-dominated
+distribution (this project's recurring "MASE<1 alongside near-zero/negative R² = spike-tail
+signature," D-44b) means a symmetric-loss model regresses toward the typical/low value rather
+than reconstructing rare high-flux events; (3) RFm's structural advantages (explicit high-flux
+tree splits on `lsu_dens`/season, hand-engineered 672h lags) aren't automatically replicated by a
+small 2-layer attention encoder trained on ~3,900 pooled windows without HPO.
+
+**Outcome: not adopted.** RFm (D-35/D-49) remains the standing gap-filling recommendation -- no
+change to `BEST_RESULTS.md` §1. Logged as a legitimate tested-and-rejected alternative (mirroring
+B-03a/F-09b's handling elsewhere in this project), not a technical failure -- the pipeline runs
+correctly and cheaply (~5 minutes for the full 3-tower run), and the negative result is
+diagnosable, not mysterious. 15 rows tagged `F-11` in `results/benchmarks.csv`. See
+`notebooks/04_feature_engineering/F11_SAITS_Implementation.ipynb`, `F11_results.md`,
+`results/f11_summary.csv`.
+
+### D-75 -- 2026-07-20 -- F-12: bidirectional (lead) soil lags tested for RFm, not adopted
+
+**Decision:** user noted that RFm's champion feature set (`gapfill_rfm.py`) only ever uses
+backward-only soil lag features (`swc_l{lag}`/`ts_l{lag}` via `.shift(lag)`, positive lag only),
+despite the upstream met/soil driver gap-filling (`reddyproc_pipeline.py`) already using a
+bidirectional, centered expanding ±7/14/28/60-day window, and F-11's SAITS being inherently
+bidirectional (unmasked self-attention). RFm itself had never been tested with forward-looking
+soil context. User asked to devise and run an experiment testing this, choosing (when offered a
+2-arm vs. 3-arm design) the more mechanistic **3-arm ablation**:
+
+- **Arm A (baseline)** -- current backward-only lags, rerun fresh in a new notebook for a clean
+  same-run comparison point (prior reruns of this protocol have shown small cross-run drift, e.g.
+  the F-08 vs F-09a ~0.01-0.014 discrepancy).
+- **Arm B (bidir)** -- Arm A's features plus new forward lags `swc_f{lag}`/`ts_f{lag}` via
+  `.shift(-lag)`, same `LAG_HOURS=[168,336,504,672]`. Tests whether adding future context helps.
+- **Arm C (leadonly)** -- forward lags replacing the backward ones, same feature *count* as Arm A.
+  Isolates whether *direction* matters vs. just having more temporal context of any kind.
+
+Everything else (met/fc/AUX/lsu_dens/graze/mgmt/gpp/reco channels, partial pooling T2+T4+T9 +
+tower dummies, EXT sourcing, full-period gap-CV) held identical across arms -- a pure ablation on
+the swc/ts lag block only. Reused F-08's exact `insert_calendar_gaps`/`dom_mask`/`mets`/
+`med_metrics` harness verbatim and `gapfill_rfm.py`'s `load_ext`/`cfg`/`ts_col_for`/`feat_list`/
+`frame`/`fit`/`TOWERS`/`LAG_HOURS`/`DUM` via import (never edited -- it's imported live by the
+production precompute `build_fch4_gapfilled.py`). Arms B/C are additive-clone `frame_bidir`/
+`frame_leadonly` functions, changing only the lag block.
+
+**Data-leakage checks, added specifically at the user's request:** (1) programmatic assertion
+that no arm's feature list references the target or any FCH4-derived column -- the lead features
+are built strictly from the external per-catchment soil moisture/temperature series; (2) a
+permanent runtime assertion inside `run_rf`, checked on every single fit (not a one-off check),
+confirming no held-out timestamp survives into that fit's training partition before the pooled
+concat. Both passed on all 90 fits. Separately documented (not leakage, a scope caveat): the
+forward lag features use soil-sensor readings genuinely observed *after* the reconstructed
+timestamp, which is legitimate for gap-filling an already-recorded historical archive but would
+**not** be legitimate in a live forecasting deployment -- a gap-filling-only finding.
+
+**Operational incident and fix:** the first attempt at the full F-08 `N_REPS=5` protocol (225
+fits, ~3.45h extrapolated from a smoke test) was killed by the environment after ~2h20m with
+**zero progress saved**, because `nbconvert --to notebook --execute --inplace` only writes the
+output file once the entire run finishes -- a silent all-or-nothing risk for any long notebook
+run. Fixed by rebuilding with `N_REPS=2` (90 fits, ~83 min extrapolated, matching F-09a's own
+precedent for reducing reps under time pressure while keeping full tower/scenario/arm coverage)
+and a cell-by-cell execution driver (`nbclient.NotebookClient`, one `.execute_cell()` call per
+cell inside a persistent kernel, `nbformat.write()` after every cell) so the notebook file is
+checkpointed to disk continuously -- worst-case loss on another kill is one (arm, tower) pair
+(~9 min), not the whole run. This second attempt completed cleanly in 5,261s (~87.7 min).
+**General lesson for future long-running notebook executions in this project: prefer the
+checkpointed `nbclient` cell-by-cell pattern over a single `nbconvert --inplace` call whenever
+expected wall time exceeds roughly an hour.**
+
+**Result: mixed/null, not adopted.** Arm A reproduces the recorded champion exactly at all 3
+towers (R² 0.574/0.402/0.418), confirming no regression was introduced by the arms' shared reuse
+of `frame_baseline`. Arms B and C both gain a small, tied +0.008 at Tower 4 only, while both
+regress at Tower 2 (-0.017 to -0.019) and Tower 9 (-0.010 to -0.011) -- no arm beats the champion
+on balance across towers, and the ±0.008-0.019 deltas sit inside the noise band already documented
+for this exact protocol (the F-08/F-09a discrepancy was ~0.01-0.014 at T4/T9 alone), widened
+further here by the reduced rep count. Feature-importance diagnostic (`native_importance_tree`,
+one clean refit per arm): lead columns are **not ignored** by the RF -- real, non-trivial
+importance mass in both Arm B (0.099) and Arm C (0.123), comparable to Arm A's backward-lag mass
+(0.107) -- ruling out a "leads get ignored" explanation for the null result. The more likely
+explanation: soil moisture/temperature autocorrelate strongly in both time directions, so forward
+lags carry largely redundant, not novel, information relative to backward lags at the same
+offsets.
+
+**Outcome: not adopted.** RFm (D-35/D-49) remains the standing gap-filling recommendation -- no
+change to `BEST_RESULTS.md` §1 numbers (one-line confirmed-null-result note added instead, per the
+F-09b precedent). Logged as a legitimate tested-and-rejected alternative, not a technical failure.
+45 rows tagged `F-12` in `results/benchmarks.csv`. See
+`notebooks/04_feature_engineering/F12_bidirectional_soil_lags_RFm.ipynb`, `F12_results.md`,
+`results/f12_summary.csv`.
+
+### D-76 -- 2026-07-21 -- F-11 follow-up: testing SAITS's diagnosed failure modes, real gains found (still not adopted)
+
+**Decision:** direct follow-up to D-74 (same F-11 experiment). User asked to discuss why SAITS
+lost so badly, then to "test all of this out" against the three diagnosed causes (union-mask
+sparsity, FCH4's spike-dominated skew, no HPO). Five levers tested in
+`F11_SAITS_Implementation.ipynb`, staged cheapest/most-diagnostic first, each stage's continuation
+decided by its own result. All runs seeded (`torch.manual_seed`) after confirming D-74's original
+result had drifted run-to-run from unseeded init.
+
+**Infrastructure note (most of the elapsed time, not experiment design):** this session's biggest
+cost was repeated background-job interruptions, not code problems -- a stuck run had to be killed
+after 10+ hours of no progress (likely a machine sleep/resume cycle corrupting the CUDA context,
+confirmed via a fresh-process GPU health check afterward), a subsequent retry hit a real
+`CUDA error: unknown error` during `load_state_dict` (transient corruption from that same kill,
+resolved by simply retrying in a fresh process), and multiple runs' background-task tracking was
+silently dropped by session restarts unrelated to the code (confirmed via direct Windows process
+inspection each time, not assumed). None of these were bugs in the experiment itself.
+
+**Results:**
+- **EXP_B (per-scenario retraining, attacks sparsity):** confirmed directionally but small --
+  flips T4/T9 from negative to positive R² (+0.02 to +0.05), T2 flat. A real contributing cause,
+  not the dominant one.
+- **EXP_C (solo vs. pooled structural probe):** genuinely noise-level -- flipped winner between
+  two independent full reruns (solo won first, pooled won second, by a ~0.001 margin each time).
+  Locked in solo for the remaining stages as a defensible choice, not a "winning" one.
+- **EXP_D (spike-weighted loss, attacks the skew):** custom `SpikeWeightedMAE` (upweights points
+  by `1 + |target|` in standardized units) in place of SAITS's default MAE. **The single largest
+  lever in the whole experiment** -- reproduced in both full reruns regardless of solo/pooled
+  structure, roughly 5-6x'd R² on its own. Confirms the spike-dominated skew (this project's
+  recurring D-44b pattern) was the dominant failure mode, not sparsity or pooling.
+- **EXP_E (bigger model, `n_layers=3, d_model=256`):** a further consistent, real gain on top.
+- **Final confirmation (solo + SpikeWeightedMAE + bigger model, all 5 scenarios, not just the
+  cheap probe scenario):**
+
+| Tower | Final median R² | Original naive baseline (D-74) | RFm champion | Gap now (was) |
+|---|---|---|---|---|
+| T2 | 0.192 | 0.02-0.03 | 0.574 | -0.38 (was -0.55) |
+| T4 | 0.225 | -0.03 to 0.03 | 0.402 | -0.18 (was -0.43) |
+| T9 | 0.110 | -0.02 to 0.04 | 0.418 | -0.31 (was -0.44) |
+
+**Outcome: still not adopted -- RFm (D-35/D-49) remains the standing gap-filling recommendation,
+no `BEST_RESULTS.md` change** -- SAITS loses at every tower even after this pass. But the gap
+narrowed substantially (T4's more than halved), a qualitatively different picture from D-74's
+naive baseline. **Not uniform**, reported honestly rather than smoothed over: T2's `l` (288h)
+scenario actually went negative (R²=-0.073, MBE=+36.3 -- the one case with a large *positive*
+bias, opposite the systematic under-prediction seen everywhere else). If SAITS is revisited again,
+the priority is the loss objective (a proper quantile/focal-style loss) and a real architecture
+search -- that's where the confirmed gains came from; sparsity fixes and the solo/pooled
+structural choice are lower priority. 15 rows tagged `F-11-phase4` in `results/benchmarks.csv`.
+See D-76, `notebooks/04_feature_engineering/F11_SAITS_Implementation.ipynb`, `F11_results.md` §8,
+`results/f11_phase4_final_summary.csv`.

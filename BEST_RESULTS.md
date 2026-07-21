@@ -58,8 +58,15 @@ complete fix among the three, but downstream gap-filling R² was statistically i
 across every config tested, including uncorrected — **not adopted**, and not urgent regardless
 since production's external-sourced pipeline never had this contamination to begin with.
 
+**Confirmed null result:** F-11 (D-74) tested SAITS (self-attention imputation) as a replacement —
+loses to RFm by a wide margin at every tower, **not adopted**. F-12 (D-75) tested adding
+forward-looking ("lead") soil lags to RFm's feature set (backward-only vs. bidirectional vs.
+leads-only) — a marginal, noise-level gain at T4 only, offset by regressions at T2/T9; **not
+adopted**, no change to the numbers below.
+
 **Sources:** `notebooks/04_feature_engineering/F08_external_sensors_RFm.ipynb`, `F08_results.md`,
-`results/f08_summary.csv`, `results/f09a_summary.csv`.
+`results/f08_summary.csv`, `results/f09a_summary.csv`, `F12_results.md`,
+`results/f12_summary.csv`.
 
 ---
 
