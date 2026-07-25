@@ -1774,3 +1774,117 @@ search -- that's where the confirmed gains came from; sparsity fixes and the sol
 structural choice are lower priority. 15 rows tagged `F-11-phase4` in `results/benchmarks.csv`.
 See D-76, `notebooks/04_feature_engineering/F11_SAITS_Implementation.ipynb`, `F11_results.md` §8,
 `results/f11_phase4_final_summary.csv`.
+
+### D-77 -- 2026-07-22/23 -- `03c_gap_filling_revisited`: self-contained reproduction notebook + a real `mdc_gapfill` fix (new champion R²)
+
+**Decision:** built `notebooks/03c_gap_filling_revisited/temp_gap_filing_exploration.ipynb`, a
+fully self-contained (zero `src/` imports -- every function replicated inline, explicit user
+constraint) reproduction of the project's best-validated gap-filling result, starting from
+`data/Hourly/consolidated_hourly.csv` with its own EDA, FCO2 reconstruction, external-sourcing
+build, met/soil gap-filling, u*/GPP-Reco partitioning, management/livestock features, and the full
+F-08/F-09a gap-CV harness. Two real bugs caught and fixed while rebuilding independently of
+`src/`: a `classify()` substring-collision bug ("inorganic fertiliser" contains "organic
+fertiliser" as a literal substring, misclassifying inorganic-N events as manure -- fixed by
+restoring the guard clause present in production; negligible R² impact but a real correctness
+bug) and an `N_REPS` mismatch (first full run undershot the target -- root-caused to
+`BEST_RESULTS.md`'s numbers coming from F-09a's reduced-scope `N_REPS=2` re-check, not F-08's
+original `N_REPS=5`; switching to 2 gave an exact match, confirming this was legitimate Monte
+Carlo variance from rep count, not a bug).
+
+**A genuine, validated fix found via this independent rebuild:** `mdc_gapfill()`'s interpolation
+step used a flat `limit=2` (hours) for every driver, appropriate for variables with strong diurnal
+structure (its mean-diurnal-course fallback covers the rest) but not for low-diurnal-structure
+variables (soil moisture, soil temperature, TA, VPD, WS) where a short interpolation cutoff
+forces a weaker MDC/median fallback unnecessarily often. **Fix:** extended `limit=288` (12 days)
+specifically for `{TA_0_0_1, VPD_0_0_1, Soil Moisture @ 10cm Depth (%), Soil Temperature @ 15cm
+Depth (oC), WS_0_0_1}` via a new `LONG_INTERP_VARS` set, leaving every other driver's `limit=2`
+unchanged. Validated end-to-end (not just at the driver level) by rerunning the full FCH4
+gap-CV harness, all 3 towers: **R² improved at every tower** (T2 0.574->0.576, T4 0.402->0.404,
+T9 0.418->0.426) -- **new standing champion numbers**, `BEST_RESULTS.md` §1 updated. Model caching
+infrastructure was also added during this rebuild (`_model_cache/`, MD5 hash of feature list +
+training bytes + RF hyperparameters as key) after discovering `RandomForestRegressor(n_jobs=-1)`
+is **not** bit-reproducible across separate process runs even with `random_state` fixed (confirmed
+via a controlled two-process test) -- the one uncached RF (FCO2 reconstruction) was switched to
+`n_jobs=1`, which fixed it and dropped full-notebook rerun time from ~25-40 min to ~3.5 min.
+
+**Outcome: adopted.** New standing gap-filling champion: **R² T2=0.576, T4=0.404, T9=0.426**
+(partial-pooled external-sourced RFm, full-period gap-CV -- methodology unchanged from
+D-35/D-49, only the upstream feature gap-filling improved). See D-77,
+`notebooks/03c_gap_filling_revisited/temp_gap_filing_exploration.ipynb`.
+
+### D-78 -- 2026-07-23/24 -- Extended exploration on the D-77 base: UQ, six more models, lag/lead expansion -- champion unchanged, all additive
+
+**Decision:** continuation of D-77's rebuild, in a separate working copy
+(`temp_gap_filing_exploration copy.ipynb`), per an explicit user request to (1) add UQ, (2) test
+more models (BI-LSTM/TabPFN/TabICL/SAITS explicitly named, plus recommendations), (3) expand
+lag/lead features for both covariates and the target -- evaluated/criticized before building
+anything (plan mode). User overrode two of the critical-review recommendations (drop SAITS and
+soil-lag re-expansion given F-11/F-12 precedent) with an explicit instruction to keep them anyway,
+since the D-77 feature fix changes the base being tested against. Governing principle throughout,
+stated explicitly by the user: **strictly additive -- nothing overwrites the champion
+(`RFm_pool`/`frame`/`FEATURES`/`fit`) or its cached results**; every new model/variant reports via
+its own separately-labeled comparison table. Full 3-tower coverage from the start for every part
+(user's explicit choice over single-tower smoke-test staging).
+
+**Phase A -- UQ via Area of Applicability (validated, additive to production):** replicated this
+project's own `scenario_hybrid.py` dissimilarity-index formula inline (`StandardScaler`-scaled
+nearest-neighbour distance, Tukey IQR-fence threshold from training data's own leave-one-out
+distances) rather than the PCA-distance idea floated earlier in conversation, for consistency with
+the established S-01/S-03/U-03 convention. Caught and fixed two real bugs before trusting the
+result: missing imputation before scaling/distance (propagated NaN through everything) and
+validation-set leakage (the initial validation query points were themselves present, unmasked, in
+the training matrix, since production trains on all real data with no gaps withheld -- fixed with
+a separate leakage-safe training matrix for validation only, leaving the production-application
+step's unrestricted matrix correctly as-is). **Result: weak but real positive correlation with
+error** (Pearson +0.11 to +0.16, Spearman +0.15 to +0.19, consistent direction at all 3 towers;
+flagged points show 50-80% higher mean error) -- reported honestly as weak, not oversold.
+
+**Phase B -- six additional models tested, full 3-tower, none beat the champion outright:**
+
+| Model | T2 | T4 | T9 | Note |
+|---|---|---|---|---|
+| LightGBM | 0.522 | **0.410** | 0.422 | Edges champion at T4 only (+0.006) |
+| XGBoost | 0.551 | 0.349 | 0.369 | Loses everywhere |
+| TabPFN | 0.459 | 0.401 | 0.402 | Loses everywhere; extremely slow (~3.7h for 60 folds -- see operational note below) |
+| TabICL | 0.558 | **0.423** | 0.364 | Edges champion at T4 only (+0.019); ~2 min for the same 60 folds |
+| SAITS | 0.358 | 0.293 | 0.285 | F-11's own best config (solo, per-scenario retrain, `SpikeWeightedMAE`, `n_layers=3/d_model=256`), rebuilt on D-77's corrected features -- **substantially improved vs. F-11's own numbers** (was 0.192/0.225/0.110) but still loses everywhere |
+| BI-LSTM | 0.237 | 0.155 | 0.146 | Custom 2-layer bidirectional LSTM, self-supervised masked-imputation training task (own random ~20% additional masking + spike-weighted loss, same 336h/24h windowing as SAITS); loses everywhere, weakest of all six |
+
+**Operational note (real cost, not a bug):** TabPFN's 60-fold run genuinely took ~3.7h (confirmed
+via a controlled rerun after the first attempt hit a 90-minute per-cell nbconvert timeout with
+zero visible progress -- `nbconvert --inplace` does not stream cell `print()` output to its own
+log, only writes the finished notebook once at the end, so a slow fold is indistinguishable from a
+hang without instrumentation). Fixed by adding per-fold progress logging to `run_model()` and,
+separately, **result-level caching for every Phase B/C model** (skip-if-already-in-
+`model_comparison.csv`) after discovering that `nbconvert --execute` unconditionally reruns every
+cell on every invocation -- without this, each new phase added to the notebook would silently
+re-pay the full cost of every previous slow phase on every subsequent full-notebook rerun.
+
+**Phase C -- lag/lead feature expansion, both negative:**
+
+| Experiment | T2 | T4 | T9 | Note |
+|---|---|---|---|---|
+| Soil-lag bidir (F-12's Arm B, rebuilt) | 0.561 | 0.410 | 0.415 | Reproduces F-12's null result almost exactly on D-77's corrected features |
+| Soil-lag leadonly (F-12's Arm C, rebuilt) | 0.564 | 0.412 | 0.411 | Same as above |
+| Target (FCH4) lag/lead (`target_lag{1,24,168}`/`target_lead{1,24,168}`, new) | 0.495 | 0.329 | 0.353 | Never tested before this session; clear regression, larger than any other variant tested |
+
+Target lag/lead required a genuinely new leakage-safety pattern, not just a feature addition: the
+target series is masked at the **current fold's own held-out timestamps first**, and
+`target_lag{h}`/`target_lead{h}` are derived via `.shift()` from that already-masked series --
+otherwise a held-out point deep inside a contiguous gap could have its lag/lead feature reference
+a *neighbouring* held-out point's true value (unlike the covariate lags, which have no such
+circularity since covariates are never the modelling target). A runtime assertion checks this on
+every fold (mirroring F-12's own held-out/training-overlap check) -- passed cleanly throughout, no
+leakage found. The regression is plausibly explained by FCH4's own sparsity (12-45% observed
+depending on tower): after fold-masking, `target_lag`/`target_lead` are frequently NaN too, so the
+RF leans on a sparse, often-mean-imputed feature block rather than gaining real signal.
+
+**Outcome: not adopted (Phases A/B/C all additive, no `BEST_RESULTS.md` change beyond D-77's own
+fix).** RFm (D-77) remains the standing gap-filling recommendation at every tower. TabICL and
+LightGBM are the only challengers that beat it anywhere, both only at Tower 4
+(+0.019/+0.006) -- not enough to unseat the champion project-wide. The UQ layer (Phase A) is
+validated and additive to the existing production pipeline. See D-78,
+`notebooks/03c_gap_filling_revisited/temp_gap_filing_exploration copy.ipynb`,
+`notebooks/03c_gap_filling_revisited/_data/model_comparison.csv`,
+`notebooks/03c_gap_filling_revisited/_data/soil_lag_results.csv`,
+`notebooks/03c_gap_filling_revisited/_data/target_laglead_results.csv`.

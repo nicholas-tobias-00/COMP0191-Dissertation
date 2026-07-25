@@ -19,7 +19,7 @@ row, and bump "last verified."
 
 | Phase | Best config | Headline metric | Decision ID | Last verified |
 |---|---|---|---|---|
-| Gap-filling | External-sourced pooled RFm, full-period gap-CV | R² T2=0.574, T4=0.402, T9=0.418 | D-35, D-49 (F-09a) | 2026-07-02 |
+| Gap-filling | External-sourced pooled RFm, full-period gap-CV | R² T2=0.576, T4=0.404, T9=0.426 | D-35, D-49, D-77 | 2026-07-23 |
 | Forecasting — point/direct | B-03 enriched RF/XGB, daily track | R² T4 h1=0.365 h14=0.280; T9 h14=0.359 | D-41, D-49 | 2026-07-02 |
 | Forecasting — recursive rollout | **TabPFN+species (F-10)** — best single model overall | All-tower: MASE=0.840, R²=−0.084 | D-67 | 2026-07-10 |
 | Interpretability | I-02 | `fx_lsu_dens` dominant, importance grows with lead time | D-61 | 2026-07-06 |
@@ -35,16 +35,28 @@ RFm + stocking-density (LSU/ha) livestock feature + lags + pruned management + g
 (REddyProc-style) + per-catchment external soil temperature, evaluated via **full-period gap-CV**
 (not a year-split — F-07's fix). Methodology established at F-07/F-08 (D-34/D-35).
 
-**Current best-validated R² (post D-48 USTAR/VPD-plausibility fix, re-verified at F-09a/D-49,
-2026-07-02):**
+**Current best-validated R² (post D-77 `mdc_gapfill` extended-interpolation fix, 2026-07-23):**
 
 | Tower | R² |
 |---|---|
-| T2 | 0.574 |
-| T4 | 0.402 |
-| T9 | 0.418 |
+| T2 | 0.576 |
+| T4 | 0.404 |
+| T9 | 0.426 |
 
 All three towers beat MDS by roughly 0.6–1.0 R² units.
+
+**Prior number (post D-48 fix, F-09a/D-49, superseded by D-77 above):** T2=0.574, T4=0.402,
+T9=0.418. D-77 rebuilt the gap-filling pipeline as a fully self-contained notebook
+(`03c_gap_filling_revisited/`, zero `src/` imports) and found `mdc_gapfill()`'s flat 2h
+interpolation cutoff was too short for low-diurnal-structure drivers (soil moisture/temperature,
+TA, VPD, WS) — extending it to 288h for those 5 variables only lifted R² at every tower.
+
+**Extensively re-tested against this D-77 base (D-78, 2026-07-23/24) — nothing beat it outright:**
+an Area-of-Applicability UQ layer (validated, weak-but-real error correlation, additive to
+production); six additional models (LightGBM/XGBoost/TabPFN/TabICL/SAITS/BI-LSTM) — LightGBM and
+TabICL edge the champion at Tower 4 only (+0.006/+0.019), everything else loses everywhere; soil-lag
+bidirectional/lead-only re-expansion (reproduces F-12's null result on the corrected features); and
+target (FCH4) lag/lead features (new, never tested before — a clear regression). See D-78.
 
 **Known discrepancy (stated, not resolved):** F-08's own headline write-up gives slightly
 different numbers for the same config (T4 0.362, T9 0.350) than F-09a's "before" comparison figures
@@ -66,7 +78,11 @@ adopted**, no change to the numbers below.
 
 **Sources:** `notebooks/04_feature_engineering/F08_external_sensors_RFm.ipynb`, `F08_results.md`,
 `results/f08_summary.csv`, `results/f09a_summary.csv`, `F12_results.md`,
-`results/f12_summary.csv`.
+`results/f12_summary.csv`, `notebooks/03c_gap_filling_revisited/temp_gap_filing_exploration.ipynb`
+(D-77 fix), `temp_gap_filing_exploration copy.ipynb` (D-78 extended exploration),
+`notebooks/03c_gap_filling_revisited/_data/model_comparison.csv`,
+`notebooks/03c_gap_filling_revisited/_data/soil_lag_results.csv`,
+`notebooks/03c_gap_filling_revisited/_data/target_laglead_results.csv`.
 
 ---
 

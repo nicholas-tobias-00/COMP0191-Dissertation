@@ -127,6 +127,9 @@ notebooks/
   06_interpretability_uq/ IN PROGRESS -- I-01/I-02, U-01/U-02/U-03
   07_scenario_analysis/   IN PROGRESS -- S-01/S-02/S-03
   08_imputation_revisited/ IN PROGRESS -- IMP-01 done (step 1 of 5: missingness viz)
+  03c_gap_filling_revisited/ D-77/D-78 -- fully self-contained (no src/) gap-filling reproduction
+    + a real mdc_gapfill fix (new champion R2 0.576/0.404/0.426) + extended exploration (UQ,
+    6 additional models, lag/lead expansion) -- see temp_gap_filing_exploration[ copy].ipynb
 src/
   data/
     consolidate_hourly.py COMPLETE — resamples all data to 1h; writes data/Hourly/
@@ -853,6 +856,58 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      sparsity/pooling work. 15 rows tagged `F-11-phase4` in `results/benchmarks.csv`. See D-76,
      `notebooks/04_feature_engineering/F11_SAITS_Implementation.ipynb`, `F11_results.md` §8,
      `results/f11_phase4_final_summary.csv`.
+   - **D-77 (2026-07-22/23): `03c_gap_filling_revisited` — fully self-contained (zero `src/`
+     imports) gap-filling reproduction notebook, and a real, adopted `mdc_gapfill` fix.** Built
+     `temp_gap_filing_exploration.ipynb` from scratch (hourly data → EDA → FCO2 reconstruction →
+     external sourcing → met/soil gap-filling → u*/GPP-Reco → management/livestock → full F-08/
+     F-09a gap-CV harness), catching two real bugs along the way: a `classify()` substring-collision
+     bug ("inorganic fertiliser" matched as "organic fertiliser," fixed by restoring production's
+     guard clause) and an `N_REPS` mismatch (`BEST_RESULTS.md`'s numbers came from F-09a's
+     `N_REPS=2` re-check, not F-08's original 5 — confirmed legitimate rep-count variance, not a
+     bug, once matched). **Genuine fix found**: `mdc_gapfill()`'s flat 2h interpolation cutoff was
+     too short for low-diurnal-structure drivers (soil moisture/temperature, TA, VPD, WS) —
+     extended to 288h for those 5 variables only (`LONG_INTERP_VARS`). Validated end-to-end via the
+     full FCH4 gap-CV harness: **R² improved at every tower, new standing champion** T2 0.574→
+     **0.576**, T4 0.402→**0.404**, T9 0.418→**0.426**. Also added model-fit caching
+     (`_model_cache/`, MD5-keyed) after discovering `RandomForestRegressor(n_jobs=-1)` is not
+     bit-reproducible across separate process runs (fixed via `n_jobs=1` for the one uncached RF),
+     dropping full-notebook rerun time from ~25-40 min to ~3.5 min. `BEST_RESULTS.md` §1 updated.
+     See D-77, `notebooks/03c_gap_filling_revisited/temp_gap_filing_exploration.ipynb`.
+   - **D-78 (2026-07-23/24): extended exploration on the D-77 base — UQ, six more models, lag/lead
+     expansion — champion unchanged, all additive, all logged in a separate working copy.**
+     Continuation of D-77 in `temp_gap_filing_exploration copy.ipynb`, per explicit user request
+     (UQ; more models — BI-LSTM/TabPFN/TabICL/SAITS named explicitly; expanded lag/lead for
+     covariates and the target), critically evaluated in plan mode first. User overrode two
+     critical-review recommendations (keep SAITS and soil-lag re-expansion despite F-11/F-12
+     precedent, since the feature base changed at D-77) and set the governing rule: strictly
+     additive, nothing overwrites the champion, full 3-tower coverage throughout.
+     **Phase A (UQ, validated)**: Area-of-Applicability dissimilarity index (replicated inline from
+     `scenario_hybrid.py`), applied to the production gap-filled series — weak but real positive
+     correlation with error (Pearson +0.11 to +0.16 at all 3 towers), after catching and fixing two
+     real bugs (missing imputation before scaling, and validation-set leakage from unmasked
+     training data).
+     **Phase B (6 additional models, full 3-tower)** — none beat the champion outright: LightGBM
+     (T4 0.410, +0.006) and TabICL (T4 0.423, +0.019) edge the champion at Tower 4 only; XGBoost
+     (0.551/0.349/0.369) and TabPFN (0.459/0.401/0.402, and extremely slow — ~3.7h for 60 folds)
+     lose everywhere; SAITS (0.358/0.293/0.285, F-11's own best config rebuilt on D-77's features)
+     substantially improved vs. F-11's original numbers (was 0.192/0.225/0.110) but still loses
+     everywhere; BI-LSTM (0.237/0.155/0.146, a custom self-supervised windowed bidirectional-LSTM
+     imputer) is weakest of all six. Result-level caching added for every Phase B/C model after
+     discovering `nbconvert --execute` reruns every cell on every invocation regardless of prior
+     success — without it, each new phase silently re-paid the full cost of every earlier slow
+     phase on every subsequent rerun.
+     **Phase C (lag/lead expansion)** — both negative: soil-lag bidir/leadonly (F-12's arms,
+     rebuilt on D-77's features) reproduce F-12's null result almost exactly (T2 0.561-0.564, T4
+     0.410-0.412, T9 0.411-0.415); target (FCH4) lag/lead (`target_lag{1,24,168}`/
+     `target_lead{1,24,168}`, genuinely new, never tested) regresses clearly
+     (0.495/0.329/0.353) — required a new leakage-safety pattern (mask the target at the current
+     fold's own held-out timestamps *first*, derive lag/lead from that masked series, runtime
+     assertion on every fold) since a held-out point's neighbour can itself be held out in the
+     same contiguous gap. **Outcome: not adopted, no `BEST_RESULTS.md` change beyond D-77's own
+     fix** — RFm (D-77) remains standing at every tower. See D-78,
+     `notebooks/03c_gap_filling_revisited/temp_gap_filing_exploration copy.ipynb`,
+     `notebooks/03c_gap_filling_revisited/_data/{model_comparison,soil_lag_results,
+     target_laglead_results}.csv`.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.
@@ -860,7 +915,25 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-21 (D-76: F-11 follow-up — testing SAITS's diagnosed failure modes from
+_Last updated: 2026-07-24 (D-77/D-78: `03c_gap_filling_revisited` — a fully self-contained (zero
+`src/` imports) rebuild of the gap-filling pipeline found and fixed a real bug in `mdc_gapfill()`
+(flat 2h interpolation cutoff too short for low-diurnal-structure drivers — soil moisture/
+temperature, TA, VPD, WS — extended to 288h for those 5 only). **New standing champion R²: T2
+0.576 (was 0.574), T4 0.404 (was 0.402), T9 0.426 (was 0.418)** — `BEST_RESULTS.md` §1 updated
+(D-77). A large follow-up exploration on this corrected base (D-78, separate working copy,
+`temp_gap_filing_exploration copy.ipynb`, strictly additive throughout) then tested: an
+Area-of-Applicability UQ layer (validated, weak-but-real error correlation +0.11 to +0.16, ready
+for production use); six additional models full 3-tower (LightGBM/TabICL edge the champion at
+Tower 4 only, +0.006/+0.019; XGBoost/TabPFN/SAITS/BI-LSTM all lose everywhere — SAITS notably
+improved substantially vs. F-11's original numbers on the corrected features but still short);
+and lag/lead feature expansion (soil-lag bidir/leadonly reproduce F-12's null result almost
+exactly on the corrected base; target/FCH4 lag-lead, genuinely new, regresses clearly and required
+a new per-fold leakage-safe masking pattern). **Outcome: RFm (D-77) remains the standing
+gap-filling recommendation at every tower — nothing in D-78 beat it outright.** See "Current
+status" bullets above, D-77, D-78,
+`notebooks/03c_gap_filling_revisited/temp_gap_filing_exploration.ipynb` (+ ` copy.ipynb`).)_
+
+_Previously updated: 2026-07-21 (D-76: F-11 follow-up — testing SAITS's diagnosed failure modes from
 D-74 finds real gains, still not adopted. Five levers tested (seeding, per-scenario retraining,
 solo-vs-pooled, spike-weighted loss, bigger model), staged cheapest/most-diagnostic first. Most
 elapsed time was infrastructure friction (a stuck run killed after 10+ hours with zero progress,
