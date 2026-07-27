@@ -1,6 +1,6 @@
 # Data (raw and compiled data — too large for git)
 /data/
-/notebooks/03c_gap_filling_revisited/_data
+/notebooks/03c_gap_filling_revisited/_data/*.csv
 
 # Conda environment
 .conda/
@@ -39,6 +39,7 @@ results/*.csv
 
 # Not Necessary Images
 results/figures/gapfill_chains/*.png
+notebooks/03c_gap_filling_revisited/_figures/*.png
 
 # Logs
-/notebooks/03c_gap_filling_revisited/*.log
+notebooks/03c_gap_filling_revisited/*.log
