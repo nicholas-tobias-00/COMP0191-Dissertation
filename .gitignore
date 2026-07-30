@@ -1,6 +1,9 @@
 # Data (raw and compiled data — too large for git)
 /data/
-/notebooks/03c_gap_filling_revisited/_data/*.csv
+/notebooks/03c_gap_filling_revisited/_data/
+/notebooks/03c_gap_filling_revisited/_data_gf_training/
+/notebooks/03c_gap_filling_revisited/_data_opus/
+/notebooks/03c_gap_filling_revisited/_data_focus/
 
 # Conda environment
 .conda/
@@ -17,6 +20,10 @@ temp/
 # Cached fitted models (regenerable, large binaries)
 _model_cache/
 */_model_cache/
+_model_cache_opus/
+*/_model_cache_opus/
+_model_cache_focus/
+*/_model_cache_focus/
 
 # Python
 __pycache__/
@@ -33,6 +40,7 @@ Thumbs.db
 CLAUDE.md
 # CONTEXT.md
 # DECISIONS.md
+notebooks/03c_gap_filling_revisited/OPUS_RUNBOOK.md
 
 # CSV results in results/
 results/*.csv
@@ -40,6 +48,7 @@ results/*.csv
 # Not Necessary Images
 results/figures/gapfill_chains/*.png
 notebooks/03c_gap_filling_revisited/_figures/*.png
+notebooks/03c_gap_filling_revisited/_figures_opus/*.png
 
 # Logs
 notebooks/03c_gap_filling_revisited/*.log

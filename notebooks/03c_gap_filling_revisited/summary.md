@@ -1,10 +1,13 @@
 # `03c_gap_filling_revisited` — Summary
 
 **Notebooks:** `temp_gap_filing_exploration.ipynb` (pristine, self-contained reproduction, zero
-`src/` imports) and `temp_gap_filing_exploration copy.ipynb` (all extended exploration below).
+`src/` imports) and `temp_gap_filing_exploration copy.ipynb` (all extended exploration in §1-§11
+below). §12 covers a separate, third notebook, `temp_gap_filling_pipeline.ipynb` — a tidied/
+condensed rebuild (EDA → feature imputation → feature engineering → gap-filling → UQ) kept as an
+ongoing base for further experimentation; its own results are independent of §1-§11's.
 **Scope:** all 3 towers (T2, T4, T9) throughout, full-period gap-CV (D-35/D-49 methodology).
 
-This document consolidates every metric produced across both notebooks into one reference. It
+This document consolidates every metric produced across all three notebooks into one reference. It
 does not replace the notebooks' own inline markdown (which carries the full methodology/rationale
 for each decision) — it is the fast-lookup index.
 
@@ -334,3 +337,203 @@ untouched).
 **Project-level docs updated**: `DECISIONS.md` (D-77, D-78), `BEST_RESULTS.md` §1,
 `CONTEXT.md` current-status — cover the champion fix and §2/§3 model/lag-lead work only; the UQ
 arc (§4–§11, sections 17/21–27 of the notebook) is not yet reflected there as of this document.
+
+---
+
+## 12. `temp_gap_filling_pipeline.ipynb` — full comparison: MDS floor through every rework + TabICL
+
+Separate, condensed notebook (its own §0-11 internal structure: EDA → feature imputation →
+feature engineering → gap-filling → UQ), built as a tidier base for iterative experimentation.
+Its own champion reproduces §1's architecture (partial-pooled RFm, full-period gap-CV) and lands
+at the same numbers: **T2 0.576, T4 0.404, T9 0.426**. This section lines up *every* experiment run
+in this notebook against two fixed reference points — **MDS** (the 2-driver literature baseline,
+the floor) and the **RFm champion** (the ceiling reached so far) — including two more
+model-agnostic statistical baselines, **Mean** and **MICE**, alongside RF/TabICL — then reruns the
+feature-set reworks through **TabICL** instead of RF (§12.2).
+
+### 12.1 Master comparison — every RF experiment vs. the MDS floor and the champion
+
+R²/RMSE/MAE/nMAE all reported as T2 / T4 / T9 (RMSE/MAE in the target's native units,
+nmol m⁻² s⁻¹; lower is better for RMSE/MAE/nMAE, unlike R²). "Δ vs MDS" and "Δ vs champion" are
+both **R²** deltas (positive = better than that reference), reported the same way. Rows are
+ordered by increasing model/feature sophistication, not by performance, so the table reads as a
+build-up from nothing to everything tried.
+
+**nMAE = MAE / std(observed FCH4)**, one fixed constant per tower computed from all real,
+QC'd, in-domain target values (T2 std=140.9, T4 std=128.5, T9 std=146.0 nmol m⁻² s⁻¹) — the same
+denominator is applied to every experiment below, so nMAE columns are directly comparable across
+rows. Chosen over range-based normalization specifically because FCH4's range (~3200-3350) is set
+by a single extreme spike per tower, which would compress every experiment's nMAE into a
+near-meaningless ~0.01-0.02 band; std is far less distorted by 1-2 outlier points (same
+spike-sensitivity reasoning behind `CLAUDE.md`'s MASE-first guidance for the forecasting track).
+
+**MICE implementation note (bug caught and fixed before results were trusted)**: pooling stacks 3
+towers that all share the same underlying hourly `Datetime` index. A first attempt used
+label-based `.loc[gt_ts]` to read the imputed target back out at the held-out timestamps — on the
+concatenated matrix this matched *every* tower's row at that timestamp, not just the tower under
+evaluation (`ValueError: Found input variables with inconsistent numbers of samples` surfaced this
+immediately in a smoke test, before any real compute was spent). Fixed by tracking each held-out
+point's absolute *row position* in the concatenated matrix instead of relying on its (non-unique)
+timestamp label.
+
+| Experiment | Features (+3 dummies) | R² | RMSE | MAE | nMAE | Δ R² vs MDS | Δ R² vs champion |
+|---|---|---|---|---|---|---|---|
+| **Mean** (training-set constant — no model, no features, the trivial floor) | 0 | -0.003 / -0.001 / -0.001 | 139.5 / 125.6 / 138.0 | 46.8 / 50.7 / 61.5 | 0.332 / 0.395 / 0.421 | +0.164 / +0.206 / +0.336 | -0.579 / -0.405 / -0.427 |
+| **MDS** (2-driver, SW_IN+TA — literature baseline, the floor) | -- | -0.167 / -0.207 / -0.337 | 158.8 / 138.5 / 155.3 | 51.4 / 56.3 / 69.3 | 0.365 / 0.438 / 0.475 | +0.000 / +0.000 / +0.000 | -0.743 / -0.611 / -0.763 |
+| RFm met-only (raw met/micromet drivers only — no AUX, no livestock, no lags, no mgmt, no gpp/reco) | 11 | 0.052 / 0.036 / 0.059 | 135.8 / 119.5 / 133.1 | 43.1 / 50.4 / 59.6 | 0.306 / 0.392 / 0.408 | +0.219 / +0.243 / +0.396 | -0.524 / -0.368 / -0.367 |
+| MICE (`sklearn.IterativeImputer`, default `BayesianRidge`, champion's own `FEATURES`) | 30 | 0.081 / 0.118 / 0.107 | 132.6 / 114.6 / 130.4 | 59.6 / 55.9 / 61.7 | 0.423 / 0.435 / 0.423 | +0.248 / +0.325 / +0.444 | -0.495 / -0.286 / -0.319 |
+| **RFm champion** (`lsu_dens`, `FEATURES` — the ceiling) | 30 | 0.576 / 0.404 / 0.426 | 75.0 / 100.3 / 107.1 | 31.2 / 42.8 / 49.3 | 0.221 / 0.333 / 0.338 | +0.743 / +0.611 / +0.763 | +0.000 / +0.000 / +0.000 |
+| 4.3.a speciesDens (cattle/sheep/lamb split, replaces `lsu_dens`) | 32 | 0.593 / 0.404 / 0.428 | 74.5 / 99.5 / 106.6 | 31.6 / 42.8 / 49.1 | 0.224 / 0.333 / 0.336 | +0.760 / +0.611 / +0.765 | +0.017 / +0.000 / +0.002 |
+| D1 lagmemSoil (derived point-lag + causal rolling TS/SWC) | 30 | 0.576 / 0.404 / 0.428 | 75.4 / 100.2 / 107.3 | 31.1 / 42.8 / 49.0 | 0.221 / 0.333 / 0.336 | +0.743 / +0.611 / +0.765 | +0.000 / +0.000 / +0.002 |
+| D2 livestockMem (species-split + per-species rolling mean + grazing recency) | 36 | 0.601 / 0.395 / 0.425 | 74.9 / 99.8 / 107.0 | 31.4 / 42.6 / 49.5 | 0.223 / 0.331 / 0.339 | +0.768 / +0.602 / +0.762 | +0.025 / -0.009 / -0.001 |
+| D3 neighborNoAug (nearest-observation target features) | 38 | 0.554 / 0.267 / 0.308 | 91.8 / 104.9 / 113.7 | 37.8 / 45.2 / 52.9 | 0.268 / 0.352 / 0.362 | +0.721 / +0.474 / +0.645 | -0.022 / -0.137 / -0.118 |
+| D3 neighborAug (+training-time neighbour-feature augmentation) | 38 | 0.537 / 0.382 / 0.386 | 82.3 / 99.8 / 110.0 | 32.5 / 44.8 / 51.2 | 0.231 / 0.349 / 0.351 | +0.704 / +0.589 / +0.723 | -0.039 / -0.022 / -0.040 |
+| D4 laglead_full, original (bidirectional lag+lead at 10 hours [1,2,3,6,24,48,168,336,504,672] for TS, SWC, species-split rolling LSU, and target) | 141 | 0.510 / 0.318 / 0.292 | *not retained¹* | *not retained¹* | *not retained¹* | +0.677 / +0.525 / +0.629 | -0.066 / -0.086 / -0.134 |
+| D4 laglead_full, **revised additive** (original D4 + every column unique to D1/D2/D3 that D4 lacked: D1's pruned point-lags/rolls, D2's raw species density + plain roll + grazing recency, D3's nearest-observation `NEIGHBOR_COLS`) | 164 | 0.543 / 0.262 / 0.293 | 94.1 / 102.5 / 114.6 | 37.9 / 42.9 / 51.6 | 0.269 / 0.334 / 0.353 | +0.710 / +0.469 / +0.630 | -0.033 / -0.142 / -0.133 |
+
+¹ The original (141-feature) D4's RMSE/MAE were computed and briefly displayed in-notebook, but
+that cell was overwritten in place by the revised-D4 rework (per this notebook's usual "revise in
+place, don't fork a new section" pattern for this specific request) before being captured to a
+saved file — only its R² survived (captured to chat/this document at the time). Not recoverable
+without rerunning the original 141-feature version specifically.
+
+**Reading the table as a build-up**: **Mean** (fill every held-out point with that fold's own
+training-set constant — literally no model) lands at R²≈0 at every tower, exactly as the
+definition predicts — the honest zero-information floor. **MDS actually sits *below* that** at
+every tower (negative R²) — the literature 2-driver baseline is measurably *worse than doing
+nothing*. Switching to RF with the same class of information (11 raw met/micromet drivers, zero
+engineering) already climbs past both floors to a small positive R² (0.04-0.06) and a large
+RMSE/MAE improvement over MDS — confirming most of MDS's weakness is algorithm choice, not driver
+choice. **MICE** (`IterativeImputer`, default `BayesianRidge`) — given the *exact same 30 features*
+as the champion — reaches R²=0.08-0.12, ahead of met-only RF (fewer features but a nonlinear
+model) yet far behind the champion (identical features, RF instead of linear chained regression).
+Comparing MICE-vs-champion (same features, different model) against met-only-vs-champion (same
+model, fewer features) separates the two axes cleanly: neither the richer feature set nor RF's
+nonlinearity alone gets you to the champion's 0.4-0.6 — you need both together. The jump from
+met-only RF to the champion (+0.37 to +0.52 R², depending on tower) is entirely attributable to
+the champion's engineered features (livestock density, soil lags, management recency, GPP/Reco,
+diurnal/seasonal encoding) — this is the first time this notebook has quantified how much of the
+champion's skill is "raw weather" versus "everything else." None of the six further reworks beats
+the champion outright.
+4.3.a and D2 come closest (small T2 gains, real T4 cost); D3 and D4 — both touching the target
+itself — regress hardest, still comfortably ahead of met-only RF but clearly behind the champion.
+Root cause diagnosed for D4: `RF_PARAMS` never caps `max_features`, so every split considers all
+candidate features (undermining RF's tree-decorrelation mechanism), compounded by heavy
+multicollinearity between adjacent-hour lag columns and near-in-time target lags going NaN
+(mean-imputed) inside exactly the larger held-out gaps where they'd matter most. **The additive
+revision (164 features) directly tested whether this was fixable by "just add more relevant
+signal" — it wasn't**: T2 improved slightly (0.510→0.543) but T4 got meaningfully worse
+(0.318→0.262), net evidence that the dilution problem scales with column count regardless of how
+individually well-motivated each addition is, rather than being specific to D4's original wide
+hour grid.
+
+### 12.2 Same five feature sets, rerun through TabICL instead of RF
+
+RF rows here repeat §12.1's numbers for direct side-by-side comparison; MDS/met-only aren't rerun
+through TabICL (they're floor references, not feature-set reworks) — see §12.1 for that context.
+
+R²/RMSE/MAE/nMAE all reported as T2 / T4 / T9. **Bold** marks whichever of RF/TabICL wins that
+specific metric at that specific tower (higher for R², lower for RMSE/MAE/nMAE) — bolding is
+per-cell, not per-row, since the metrics don't always agree on a winner. nMAE uses the same
+per-tower std-normalization as §12.1 (T2 std=140.9, T4 std=128.5, T9 std=146.0), so it always
+tracks MAE's win/loss pattern exactly (same divisor per tower) — included for direct comparability
+with §12.1's rows, not because it can flip a verdict MAE already gave. RMSE/MAE/nMAE not retained
+for the original 141-feature D4 (see §12.1 footnote ¹) — its RF/TabICL rows are R²-only.
+
+| Experiment | Model | R² | RMSE | MAE | nMAE | Verdict |
+|---|---|---|---|---|---|---|
+| D1 lagmemSoil | RF | 0.576 / 0.404 / 0.428 | 75.4 / 100.2 / 107.3 | 31.1 / 42.8 / 49.0 | 0.221 / 0.333 / 0.336 | -- |
+| D1 lagmemSoil | TabICL | 0.561 / **0.414** / 0.372 | **75.3** / 102.9 / 108.4 | **30.3** / **42.4** / 50.5 | **0.215** / **0.330** / 0.346 | edges RF's R² at T4 only; mixed on RMSE/MAE/nMAE |
+| D2 livestockMem | RF | 0.601 / 0.395 / 0.425 | 74.9 / 99.8 / 107.0 | 31.4 / 42.6 / 49.5 | 0.223 / 0.331 / 0.339 | -- |
+| D2 livestockMem | TabICL | 0.567 / **0.411** / 0.377 | **73.7** / 102.6 / 109.0 | **30.9** / **42.3** / 51.2 | **0.219** / **0.329** / 0.351 | edges RF's R² at T4 only; mixed on RMSE/MAE/nMAE |
+| D3 neighborNoAug | RF | 0.554 / 0.267 / 0.308 | 91.8 / 104.9 / 113.7 | 37.8 / 45.2 / 52.9 | 0.268 / 0.352 / 0.362 | -- |
+| D3 neighborNoAug | TabICL | **0.570** / **0.323** / **0.350** | **90.1** / **101.6** / 114.1 | **37.1** / **41.7** / 55.1 | **0.263** / **0.324** / 0.377 | beats RF's R² at all 3 towers; RMSE/MAE/nMAE agree at T2/T4 but reverse at T9 |
+| D3 neighborAug | RF | 0.537 / 0.382 / 0.386 | 82.3 / 99.8 / 110.0 | 32.5 / 44.8 / 51.2 | 0.231 / 0.349 / 0.351 | -- |
+| D3 neighborAug | TabICL | **0.542** / **0.393** / 0.375 | 83.9 / 100.3 / 110.7 | **31.9** / **43.9** / 51.8 | **0.226** / **0.342** / 0.355 | edges RF's R² at T2/T4; RMSE/nMAE slightly worse everywhere despite that |
+| D4 laglead_full, original (141 feat) | RF | 0.510 / 0.318 / 0.292 | *n/a* | *n/a* | *n/a* | -- |
+| D4 laglead_full, original (141 feat) | TabICL | **0.514** / 0.259 / 0.285 | *n/a* | *n/a* | *n/a* | mixed, TabICL edges T2 R² only |
+| D4 laglead_full, revised additive (164 feat) | RF | 0.543 / 0.262 / 0.293 | 94.1 / 102.5 / 114.6 | 37.9 / 42.9 / 51.6 | 0.269 / 0.334 / 0.353 | -- |
+| D4 laglead_full, revised additive (164 feat) | TabICL | 0.405 / 0.228 / 0.239 | 103.9 / 104.4 / 120.3 | 38.8 / **42.0** / 53.1 | 0.275 / **0.327** / 0.364 | loses to RF on R²/RMSE at all 3 towers; only T4 MAE/nMAE is marginally better |
+
+RMSE/MAE and R² don't always agree on which model "wins" at a given tower (e.g. D3 neighborNoAug's
+T9: TabICL has the better R² but the worse RMSE; D4 revised's T4: TabICL has the worse R² but a
+marginally better MAE) — a reminder that R² alone can be misleading when FCH4's spike-dominated
+error distribution is at play (see `CLAUDE.md`'s MASE-first guidance for the forecasting track;
+this gap-filling notebook doesn't compute MASE, but the same spike-sensitivity caveat applies here).
+
+Neither model rescues a feature set that doesn't help RF — the one partial exception is
+D3-neighborNoAug, where TabICL modestly outperforms RF on the identical (weaker) feature set at
+every tower, though both still trail the champion. TabICL's runtime is far more stable across
+feature-set size than RF's: at the original D4's 141 features, TabICL took ~70-85s/tower vs. RF's
+~30-37 min/tower (cold cache) — TabICL's in-context cost is dominated by its fixed 10,000-row cap,
+not column count, while RF's uncapped `max_features` makes its split search scale with feature
+count. That said, going from 141→164 features (+`NEIGHBOR_COLS`) cost TabICL its one T2 edge over
+RF — column growth eventually hurts TabICL too, just via attention dilution rather than split-search
+dilution, and by less than it hurts RF in absolute terms.
+
+### 12.3 Feature-set audit + saved training data
+
+Every experiment's exact `X_train` column list is printed directly in-notebook from the live
+feature-list variables (not hand-transcribed), and the corresponding pooled, real-data-only
+training frame (target + that experiment's features + tower + Datetime, no synthetic gaps
+withheld — the same construction as the notebook's own production fit) is saved per feature set.
+`laglead_full_FEAT_LAGLEAD_FULL.csv` reflects the **revised** (164-feature, additive) D4 — it was
+updated in place, not renamed, so it no longer matches the original 141-feature D4 row in §12.1/12.2.
+
+For D4 specifically, a second, richer export exists: `laglead_full_v2_train_test_missing_combined.csv`
+(104,355 rows × 168 cols, all 3 towers, revised 164-feature set) labels every domain row with this
+project's own standing temporal split (`CLAUDE.md`: train=2018-2021, test=2022-2023,
+held_out_2024=2024 — empty, no tower's domain reaches 2024) plus `missing` for genuine field gaps
+(the actual gap-filling deliverable) and `other` for the small pre-2018 (2017) sliver. Split into
+one file per category under `_data_gf_training/laglead_full_v2_split/`: `train.csv` (21,998 rows),
+`test.csv` (12,949), `to_gapfill.csv` (68,769), `other_pre2018.csv` (639).
+
+**`_data/`** (this notebook): `reference_baseline_met_only.csv` (§12.1 Mean + MDS + RFm met-only +
+MICE + champion floor comparison), `lagmem_results_4_3_b.csv` (§12.1 champion/4.3.a/D1/D2/D3
+consolidated), `tabicl_vs_rf_results.csv` (§12.2 D1/D2/D3), `laglead_full_results_d4.csv` (§12.1
+D4, revised), `tabicl_vs_rf_d4.csv` (§12.2 D4, revised).
+
+**`_data_gf_training/`**: `champion_FEATURES.csv`, `speciesDens_FEAT_SPECIES_DENS.csv`,
+`lagmemSoil_FEAT_LAGMEM_SOIL.csv`, `livestockMem_FEAT_LIVESTOCK_MEM.csv`,
+`neighbor_FEAT_NEIGHBOR.csv`, `laglead_full_FEAT_LAGLEAD_FULL.csv` (revised) — one pooled training
+frame per feature set above — plus `laglead_full_v2_train_test_missing_combined.csv` and the
+`laglead_full_v2_split/` subfolder described above.
+
+### 12.4 Raw predictions for every experiment (not just the champion)
+
+Every experiment above (§12.1/12.2) previously kept only the *aggregated* median-of-medians
+R²/RMSE/MAE/MBE per (tower, scenario) — the raw `(timestamp, actual, predicted)` pairs behind each
+fold were computed, fed into `mets()`, and discarded. `_data/all_raw_predictions.csv` captures them
+for real: **1,517,760 rows × 8 columns** (`experiment`, `model`, `tower`, `scenario`, `rep`,
+`Datetime`, `y_actual`, `y_pred`), 113.1 MB, covering all 3 towers × 5 scenarios × 2 reps for every
+one of **19** experiment/model combinations — Mean, MDS, RFm_solo, RFm_pool champion, RFm met-only,
+MICE, 4.3.a speciesDens, D1/D2/D3(×2 arms)/D4, each RF and (where applicable) TabICL. (Mean/MICE
+were added after the file's initial build — same "extend the raw-predictions capture as new
+experiments are added, not a separate later ask" convention as everything else in this section.)
+
+**Verification**: since `insert_calendar_gaps` uses a fixed `seed=0` by default (every call site in
+this notebook relies on that), the held-out fold structure is fully deterministic, so RF fits still
+hit `_model_cache/` and reproduce byte-identical results to the original runs. Recomputing R² from
+this exported file alone — correctly, per (tower, scenario, rep) then median across reps then
+median across scenarios, exactly matching `mets()`/`med_metrics()`'s own methodology — reproduces
+the established headline numbers exactly for 15 of the 17 combinations (e.g. champion: T2/T4/T9 =
+0.576/0.404/0.426, an exact match).
+
+**Known caveat**: the two **D3 neighborAug** rows (RF and TabICL) show small T4/T9 deviations from
+the numbers quoted in §12.1/12.2 (e.g. RF: T4/T9 = 0.359/0.385 here vs. 0.382/0.386 established).
+Root cause: `augmented_mask`'s seed increments continuously across all 5 scenarios within
+`run_rf_neighbor`'s single original call, but restarts at a fixed base each time the "capture"
+harness is invoked separately per scenario — a genuinely different (still valid, still
+leakage-safe) random training-augmentation draw, not a data-integrity problem. Every other
+combination matches exactly.
+
+**A related fix, applied retroactively**: `run_rf_capture` (used by §9/§10 for the champion's own
+`held_out_pairs_l_scenario.csv`/`held_out_pairs_all_scenarios.csv`) had this same missing-`rep`-tag
+gap — duplicate/overlapping timestamps between the 2 independent reps (confirmed empirically: 372
+of 2565 rows for Tower 2's "l" scenario alone) meant a naive pooled R² across both reps together
+silently conflated two different fits, most visibly at Tower 2 (its shorter `DOMAIN` window leaves
+less room for `insert_calendar_gaps`'s 2 independent draws to avoid overlapping). Patched to tag
+every row with its `rep` — both champion files now carry this column too.
+
+**Not yet reflected in project-level docs** (`DECISIONS.md`/`BEST_RESULTS.md`/`CONTEXT.md`) — same
+caveat as §1-§11's closing note above.
