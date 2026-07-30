@@ -537,3 +537,176 @@ every row with its `rep` — both champion files now carry this column too.
 
 **Not yet reflected in project-level docs** (`DECISIONS.md`/`BEST_RESULTS.md`/`CONTEXT.md`) — same
 caveat as §1-§11's closing note above.
+
+---
+
+## 13. `temp_mds.ipynb` — literature-correct MDS reconstruction + an R² metric-definition discovery
+
+A fourth, separate self-contained notebook (edits confined to it; `temp_gap_filling_pipeline.ipynb`
+read-only reference throughout). Built to audit the project's MDS implementation against the actual
+Reichstein (2005)/REddyProc algorithm — the primary paper isn't in `documents/Literature/`, so
+verification used direct inspection of REddyProc's own R source (`EddyGapfilling.R`) and MPI-BGC's
+official documentation instead.
+
+### 13.1 The algorithm audit — three confirmed bugs, not one
+
+The current production `mds_fill_batch` deviates from the real MDS algorithm in three ways: (1) it
+applies an hour-of-day ±1h restriction to *every* window/case, when the real algorithm only
+restricts by hour in the final meteo-free fallback (Case 3, mean diurnal course) — the
+meteorological look-up cases (1: SW+TA+VPD, 2: SW-only) should use ALL records in the day-window;
+(2) it is missing the intermediate Case 2 (SW-only look-up) entirely, jumping straight from
+"all 3 drivers required" to a crude fallback; (3) that fallback is a single fixed ±7-day box with no
+meteorological constraint, not the real algorithm's expanding mean-diurnal-course window (0/1/2 days,
+then step-7 to ±210 days). Confirmed mechanistically, not just asserted: instrumented diagnostic
+variants (with an exhaustive predictions-match assertion, not a single spot-check) showed candidate
+pools were chronically tiny (median 2-4 real observations) under the old implementation, across
+*every* scenario and tower — and grew 2-4x once the hour restriction was removed.
+
+### 13.2 OLD vs NEW implementation — headline R² (sklearn convention, this project's standing metric)
+
+| Tower | OLD (current production) | NEW (literature-correct) | Δ |
+|---|---|---|---|
+| T2 | -0.214 | **-0.023** | +0.191 |
+| T4 | -0.302 | **-0.113** | +0.189 |
+| T9 | -0.293 | **-0.073** | +0.220 |
+
+R² improved in **every single (tower, scenario) cell**, no exceptions. Tower 2's long-gap ("l",
+288h) scenario improved (-2.457 → -1.947) but remains by far the worst cell in either version —
+consistent with, though not fully explained by, Tower 2's short ~21-month domain (see §13.3).
+
+### 13.3 Site-identity discovery: Tower 2/4/9 ARE Zhu et al. (2023a)'s named challenging-ecosystem sites
+
+Cross-referencing `Zhu_2023a_...pdf` against `NWFP_UG_Design_Develop.pdf` (farmlet map, land-
+management-change timeline) confirms — not "similar ecosystems" but the same physical fields:
+
+| This project | NWFP farmlet | Zhu et al. 2023a site |
+|---|---|---|
+| Tower 2 (Catchment 2, "Great Field") | Red | ROTH_HS |
+| Tower 4 (Catchment 4, "Burrows") | Green | ROTH_PP |
+| Tower 9 (Catchment 9, "Dairy South") | Blue | ROTH_HSC |
+
+Confirmed via three independent lines of evidence: the farmlet map's colour-coding; Tower 2's
+2018-with-cattle/2019-without-cattle regime shift being literally the "Red farmlet transitioned to
+an arable system... cattle permanently housed... sheep production only on green and blue systems"
+event the design guide describes for April 2019 (not an independently-occurring parallel case); and
+this project's own `Catchment 4 After 2013/08/13` column suffix quoting the design guide's §5.1
+almost verbatim. This project's `SCENARIOS = {vs, s, m, l, m1}` gap-CV taxonomy also directly mirrors
+Zhu et al.'s own Part B gap-scenario naming — the comparison against their Fig. 6d/Table 7d figures
+is a same-site, same-methodology comparison, not an analogous one.
+
+### 13.4 The R² metric-definition discovery
+
+Zhu et al. state their R² explicitly (p.6): *"...the coefficient of determination (R²) and slope of
+the ordinary least squares regression..."* — R² and slope together, both from an OLS fit of
+(measured, filled) pairs. That R² is mathematically the **squared Pearson correlation coefficient**,
+bounded in [0, 1] by construction. This project's `mets()` instead uses
+`sklearn.metrics.r2_score(y, p)` — `1 - SS_res/SS_tot`, **unbounded below**, punishing any systematic
+bias/scale mismatch hard. These are two different statistics that happen to share a name.
+
+Recomputed on the exact same predictions with both definitions:
+
+| Tower | OLD / sklearn | OLD / OLS (Zhu-style) | NEW / sklearn | NEW / OLS (Zhu-style) |
+|---|---|---|---|---|
+| T2 | -0.214 | 0.015 | -0.023 | **0.072** |
+| T4 | -0.302 | 0.039 | -0.113 | **0.038** |
+| T9 | -0.293 | 0.048 | -0.073 | **0.054** |
+
+Under Zhu et al.'s own metric, **both the OLD and NEW implementations already land close to their
+published ~0.03-0.05 figure** for these exact sites — strong independent validation that this
+reconstruction reproduces the literature number on the literal same sites once measured the same
+way. The algorithmic fix's benefit under this metric is real but uneven across towers: meaningful
+for T2 (0.015→0.072), essentially flat for T4 (0.039→0.038), small for T9 (0.048→0.054) — a
+different, more modest picture than the sklearn-R² comparison alone suggests.
+
+### 13.5 Both R² definitions, extended to every model this project has evaluated
+
+Using the existing `_data/all_raw_predictions.csv` (read-only; produced by
+`temp_gap_filling_pipeline.ipynb` §12.4 — no retraining needed). **Important methodology note**:
+`experiment` alone is not a unique key — D1-D4 and `speciesDens` each have both an RF and a TabICL
+row for the same held-out points, so `model` must be included in any groupby over this file or two
+different models' predictions get silently pooled together (caught during this check, fixed before
+these numbers were used for anything).
+
+| Experiment | Model | R²_sklearn (T2 / T4 / T9) | R²_OLS, Zhu-style (T2 / T4 / T9) | Mean Δ (OLS − sklearn) |
+|---|---|---|---|---|
+| Mean (trivial baseline) | — | -0.003 / -0.001 / -0.001 | 0.000 / 0.000 / 0.000 | +0.001 |
+| **MDS (old, current production)** | — | -0.214 / -0.302 / -0.293 | 0.015 / 0.039 / 0.048 | **+0.304** |
+| **MDS (new, literature-correct — §13.2 fix)** | — | -0.023 / -0.113 / -0.073 | 0.072 / 0.038 / 0.054 | **+0.124** |
+| MICE | — | 0.081 / 0.118 / 0.107 | 0.104 / 0.128 / 0.110 | +0.012 |
+| RFm met-only | RF | 0.052 / 0.036 / 0.059 | 0.054 / 0.042 / 0.065 | +0.004 |
+| RFm_solo | RF | 0.398 / 0.382 / 0.356 | 0.445 / 0.393 / 0.358 | +0.020 |
+| **RFm champion (RFm_pool)** | RF | **0.576 / 0.404 / 0.426** | 0.601 / 0.409 / 0.430 | +0.012 |
+| speciesDens | RF | 0.593 / 0.404 / 0.428 | 0.615 / 0.408 / 0.431 | +0.010 |
+| D1 lagmemSoil | RF | 0.576 / 0.404 / 0.428 | 0.604 / 0.409 / 0.435 | +0.014 |
+| D1 lagmemSoil | TabICL | 0.561 / 0.414 / 0.372 | 0.596 / 0.417 / 0.377 | +0.014 |
+| D2 livestockMem | RF | 0.601 / 0.395 / 0.425 | 0.622 / 0.399 / 0.428 | +0.009 |
+| D2 livestockMem | TabICL | 0.567 / 0.411 / 0.377 | 0.593 / 0.420 / 0.379 | +0.012 |
+| D3 neighborAug | RF | 0.537 / 0.359 / 0.385 | 0.562 / 0.372 / 0.403 | +0.019 |
+| D3 neighborAug | TabICL | 0.542 / 0.390 / 0.347 | 0.582 / 0.401 / 0.355 | +0.020 |
+| D3 neighborNoAug | RF | 0.554 / 0.267 / 0.308 | 0.562 / 0.303 / 0.353 | +0.030 |
+| D3 neighborNoAug | TabICL | 0.570 / 0.323 / 0.350 | 0.607 / 0.375 / 0.368 | +0.036 |
+| D4 laglead_full (revised) | RF | 0.543 / 0.262 / 0.293 | 0.558 / 0.304 / 0.351 | +0.038 |
+| D4 laglead_full (revised) | TabICL | 0.405 / 0.228 / 0.239 | 0.444 / 0.288 / 0.298 | **+0.053** |
+
+**The R²-definition sensitivity is essentially an MDS-specific phenomenon, not a general property
+of this project's evaluation.** Every RF- and TabICL-based model (the champion included — a
+difference of ~0.02-0.03, not ~0.3), MICE, and the trivial Mean baseline all show small, consistent
+gaps between the two definitions (+0.001 to +0.053). **MDS (old) is the outlier by roughly an order
+of magnitude** (+0.304); even the literature-correct MDS fix (+0.124) is still 2-6x any other
+model's gap. Mechanistic reason: RF/TabICL/MICE are all fit to directly minimize error against the
+target, so their held-out predictions are already close to an OLS-calibrated fit — the two
+definitions can't diverge much for them by construction. MDS's "mean of similar-condition historical
+observations" rule is never calibrated against the specific held-out fold at all — it can be
+genuinely *correlated* with truth (nonzero Pearson r, real physical analogs carry real information)
+while being systematically *miscalibrated* in scale/bias for any given fold (poor out-of-sample R²).
+
+**Practical implication**: this project's standing metric convention (sklearn R², used throughout
+`temp_gap_filling_pipeline.ipynb` and `BEST_RESULTS.md`) is **not** distorting the RFm-vs-MDS
+"improvement over MDS" framing (D-34/D-35) — RFm's own number barely moves under the alternative
+definition, so the ~0.6-1.0 R²-unit gap this project has repeatedly reported is real under either
+metric. The definition choice matters specifically when comparing this project's *own* MDS numbers
+against *external* literature figures computed the other way — exactly the comparison this notebook
+exists to make.
+
+### 13.6 Curiosity extension (explicitly "not real MDS"): feature-richer window-matching
+
+Two exploratory variants, built on top of the literature-correct MDS engine, isolating each change
+to Case 1 only (Case 2/3 held identical throughout for a clean comparison):
+
+| Variant | T2 | T4 | T9 | Verdict |
+|---|---|---|---|---|
+| driver3 (literature-correct, §13.2) | -0.023 | -0.113 | -0.073 | baseline for this comparison |
+| driver_m (+8 more met variables: PPFD, RN, WS, USTAR, SHF, precip, soil T, soil moisture) | -0.161 | -0.211 | -0.287 | worse at all 3 towers |
+| driver_full (driver_m + livestock stocking density + grazing exact-match + management recency) | -0.165 | -0.227 | -0.189 | worse than driver3 everywhere; mixed vs. driver_m |
+
+**driver_m makes things worse everywhere** — a curse-of-dimensionality effect: requiring
+simultaneous tolerance-matching across 11 variables (even soft-matched, skipping missing ones)
+shrinks candidate pools further (e.g. Tower 2 "l": median 4→3 candidates) despite the extra
+information, because window-matching (unlike RF) has no mechanism to weight informative vs.
+uninformative dimensions.
+
+**driver_full is tower-dependent** — helps Tower 9 (+0.098 vs. driver_m; Tower 9 is grazed 61.4% of
+hours, a balanced split) but leaves Tower 2 flat/worse (+0.004 vs. driver_m, still worse than
+driver3) because Tower 2 is grazed only 11.9% of hours (median LSU/ha = 0) — an exact-match
+constraint on a rare state shrinks an already-scarce candidate pool faster than the signal can
+compensate. **This is evidence against "MDS can't see livestock" being a sufficient, standalone
+explanation for Tower 2's residual long-gap collapse specifically** (the DECISIONS.md D-34
+hypothesis) — giving a match-based method the exact signal D-34 flags as missing doesn't recover
+the loss at Tower 2, even though it demonstrably helps at the more balanced Tower 9. Sheer data
+scarcity/imbalance in Tower 2's short domain looks like the more fundamental bottleneck.
+
+### 13.7 Port-back status
+
+Not yet ported into `temp_gap_filling_pipeline.ipynb` — `temp_mds.ipynb`'s §8 has exact
+instructions (copy `mds_fill_batch_new` in as `mds_fill_batch`; add a `fill_fn`/`data` default-arg
+generalization to `run_mds`/`run_mds_capture`, backward-compatible with existing call sites). The
+driver_m/driver_full experiments (§13.6) are explicitly exploratory, not literature MDS, and net
+negative for the audit's actual goal — not recommended for port-back.
+
+**Not yet reflected in project-level docs** (`DECISIONS.md`/`BEST_RESULTS.md`/`CONTEXT.md`) — same
+caveat as §1-§12's closing notes above. If ported, `BEST_RESULTS.md`'s "improvement over MDS" figure
+and DECISIONS.md's D-34 framing would both need updating to cite the corrected MDS baseline and this
+section's counter-evidence on the livestock-blind hypothesis.
+
+Source: computed live in `temp_mds.ipynb` (§1-11; no new saved artifacts) plus
+`_data/all_raw_predictions.csv` (§13.5, existing file, read-only).
