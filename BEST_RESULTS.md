@@ -19,7 +19,7 @@ row, and bump "last verified."
 
 | Phase | Best config | Headline metric | Decision ID | Last verified |
 |---|---|---|---|---|
-| Gap-filling | External-sourced pooled RFm, full-period gap-CV | R² T2=0.576, T4=0.404, T9=0.426 | D-35, D-49, D-77 | 2026-07-23 |
+| Gap-filling | External-sourced pooled RFm, full-period gap-CV (production); TabICL-solo edges it at T2/T4 (benchmark-only, D-79) | R² T2=0.576, T4=0.404, T9=0.426 | D-35, D-49, D-77, D-79 | 2026-08-02 |
 | Forecasting — point/direct | B-03 enriched RF/XGB, daily track | R² T4 h1=0.365 h14=0.280; T9 h14=0.359 | D-41, D-49 | 2026-07-02 |
 | Forecasting — recursive rollout | **TabPFN+species (F-10)** — best single model overall | All-tower: MASE=0.840, R²=−0.084 | D-67 | 2026-07-10 |
 | Interpretability | I-02 | `fx_lsu_dens` dominant, importance grows with lead time | D-61 | 2026-07-06 |
@@ -43,7 +43,8 @@ RFm + stocking-density (LSU/ha) livestock feature + lags + pruned management + g
 | T4 | 0.404 |
 | T9 | 0.426 |
 
-All three towers beat MDS by roughly 0.6–1.0 R² units.
+All three towers beat MDS by roughly 0.5–0.6 R² units under the literature-correct MDS baseline
+(D-79; was ~0.6–1.0 under the old, buggy MDS implementation — see below).
 
 **Prior number (post D-48 fix, F-09a/D-49, superseded by D-77 above):** T2=0.574, T4=0.402,
 T9=0.418. D-77 rebuilt the gap-filling pipeline as a fully self-contained notebook
@@ -57,6 +58,22 @@ production); six additional models (LightGBM/XGBoost/TabPFN/TabICL/SAITS/BI-LSTM
 TabICL edge the champion at Tower 4 only (+0.006/+0.019), everything else loses everywhere; soil-lag
 bidirectional/lead-only re-expansion (reproduces F-12's null result on the corrected features); and
 target (FCH4) lag/lead features (new, never tested before — a clear regression). See D-78.
+
+**A separate, parallel notebook (`temp_gap_filling_pipeline.ipynb`, D-79, 2026-08-02) reproduces
+this same champion (0.576/0.404/0.426) and found the first result to genuinely beat it at more
+than one tower:**
+
+| Model | T2 | T4 | T9 | Note |
+|---|---|---|---|---|
+| **RFm pooled (production-adopted)** | 0.576 | 0.404 | **0.426** | standing production config — full UQ/production-fill tooling built around it |
+| **TabICL-solo, champion FEATURES** | **0.676** | **0.428** | 0.423 | beats RFm at T2 (+0.100) and T4 (+0.024); within noise at T9 (-0.003) — **benchmark-best, not yet production-adopted** (no UQ/production-fill tooling exists for this config yet; solo-not-pooled is TabICL-specific, since its fixed 10,000-row context cap makes pooling actively harmful, unlike RF) |
+| HyperImpute (AutoML per-column imputer, same features as MICE) | 0.509 | 0.336 | 0.354 | far ahead of MICE (0.081/0.118/0.107) on identical inputs, still behind both RF and TabICL |
+
+Also tested (D-79), all additive on top of RFm/TabICL, none adopted: dimensionality-reduction
+feature *selection* (clean, stable, but downstream KNN features are a wash), TICA-components/
+model-uncertainty fed back as features (uncertainty is actively harmful, esp. for TabICL),
+TabICL feature-drop/TICA-swap (flat), and TabICL row-cap bagging (small real gain at Tower 4 only,
++0.012). See D-79, `notebooks/03c_gap_filling_revisited/summary.md` §12-18.
 
 **Known discrepancy (stated, not resolved):** F-08's own headline write-up gives slightly
 different numbers for the same config (T4 0.362, T9 0.350) than F-09a's "before" comparison figures

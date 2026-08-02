@@ -130,6 +130,9 @@ notebooks/
   03c_gap_filling_revisited/ D-77/D-78 -- fully self-contained (no src/) gap-filling reproduction
     + a real mdc_gapfill fix (new champion R2 0.576/0.404/0.426) + extended exploration (UQ,
     6 additional models, lag/lead expansion) -- see temp_gap_filing_exploration[ copy].ipynb
+    D-79 -- parallel notebook temp_gap_filling_pipeline.ipynb: literature-correct MDS fix,
+    HyperImpute baseline, all-16-model production fill, TICA/UMAP feedback-feature line (D5-D8) --
+    TabICL-solo now beats RFm champion at T2/T4 (benchmark, not yet production-adopted)
 src/
   data/
     consolidate_hourly.py COMPLETE — resamples all data to 1h; writes data/Hourly/
@@ -908,6 +911,46 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      `notebooks/03c_gap_filling_revisited/temp_gap_filing_exploration copy.ipynb`,
      `notebooks/03c_gap_filling_revisited/_data/{model_comparison,soil_lag_results,
      target_laglead_results}.csv`.
+   - **D-79 (2026-08-02): a third, parallel notebook (`temp_gap_filling_pipeline.ipynb`) —
+     literature-correct MDS fix, HyperImpute, all-16-model production fill, and a TICA/UMAP
+     feedback-feature line (D5-D8) that found TabICL-solo beats the RF champion at 2 of 3
+     towers.** Reproduces the same 0.576/0.404/0.426 champion. **MDS fix** (ported from a separate
+     audit notebook, `temp_mds.ipynb`): 3 real bugs fixed (literature-correct 3-case hierarchy),
+     confirmed Towers 2/4/9 are the literal same sites as Zhu et al. (2023a)'s ROTH_HS/PP/HSC
+     farmlets, and found this project's `r2_score` diverges sharply from Zhu et al.'s own
+     OLS/Pearson-r² convention specifically for MDS (+0.30 gap, old; +0.12, fixed) but not for any
+     RF/TabICL/MICE model (≤0.05) — both MDS versions now land close to Zhu et al.'s own published
+     ~0.03-0.05 figure once measured their way. **HyperImpute** (AutoML-per-column imputer, same
+     features as MICE): R²=0.509/0.336/0.354, a 0.25-0.43 jump over MICE on identical inputs.
+     **Production fill generalized to all 16 models** this notebook has evaluated (was
+     champion-only), one real CUDA-OOM bug fixed along the way (TabICL prediction batching).
+     **D5-D8: three straight negative "feed derived signal back into the model" results, then one
+     real positive.** D5: consensus TICA/UMAP/t-SNE feature *selection* is clean and stable, but
+     downstream environmental-KNN features are a wash; separately found **TabICL-solo beats
+     TabICL-pooled at every tower** (its fixed 10,000-row context cap makes pooling actively
+     dilutive, unlike RF) — adopted as the standing TabICL default going forward. D6 (supervisor's
+     idea): TICA components + native model-uncertainty width fed back as features — TICA is a
+     wash, uncertainty is **actively harmful**, severely so for TabICL at 2 of 3 towers (-0.35 to
+     -0.40 R²). D7 (TabICL-only, RF treated as exhausted): dropping D5's 2 least-reliable
+     features / swapping in TICA components — both flat; ensembling already-computed RF+TabICL+
+     HyperImpute predictions helps only at Tower 4 (+0.017). D8 (TabICL-only): native
+     hyperparameter sweep is a clean null; **row-cap bagging (k independent random-subsample fits,
+     averaged) gives a real, mechanistically-explained gain specific to Tower 4** (+0.012-0.013 R²,
+     plateaus by k=5-8) — the one tower whose domain most exceeds the context cap. **Headline
+     result: TabICL-solo on the plain champion `FEATURES` beats RFm at T2 (0.676 vs. 0.576) and T4
+     (0.428 vs. 0.404), ties at T9** — the first result in either `03c_gap_filling_revisited`
+     notebook to beat RFm at more than one tower. Flagged as a validated **benchmark**, not yet
+     production-adopted (no UQ/production-fill tooling exists for this TabICL config yet).
+     **Operational note:** `_model_cache/` had silently grown to 166 GB over the project's
+     iterative history (confirmed pure, fully-regenerable RF joblib cache, zero unique data) —
+     deleted and rebuilt via a full top-to-bottom rerun (314 cells, cold cache, ~8h36m, zero
+     errors) to a leaner 77 GB; added automatic stale-entry pruning (`prune_stale_cache()`, safe
+     only after a genuine full rerun) so it won't silently balloon again. **Outcome: strictly
+     additive, RFm remains production-adopted at every tower** — `BEST_RESULTS.md` §1 now flags
+     TabICL-solo as benchmark-best at T2/T4. See D-79,
+     `notebooks/03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb`,
+     `notebooks/03c_gap_filling_revisited/temp_mds.ipynb`,
+     `notebooks/03c_gap_filling_revisited/summary.md` §12-18.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.
@@ -915,7 +958,32 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-07-24 (D-77/D-78: `03c_gap_filling_revisited` — a fully self-contained (zero
+_Last updated: 2026-08-02 (D-79: a third, parallel notebook,
+`03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb`, reproduced the same 0.576/0.404/0.426
+champion and did four things: (1) ported a literature-correct, 3-bug-fixed MDS reconstruction from
+a separate audit notebook (`temp_mds.ipynb`), which also confirmed Towers 2/4/9 are the literal
+same sites as Zhu et al. (2023a)'s ROTH_HS/PP/HSC farmlets and surfaced a genuine R²
+metric-definition divergence specific to MDS (this project's `r2_score` vs. Zhu et al.'s own
+OLS/Pearson-r² convention); (2) added HyperImpute as a third imputation baseline (R²=0.51/0.34/
+0.35, dramatically ahead of MICE on identical features); (3) generalized the production
+gap-filled series from champion-only to all 16 models evaluated; (4) ran a new "feed derived
+signal back into the model" experiment line (D5-D8) — three straight negative results (env-KNN
+features, D5; TICA-components/model-uncertainty features, D6; TabICL feature-drop/TICA-swap, D7)
+before one real, narrow positive (TabICL row-cap bagging helps specifically at Tower 4, D8).
+**Along the way, found the first result in either `03c_gap_filling_revisited` notebook to beat
+the RF champion at more than one tower: TabICL-solo (champion `FEATURES`, trained per-tower not
+pooled — its fixed 10,000-row context cap makes pooling actively dilutive) reaches T2=0.676,
+T4=0.428, T9=0.423 vs. RFm's 0.576/0.404/0.426** — flagged as a validated benchmark result in
+`BEST_RESULTS.md` §1, not yet production-adopted (no UQ/production-fill tooling exists for this
+TabICL config yet). Separately, `_model_cache/` (RF's joblib cache) had silently grown to 166 GB
+over the project's history — deleted, then rebuilt cleanly to 77 GB via a full top-to-bottom
+rerun (314 cells, cold cache, ~8h36m, zero errors), with automatic stale-entry pruning added going
+forward. **Outcome: RFm remains the production-adopted config at every tower, unchanged.** See
+"Current status" bullets above, D-79,
+`notebooks/03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb`,
+`notebooks/03c_gap_filling_revisited/summary.md` §12-18.)_
+
+_Previously updated: 2026-07-24 (D-77/D-78: `03c_gap_filling_revisited` — a fully self-contained (zero
 `src/` imports) rebuild of the gap-filling pipeline found and fixed a real bug in `mdc_gapfill()`
 (flat 2h interpolation cutoff too short for low-diurnal-structure drivers — soil moisture/
 temperature, TA, VPD, WS — extended to 288h for those 5 only). **New standing champion R²: T2
