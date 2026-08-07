@@ -427,7 +427,24 @@ def bin_metrics(y_true, y_pred, dates, anchor, y_persist=None,
 # SARIMAX's one-shot get_forecast(steps=H) than to tree_rollout/dl_rollout's day-by-day loop).
 # Per-tower only -- the simple predict_df API has no static-covariate/pooling support.
 
-def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local", quantiles=None):
+TABPFN_V2_GENERIC_CHECKPOINT = "tabpfn-v2-regressor.ckpt"   # original TabPFN-TS paper's generic
+# tabular v2 regressor checkpoint -- no TS-finetuned v2 checkpoint exists (tabpfn_time_series only
+# defines one TS-specific checkpoint constant, the v3 one tabpfn_forecast() uses by default).
+
+
+def tabpfn_v2_model_config():
+    """Returns the tabpfn_model_config dict that forces the OLD generic v2 regressor checkpoint
+    instead of the TS-finetuned v3 default tabpfn_forecast() resolves to when tabpfn_model_config
+    is not passed. n_estimators/softmax_temperature are NOT overridden -- confirmed via
+    tabpfn.regressor.TabPFNRegressor.create_default_for_version that v2 and v3 share identical
+    defaults for both (8, 0.9), so model_path is the only axis that needs to change for a fair
+    v2-vs-v3 comparison (D-8x)."""
+    from tabpfn.model_loading import prepend_cache_path
+    return {"model_path": prepend_cache_path(TABPFN_V2_GENERIC_CHECKPOINT)}
+
+
+def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local", quantiles=None,
+                     tabpfn_model_config=None):
     """hist_target: pandas Series, real y_observed history (gaps allowed as NaN -- TabPFN handles
     missing context values internally, so this deliberately does NOT use y_gapfilled, avoiding the
     diffuse globally-trained-gap-filler optimism flagged for every other model's training target).
@@ -440,12 +457,18 @@ def tabpfn_forecast(hist_target, hist_covariates, future_covariates, mode="local
     signature), returning one column per level named as the quantile's string (e.g. '0.05'). Default
     (None) preserves the exact original point-only behavior (a single Series of the median forecast).
     When quantiles is given, returns a DataFrame instead (columns = quantile levels as floats, plus
-    'median'), indexed by future_covariates.index."""
+    'median'), indexed by future_covariates.index.
+    tabpfn_model_config (D-8x): optional dict forwarded to TabPFNTSPipeline, e.g. to force a specific
+    checkpoint/version via tabpfn_v2_model_config() above. Default None preserves the exact original
+    behavior (LOCAL mode's own default checkpoint resolution, currently TabPFN v3)."""
     import tabpfn_time_series as tts
 
-    pipeline = tts.TabPFNTSPipeline(
+    pipeline_kwargs = dict(
         tabpfn_mode=tts.TabPFNMode.LOCAL if mode == "local" else tts.TabPFNMode.CLIENT
     )
+    if tabpfn_model_config is not None:
+        pipeline_kwargs["tabpfn_model_config"] = tabpfn_model_config
+    pipeline = tts.TabPFNTSPipeline(**pipeline_kwargs)
 
     context_df = hist_covariates.copy()
     context_df["timestamp"] = context_df.index

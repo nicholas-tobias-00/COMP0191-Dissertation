@@ -1964,3 +1964,236 @@ See D-79, `notebooks/03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb`,
 `notebooks/03c_gap_filling_revisited/summary.md` §12-18,
 `notebooks/03c_gap_filling_revisited/_data/{reference_baseline_met_only,fch4_gapfilled_all_models,
 d5_tabicl_solo_results,d6_results,d7_results,d8_hp_results,d8_bagging_results}.csv`.
+
+---
+
+### D-80 -- 2026-08-02 -- Forecasting: does D-79's improved gap-filling help the standing forecasting champion? (no) -- plus a MASE baseline convention change (persistence -> climatology)
+
+**Decision:** direct follow-up to D-79, testing whether TabICL-solo's gap-filling improvement
+(beats RFm at Tower 2/4 on the gap-filling benchmark itself) carries through to the downstream
+forecasting phase. Built the wide-format `fch4_gapfilled_tabicl.csv` (drop-in schema match to
+`fch4_gapfilled.csv`) and its `forecast_daily_v2/v3_tabicl.csv` daily-matrix siblings (reusing
+`build_forecasting_matrix_v2.py`/`v3.py`'s guide-feature functions unchanged, since none of that
+logic depends on which model produced the gap-fill), then reran the standing champion
+(`TabPFN+species`, F-10/D-67) against the revised data.
+
+**First attempt was a null result by construction, caught before being reported as real.** The
+standing `tabpfn_forecast()`/`tabicl_forecast()` (`recursive_rollout.py`) deliberately use
+`y_observed` (not `y_gapfilled`) as historical context -- confirmed by direct inspection that
+model MAE/R² were **bit-identical** between the RF-sourced and TabICL-sourced reruns, at every
+tower/anchor/bin. Mechanistically correct: neither model's inputs (`y_observed` + `fx_` guide
+covariates) depend on which gap-filler produced `y_gapfilled` at all -- only the MASE
+denominator's anchor value did, which is why an initial (wrong) reading looked like a real
+improvement before this was checked.
+
+**The actual right test: D-72 (2026-07-15) already found TabPFN/TabICLv2 genuinely improve when
+given `y_gapfilled` (not `y_observed`) as context, but never combined that with F-10's feature
+families or tested it against a second gap-fill source.** Built two new sibling scripts
+(`b16_foundation_models_v3_gf.py`, `b16_foundation_models_v3_tabicl_gf.py`) combining both: F-10's
+7-config feature sweep, gap-filled context, both gap-fill sources. This time predictions
+genuinely differed between sources (confirmed before the full sweep). **Result: TabICL-sourced
+context makes forecasting *worse*, consistently, across every config and both models** --
+TabPFN_gf (BASE+species): RF-sourced 0.840 vs. TabICL-sourced 0.893 (persistence-scored); same
+direction under climatology-scored MASE (0.722 vs. 0.769). TabICLv2_gf shows the same pattern,
+larger in magnitude (0.882 -> 0.984 persistence-scored). Plausible mechanism: TabICL's per-tower-
+solo, fixed-context-cap architecture (D-79 S15.5) optimizes point accuracy on scattered held-out
+gaps, not necessarily the smoothness/internal-consistency of the resulting daily series -- RF's
+gap-fill may be a worse point-accuracy estimator but a more usable dense AR *context* for a
+downstream in-context forecaster. **Outcome: the standing forecasting champion is unchanged**
+(`TabPFN+species`, RF-sourced gap-filling) -- D-79's better gap-filling is a real, useful result
+for gap-filling itself, but does not transfer to forecasting, and combining D-72's gf-context
+finding with F-10's feature families doesn't beat D-72's own original number either, so no new
+champion emerged from this search.
+
+**Separately, a real methodology change, user-directed:** questioned whether `chain_persistence()`
+is a valid MASE baseline at all. D-71 (2026-07-15) had found persistence's own error is
+empirically *lower* than climatology's pooled (independently re-verified here from
+`results/b10_b13_climatology_mase_table_all_towers.csv` -- confirmed again, 11/11 models score
+"better vs. climatology," meaning climatology's own MAE is the higher of the two everywhere).
+**User's explicit override: a baseline's conceptual validity matters more than which one happens
+to have lower error, and holding one anchor-day value flat across an entire 365-day rollout,
+blind to seasonality, is not a real naive forecaster regardless of its error magnitude.**
+Climatology (`rr.doy_climatology()`) adopted as the new MASE denominator going forward
+(`CLAUDE.md` updated). Recomputed the full B-09->B-15 headline directly from
+`results/b10_b13_full_chains.csv`'s already-saved raw per-day predictions (no model refitting
+needed -- the file already carries a `Climatology` column from D-71) via `rr.bin_metrics()`,
+unmodified, just swapping `y_persist`:
+
+| Rank | Model | MASE (climatology) | R² |
+|---|---|---|---|
+| 1 | TabPFN_gf | 0.722 | −0.008 |
+| 2 | TabPFN | 0.724 | −0.081 |
+| 3 | TabICLv2 | 0.771 | −0.286 |
+| 4 | TabICLv2_gf | 0.774 | −0.054 |
+| 5-6 | Ensemble (both variants) | 0.803 | −0.19 |
+| 7 | XGB | 0.805 | −0.220 |
+| 8 | LightGBM | 0.817 | −0.234 |
+| 9 | TFT | 0.834 | −0.345 |
+| 10 | RF | 0.842 | −0.270 |
+| 11 | TFT_gf | 0.844 | −0.409 |
+| 12 | SARIMAX | 0.875 | −0.376 |
+| 13-16 | DLinear_gf/LSTM_gf/LSTM/DLinear | 0.916-1.232 | worst |
+
+(BASE config only -- this table predates F-10's feature families.) **The ranking is essentially
+unchanged by the convention switch** -- foundation models still win by a wide margin,
+ensembles/trees mid-pack, DL worst -- this is closer to a uniform rescaling (climatology being an
+easier baseline to beat than persistence, pooled) than a reshuffle.
+
+**Full table completed (same session, no reruns needed) -- 55 model/config combinations, every
+family this project has tested, rescaled to climatology.** Realized `bin_metrics()` always saves
+raw `MAE` (not just the `MASE` ratio) alongside `n`/`tower`/`anchor_year`/`bin` in every existing
+summary CSV -- so `MASE_climatology = MAE_model / MAE_climatology` is pure arithmetic on
+already-saved files (merge in the climatology baseline's own MAE per tower/anchor/bin, no model
+ever needs to refit or re-predict). Covers the tree/SARIMAX F-10 sweep (`BASE+ALL` only -- the one
+config carried to full rollout for that family, per the Stage-1 signal check's null result),
+DL (TFT/DLinear/LSTM, all 7 configs), and both foundation-model context variants (TabPFN/TabICLv2,
+observed- and gap-filled-context, all 7 configs). **Confirmed headline: `TabPFN+BASE+species`
+(0.715) is effectively tied with `TabPFN+BASE+bodyweight` (0.715)** for best overall -- both
+comfortably ahead of the next cluster (`TabPFN_gf` variants, 0.716-0.722). Full ranking shape
+matches the persistence-scored one exactly (foundation models -> ensembles/trees -> TFT/SARIMAX ->
+LSTM -> DLinear, worst). Source: `results/b09_b16_climatology_mase_full_table.csv`.
+
+**Outcome:** `BEST_RESULTS.md` §3 headline updated (0.840 -> 0.715); `CLAUDE.md`'s MASE section
+updated to state climatology as the standing denominator. Per this project's own "apply going
+forward" convention (CLAUDE.md), the many other persistence-scored MASE figures throughout
+`BEST_RESULTS.md`/`DECISIONS.md`'s forecasting sections were **not** retroactively rewritten --
+only the headline. See D-79, D-71, D-72, D-67,
+`notebooks/05_benchmarking/b16_foundation_models_v3_{gf,tabicl,tabicl_gf}.py`,
+`src/data/build_fch4_gapfilled_tabicl.py`,
+`src/features/build_forecasting_matrix_{v2,v3}_tabicl.py`,
+`results/b16_foundation_models_v3_{gf,tabicl,tabicl_gf}_summary.csv`,
+`results/b09_b16_climatology_mase_{recompute,headline,full_table}.csv`.
+
+---
+
+### D-81 -- 2026-08-03 -- TabPFN v2-vs-v3 A/B: does the TS-finetuned v3 checkpoint actually beat the plain generic v2 checkpoint?
+
+**Decision:** the standing champion (`TabPFN+species`) already used TabPFN v3 by default --
+confirmed by direct package inspection: `tabpfn_time_series` (1.2.0) LOCAL mode silently resolves
+to a TS-finetuned v3 checkpoint (`tabpfn-v3-regressor-v3_20260506_timeseries.ckpt`, "TabPFN-TS-3
+ship config from the TabPFN-3 paper") whenever no `model_path` override is given, and every call
+site in this project (`recursive_rollout.py::tabpfn_forecast()`) passes none. User confirmed
+(AskUserQuestion) the actual ask given this: an **explicit v2-vs-v3 A/B**, forcing the OLD,
+generic tabular v2 checkpoint (`tabpfn-v2-regressor.ckpt` -- what the original TabPFN-TS paper's
+approach ran, before any TS-specific finetuning existed) and comparing against the existing v3
+results, to test whether v3's finetuning provides a real, decisive edge.
+
+**Implementation, additive only:** `tabpfn_forecast()` gained one new optional kwarg
+(`tabpfn_model_config=None`, forwarded to `TabPFNTSPipeline` only when given -- default preserves
+byte-identical behavior for every existing caller) plus a small `tabpfn_v2_model_config()` helper.
+Confirmed via `TabPFNRegressor.create_default_for_version()` that v2 and v3 share identical
+`n_estimators=8, softmax_temperature=0.9` defaults in this installed package version, so
+`model_path` alone is sufficient for a fair, complete "v2 as intended" comparison -- no other
+regressor kwargs need to differ. Two new sibling scripts
+(`b16_foundation_models_v3_tabpfnv2.py`, `_tabpfnv2_gf.py`), same 7-config x 3-tower x 5-anchor
+sweep as the standing champion's own script, TabICLv2 deliberately excluded (irrelevant to a
+TabPFN-version question, avoids an unnecessary rerun).
+
+**Smoke test caught a real "looks dramatic but isn't representative" trap.** At Tower 4/anchor
+2021/BASE+species, the 1-7-day lead-time bin showed R²=-24.926 (v2) vs. -0.887 (v3) -- a huge,
+alarming-looking gap that would have suggested v3 is decisively better. **At full 3-tower x
+5-anchor scope this washes out completely** -- confirms this project's standing "verify at full
+scope before concluding" lesson (S-01/U-03/B-10 all hit variants of this before), this time at
+the smoke-test-vs-full-sweep boundary specifically rather than single-tower-vs-all-towers.
+
+**Full result (climatology-scored, D-80 convention, all 28 model/config combinations): v2 and v3
+are essentially tied.** Deltas (v2 minus v3) range only ±0.004-0.008 across every config, both
+directions -- far smaller than any other effect found this session (the TabICL-sourced-context
+effect, D-80, moved MASE by 0.05-0.10 by comparison). Headline config (`BASE+species`, observed
+context): TabPFN(v3)=0.715 vs. TabPFN_v2=0.720 -- v3 marginally better, gap tiny. Curiosity: the
+single best cell in the whole 28-row table is actually `TabPFN_v2/BASE+ALL` at **0.712**,
+marginally beating the standing champion's 0.715 -- but given the entire table spans only
+0.712-0.728, this is within noise, not a robust new champion. Under gap-filled context, the
+pattern is mixed (v3_gf usually marginally better, v2_gf wins at 2/7 configs) -- same
+noise-level-tie picture.
+
+**Outcome: no change to the standing champion or to any project convention.** TabPFN v3's
+TS-specific finetuning does not show a clear, decisive advantage over the plain generic v2
+checkpoint on this task -- contrary to what "newer model" framing alone would suggest, but
+consistent with v2 and v3 sharing identical `n_estimators`/`softmax_temperature` defaults (the
+finetuning difference is entirely in the checkpoint weights, and apparently doesn't move this
+particular spike-dominated, small-sample forecasting task much either way). Not worth switching
+away from v3 (still the marginal favorite at the champion config, and the environment's own
+default), but also not worth citing v3 as a proven upgrade over v2 for this task specifically.
+See D-80, D-67, `src/models/recursive_rollout.py` (`tabpfn_v2_model_config`),
+`notebooks/05_benchmarking/b16_foundation_models_v3_tabpfnv2{,_gf,_vs_v3_compare}.py`,
+`results/b16_foundation_models_v3_tabpfnv2{,_gf}_summary.csv`,
+`results/b16_foundation_models_v3_tabpfnv2_vs_v3_compare.csv`.
+
+---
+
+### D-82 -- 2026-08-06 -- S-04 analyzed: a completed-but-undocumented realization-level/SSP5-8.5
+scenario trajectory (built 2026-07-15/16) was sitting unwritten -- analysis closes S-01's queued
+extensions 1 and 2
+
+**Context:** a full repo-familiarization pass found that `s04_trajectory_2050.py` and
+`s04_daily_top3_2050.py` (committed 2026-07-15/16 as `777cf89`/`ea6530f`, both commit messages
+naming "S04") had already run to completion -- `s04_trajectory_realizations.csv` (234,000 rows,
+primary hybrid, both SSPs), `s04_trajectory_realizations_b10benchmark.csv` (28,080 rows, B-10
+diagnostic benchmark, both SSPs), `s04_aoa_by_year.csv` (4,680 rows), `s04_daily_top3_2050.csv`
+(5.1M rows) and 180 chain figures in `results/figures/s04_chains/` all existed, complete and
+non-partial (row counts verified against the expected combinatorial totals) -- but neither commit
+touched `DECISIONS.md`, `BEST_RESULTS.md`, or updated `CONTEXT.md`'s "queued next" list, which still
+read S-01 as current and listed "extend to SSP5-8.5" / "realization-level spread" as outstanding.
+This was a real end-of-session documentation gap (CLAUDE.md's own session-workflow requirement),
+not a re-run of anything -- **S-04's design already delivers exactly what those two queued items
+asked for**: SSP2-4.5 AND SSP5-8.5, full realization scale (500/SSP, 5 GCMs x 100, for the primary
+hybrid; a stratified 10-realization subset for the B-10 diagnostic benchmark, a tracked deadline-
+driven scope cut from an originally-approved 20), and a real annual 2025-2050 transient trajectory
+(not a single ensemble-mean climatological snapshot). New `s04_analysis.py` (committed) runs
+read-only against this existing output -- no new model fitting.
+
+**Result 1 -- realization-level spread is real but small, and narrows in relative terms as
+livestock stress increases.** Pooled across 26 years, the p10-p90 band is ~1.3-4.8% of the mean at
+every tower; absolute band width barely changes with the livestock multiplier while the mean
+triples, so the relative band *shrinks* (Tower 4: 3.2% of mean at 1x -> 1.3% at 3x). Confirms S-01's
+Finding 5 ("climate axis is not the extrapolation risk") at full realization scale rather than a
+single point estimate.
+
+**Result 2 -- SSP2-4.5 vs SSP5-8.5 divergence is real, grows toward 2050 as physically expected, but
+stays under 1% of the mean even by 2050** (e.g. Tower 4: +0.26% early-window -> +0.64% late-window).
+The emission-scenario choice is a minor lever on this project's headline numbers next to the
+livestock multiplier.
+
+**Result 3 -- AOA-flagged extrapolation risk does not trend upward across 2025-2050** (no evidence
+climate drift alone pushes the scenario further out-of-envelope over the horizon tested) **but sits
+materially higher in absolute terms than S-01's own reported numbers, at every multiplier including
+the unchanged 1x baseline.** S-01 (single 2041-2060 ensemble-mean snapshot) found 0% flagged at
+1x/2x everywhere and only 5.5-6.0% at 3x (T4/T9 only), 0% at every multiplier for T2. Here, using
+real transient annual weather rather than a smoothed ensemble-mean composite, **1x baseline is
+already flagged 9-15% of days at every tower**, rising to 17-20% at 3x (T4/T9). Read as confirmation
+of S-01's own Finding 7 caveat (the AOA check can be diluted/sensitive to construction method) --
+smoothing (S-01's ensemble-mean approach) measurably suppresses the flagged rate relative to genuine
+transient weather variability (S-04's), independent of the livestock question entirely. **A
+genuinely new, non-obvious finding, not just a scope extension**: how "out-of-distribution" a
+scenario looks depends materially on whether it's built from a smoothed climatological composite or
+real transient weather -- AOA numbers from S-01 and S-04 are not directly comparable to each other.
+
+**Result 4 -- S-01's central finding (the level-residual hybrid fixes U-03's tree-only extrapolation
+plateau) holds and is reinforced across the full 26-year x both-SSP trajectory, not just a single
+snapshot.** Matched on the shared 10-realization stratified subset (fair, same-inputs comparison),
+pooled across both SSPs/26 years, 1x->3x response: hybrid +38.6%/+156.4%/+120.3% (T2/T4/T9) vs. the
+B-10 diagnostic ensemble's own +20.4%/+76.6%/+62.0% -- roughly 2x the diagnostic ensemble's response
+at T4/T9, consistent in direction and magnitude with S-01 vs. U-03's original single-snapshot
+comparison (+138%/+105% hybrid vs. U-03's trees-alone +21-23%; here the diagnostic ensemble's own
++63-77% sits between U-03's trees-alone and both-ensembles figures as expected, since it's the same
+4-model RF+XGB+LightGBM+SARIMAX mix SARIMAX's own +150% extrapolation pulls upward). **Genuinely
+interesting reversal at baseline**: at 1x (no livestock stress), the diagnostic tree/SARIMAX
+ensemble actually predicts *higher* FCH4 than the hybrid at T4/T9 (T4: 27.85 vs 25.66) -- the
+hybrid's advantage is specifically in the *rate of change* under scenario stress, not the absolute
+baseline level.
+
+**Outcome:** `BEST_RESULTS.md` section 6 updated (S-04 now the current entry, S-01 kept as the
+architecture reference). `CONTEXT.md`'s stale "queued next: SSP5-8.5, realization-level spread"
+line superseded -- both delivered. **Remaining open items, unchanged from S-01's own list**: a
+self-consistent mechanistic livestock-scenario construction (grazing-recency features still not
+adjusted jointly with the density multiplier), and SPACSYS as the trend/level component if time
+permits before the 1 Sept deadline. See D-64 (S-01, the architecture this extends),
+D-63 (U-03, the tree-only extrapolation-plateau finding this reproduces at full trajectory scale),
+D-70 (S-03, the driver-availability ablation this is distinct from),
+`notebooks/07_scenario_analysis/s04_trajectory_2050.py`, `s04_daily_top3_2050.py`,
+`s04_analysis.py`, `s04_results.md`, `results/s04_trajectory_realizations*.csv`,
+`results/s04_aoa_by_year.csv`, `results/s04_{trajectory_summary,ssp_divergence,
+realization_spread,aoa_trend,aoa_early_vs_late,hybrid_vs_benchmark_raw,hybrid_vs_benchmark_summary,
+hybrid_vs_benchmark_response}.csv`, `results/figures/s04_summary/*.png`,
+`results/figures/s04_chains/` (180 figures, pre-existing).

@@ -6,6 +6,7 @@ computed. WAPE and MASE are the scale-free metrics recommended for this data; sM
 are provided for completeness/comparability but should be read with that caveat in mind.
 """
 import numpy as np
+from scipy.stats import linregress
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 
 
@@ -17,9 +18,32 @@ def mae(y, p):
     return float(mean_absolute_error(y, p))
 
 
+def nmae(y, p, train_std):
+    """MAE normalized by the training target's own std (a fixed constant per series/tower,
+    computed from real QC'd training data -- NOT the test-set std, so it doesn't vary fold to
+    fold). Preferred over range-based normalization for spike-dominated fluxes like FCH4, where
+    the range is set by 1-2 extreme points (D-79/03c_gap_filling_revisited summary.md S12.1)."""
+    return float(mae(y, p) / train_std) if train_std > 0 else np.nan
+
+
 def r2(y, p):
     y = np.asarray(y, float)
     return float(r2_score(y, p)) if (len(y) > 1 and np.var(y) > 0) else np.nan
+
+
+def r2_ols(y, p):
+    """R-squared as squared Pearson r via an OLS fit of (observed, predicted) -- Zhu et al.
+    (2023a)'s own stated convention, bounded [0, 1] by construction, unlike r2()'s sklearn
+    convention (1 - SS_res/SS_tot, unbounded below). The two diverge sharply for predictors that
+    are correlated with truth but miscalibrated in scale/bias (e.g. MDS) and are nearly identical
+    for predictors fit to directly minimize error (RF/TabICL/MICE) -- see D-79/
+    03c_gap_filling_revisited summary.md S13.4-13.5 for the full discovery and cross-model check.
+    Returns NaN if either series has zero variance."""
+    y = np.asarray(y, float); p = np.asarray(p, float)
+    if len(y) < 2 or np.var(y) == 0 or np.var(p) == 0:
+        return np.nan
+    _, _, r, _, _ = linregress(y, p)
+    return float(r ** 2)
 
 
 def mbe(y, p):

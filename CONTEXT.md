@@ -683,14 +683,14 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      smoothing. **Explicitly a preparation pass — `build_scenario_drivers.py`/`S01_first_scenario.ipynb`
      untouched**, adopting any winning proxy is a deliberate separate follow-up. See D-69,
      `notebooks/07_scenario_analysis/preparation/S02_driver_reconstruction_feasibility.ipynb`.
-   - **Next (in order): (1) 07 scenario analysis, extending S-01** — SSP5-8.5, realization-level
-     (not just ensemble-mean) spread, a self-consistent mechanistic livestock-scenario construction,
-     and (if time permits) the SPACSYS process-model route for the trend/level component. B-08
-     remains available separately for the point-forecast track but is not on this critical path.
-     Deferred: coarser/cumulative eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase
-     2024 held-out EC data. If S-02's PPFD/RN/WS candidates are pursued further, address the
-     100%-extrapolation caveat first (e.g. test against individual GCM/realization trajectories,
-     not just the ensemble mean).
+   - **Next (in order, superseded 2026-08-06 by D-82/S-04 — see below): (1) 07 scenario analysis,
+     extending S-01** — ~~SSP5-8.5, realization-level (not just ensemble-mean) spread~~ (DONE, D-82),
+     a self-consistent mechanistic livestock-scenario construction, and (if time permits) the
+     SPACSYS process-model route for the trend/level component. B-08 remains available separately
+     for the point-forecast track but is not on this critical path. Deferred: coarser/cumulative
+     eval; gap-filling-phase metrics backfill. Backlog: ERA5; chase 2024 held-out EC data. If S-02's
+     PPFD/RN/WS candidates are pursued further, address the 100%-extrapolation caveat first (e.g.
+     test against individual GCM/realization trajectories, not just the ensemble mean).
    - **D-70 (2026-07-14): S-03, driver-availability ablation — isolates scenario-mode
      feature-degradation cost from extrapolation cost (supervisor request, Prof. Paul Harris).**
      Distinct from U-03/D-63 (distribution shift on real anchors) and S-01/D-64 (real scenario
@@ -951,6 +951,32 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
      `notebooks/03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb`,
      `notebooks/03c_gap_filling_revisited/temp_mds.ipynb`,
      `notebooks/03c_gap_filling_revisited/summary.md` §12-18.
+   - **D-82 (2026-08-06): S-04 analyzed — a completed-but-undocumented realization-level/SSP5-8.5
+     scenario trajectory (built 2026-07-15/16) closes S-01's two queued extensions.** A
+     repo-familiarization pass found `s04_trajectory_2050.py`/`s04_daily_top3_2050.py` had already
+     run to completion (commits `777cf89`/`ea6530f`, both naming "S04") — 234,000-row primary-hybrid
+     sweep + 28,080-row B-10 diagnostic-benchmark sweep + 4,680-row AOA table + 5.1M-row daily
+     top-3-model chains + 180 chain figures, all complete, both SSPs — but neither commit updated
+     `DECISIONS.md`/`BEST_RESULTS.md`, and `CONTEXT.md` still listed "extend S-01: SSP5-8.5,
+     realization-level spread" as outstanding. New read-only `s04_analysis.py` (no new model
+     fitting) summarizes the existing output. **S-01's central finding holds and is reinforced
+     across the full 26-year × both-SSP trajectory**: 1×→3× livestock, hybrid response
+     +38.6%/+156.4%/+120.3% (T2/T4/T9) vs. the B-10 diagnostic ensemble's own
+     +20.4%/+76.6%/+62.0% — roughly 2× the diagnostic ensemble's response at T4/T9, matching
+     S-01/U-03's original single-snapshot comparison. **Genuinely new finding**: the
+     transient/realization-level AOA check flags materially more days than S-01's smoothed
+     ensemble-mean snapshot did, at every multiplier including the unchanged 1× baseline (9–15%
+     here vs. 0% in S-01 at 1×/2×) — scenario-construction method (smoothed composite vs. real
+     transient weather) measurably changes how out-of-distribution a scenario looks, independent of
+     the livestock question; S-01 and S-04's AOA numbers are not directly comparable. SSP2-4.5 vs
+     SSP5-8.5 divergence is real and grows toward 2050 as expected but stays under 1% of the mean
+     throughout; realization-level spread itself is small (1–5% of the mean) and narrows in
+     relative terms as livestock stress increases. **Remaining open (unchanged from S-01): a
+     self-consistent mechanistic livestock-scenario construction, and SPACSYS for the trend/level
+     component if time permits before the 1 Sept deadline.** `BEST_RESULTS.md` §6 updated (S-04 now
+     current, S-01 kept as architecture reference). See D-82, D-64,
+     `notebooks/07_scenario_analysis/s04_trajectory_2050.py`, `s04_daily_top3_2050.py`,
+     `s04_analysis.py`, `s04_results.md`.
    - ⚠ **Held-out 2024 still empty** (2024 FCH₄ = 0% valid all towers) — final held-out benchmark blocked until 2024 EC fluxes are downloaded; test on 2022–2023 meanwhile.
 2. **Use partial pooling (D-30) as the multi-tower default** — pooled global model + tower-indicator (or continuous tower descriptors); rescues data-poor towers while protecting data-rich ones.
 3. **Tower 2 split redesign** (D-15/D-19) — also lets Tower 2 be a proper pooled/test member.
@@ -958,7 +984,24 @@ _Update Status to `in-progress` / `complete` / `abandoned` as work proceeds._
 5. **ERA5 driver_era** (D-14); **SVM C-search** (R-03); validate Tower-9 pooled-density gain on 2024 once downloaded.
 
 ---
-_Last updated: 2026-08-02 (D-79: a third, parallel notebook,
+_Last updated: 2026-08-06 (D-82: S-04 analyzed — a completed-but-undocumented realization-level/
+SSP5-8.5 scenario trajectory, built 2026-07-15/16 but never written up, closes S-01's two queued
+extensions. New read-only `s04_analysis.py` summarizes the existing `s04_trajectory_2050.py`/
+`s04_daily_top3_2050.py` output (234,000-row primary-hybrid sweep + 28,080-row B-10
+diagnostic-benchmark sweep, both SSP2-4.5/SSP5-8.5, full realization scale, annual 2025-2050 — no
+new model fitting). **S-01's central finding holds and is reinforced at full trajectory scale**:
+1×→3× livestock, hybrid response +38.6%/+156.4%/+120.3% (T2/T4/T9) vs. the B-10 diagnostic
+ensemble's own +20.4%/+76.6%/+62.0%. **New finding**: the transient/realization-level AOA check
+flags materially more days than S-01's smoothed ensemble-mean snapshot did, at every multiplier
+including the unchanged 1× baseline (9–15% here vs. 0% in S-01) — scenario-construction method
+measurably changes how out-of-distribution a scenario looks, independent of the livestock question.
+SSP2-4.5/SSP5-8.5 divergence is real, grows toward 2050, stays under 1% of the mean throughout;
+realization-level spread is small (1–5% of the mean) and narrows as livestock stress increases.
+Remaining open: a self-consistent mechanistic livestock-scenario construction, SPACSYS if time
+permits. See "Current status" bullets above, D-82,
+`notebooks/07_scenario_analysis/s04_analysis.py`, `s04_results.md`.)_
+
+_Previously updated: 2026-08-02 (D-79: a third, parallel notebook,
 `03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb`, reproduced the same 0.576/0.404/0.426
 champion and did four things: (1) ported a literature-correct, 3-bug-fixed MDS reconstruction from
 a separate audit notebook (`temp_mds.ipynb`), which also confirmed Towers 2/4/9 are the literal

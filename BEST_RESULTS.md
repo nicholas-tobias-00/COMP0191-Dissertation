@@ -21,10 +21,10 @@ row, and bump "last verified."
 |---|---|---|---|---|
 | Gap-filling | External-sourced pooled RFm, full-period gap-CV (production); TabICL-solo edges it at T2/T4 (benchmark-only, D-79) | R² T2=0.576, T4=0.404, T9=0.426 | D-35, D-49, D-77, D-79 | 2026-08-02 |
 | Forecasting — point/direct | B-03 enriched RF/XGB, daily track | R² T4 h1=0.365 h14=0.280; T9 h14=0.359 | D-41, D-49 | 2026-07-02 |
-| Forecasting — recursive rollout | **TabPFN+species (F-10)** — best single model overall | All-tower: MASE=0.840, R²=−0.084 | D-67 | 2026-07-10 |
+| Forecasting — recursive rollout | **TabPFN+species (F-10)** — best single model overall | All-tower: MASE=0.715 (climatology-scored, D-80; was 0.840 vs. persistence), R²=−0.084 | D-67, D-80 | 2026-08-02 |
 | Interpretability | I-02 | `fx_lsu_dens` dominant, importance grows with lead time | D-61 | 2026-07-06 |
 | Uncertainty quantification | U-02 (calibration) + U-03 (its limits) | Calibrated PICP ≈0.89; SARIMAX extrapolation outlier +150%/+380% max | D-62, D-63 | 2026-07-07 |
-| Scenario analysis (Phase 07) | S-01 level-residual hybrid (proof-of-mechanism) | 3x livestock: +138%/+105% at T4/T9 (vs. trees-alone +21-23%, U-03) | D-64 | 2026-07-07 |
+| Scenario analysis (Phase 07) | S-04 transient trajectory (S-01's hybrid, extended: SSP5-8.5 + realization spread + 2025-2050) | 1x->3x, pooled both SSPs/26yr: hybrid +38.6%/+156.4%/+120.3% (T2/T4/T9) vs. diagnostic ensemble +20.4%/+76.6%/+62.0% | D-64, D-82 | 2026-08-06 |
 
 ---
 
@@ -127,14 +127,26 @@ Original D-41 headline (pre-D-48 fix, historical reference only): daily best R²
 
 ## 3. Forecasting — recursive rollout
 
-**Standing best overall, on the observed-target metric specifically (2026-07-10, F-10/D-67):
-`TabPFN+species`** — TabPFN (zero-shot, zero training) fed the daily feature matrix plus
-`fx_cattle_dens`/`fx_sheep_dens`/`fx_lamb_dens` (livestock disaggregated by species instead of the
-single combined `fx_lsu_dens`), all 3 towers, all 5 anchors. **MASE=0.840, R²=−0.084 (observed
-target)** — beats every other model/config tested in this entire project on this metric, at
-near-zero adoption cost (no retraining, only 3 extra input columns). MASE is this project's
-primary forecasting metric (CLAUDE.md convention, added 2026-07-10 — CH4's spike-tail behavior
-repeatedly destabilizes R²).
+**MASE baseline changed 2026-08-02 (D-80): climatology, not persistence — see CLAUDE.md.** Every
+MASE figure in this section below the headline was computed against `chain_persistence()` (D-37's
+original choice) and has **not** been retroactively recomputed — per the project's standing
+"apply going forward, don't rewrite history" convention (CLAUDE.md). Only the headline below
+reflects the new climatology-scored convention. The champion *ranking* is unaffected by the
+switch (confirmed via a full, complete recompute across all 55 model/config combinations this
+project has tested — `results/b09_b16_climatology_mase_full_table.csv`, D-80) — treat historical
+MASE numbers in this file as internally comparable to each other (persistence-scored) but not
+directly to the new headline number (climatology-scored, systematically lower for every model).
+Runner-up: `TabPFN+bodyweight` effectively ties the champion (0.715 vs. 0.715) — both comfortably
+ahead of the next cluster (`TabPFN_gf` variants, 0.716–0.722).
+
+**Standing best overall, on the observed-target metric specifically (2026-07-10, F-10/D-67;
+rescored under climatology 2026-08-02, D-80): `TabPFN+species`** — TabPFN (zero-shot, zero
+training) fed the daily feature matrix plus `fx_cattle_dens`/`fx_sheep_dens`/`fx_lamb_dens`
+(livestock disaggregated by species instead of the single combined `fx_lsu_dens`), all 3 towers,
+all 5 anchors. **MASE≈0.715 (climatology-scored), R²=−0.084 (observed target)** — beats every
+other model/config tested in this entire project on this metric, at near-zero adoption cost (no
+retraining, only 3 extra input columns). MASE is this project's primary forecasting metric
+(CLAUDE.md convention, added 2026-07-10 — CH4's spike-tail behavior repeatedly destabilizes R²).
 
 **Important caveat, not a footnote: this ranking is target-dependent, and the choice of target
 matters here more than usual.** Scored against `y_gapfilled` instead, the OLD standing
@@ -332,10 +344,30 @@ specifically while keeping it for historical-regime forecasting).
 
 ## 6. Scenario analysis (Phase 07)
 
-**Current: S-01 (D-64)** — first bounded worked example, proving the scenario-simulation mechanism
-end-to-end. **B-08 confirmed superseded for Phase 07's purposes by U-03** (its extrapolation-check
-finding already answers what B-08 would have; B-08 remains available separately for the
-point-forecast track).
+**Current: S-04 (D-82, 2026-08-06 analysis of a 2026-07-15/16 build)** — extends S-01's
+level-residual hybrid from a single SSP2-4.5/ensemble-mean/2041-2060-snapshot worked example to a
+real transient trajectory: **both SSP2-4.5 and SSP5-8.5, full realization scale (500/SSP for the
+primary hybrid), annual 2025-2050** (not a single climatological composite), plus a B-10-ensemble
+diagnostic benchmark run in parallel on a stratified 10-realization subset. Uses S-01's exact frozen
+model artifacts — no retraining. **Headline: S-01's central finding (the hybrid fixes the tree-only
+extrapolation plateau U-03 found) holds and is reinforced across the full 26-year x both-SSP
+trajectory** — 1x->3x livestock response: hybrid +38.6%/+156.4%/+120.3% (T2/T4/T9) vs. the
+diagnostic tree/SARIMAX ensemble's own +20.4%/+76.6%/+62.0% (matched, same-inputs comparison).
+
+**New finding beyond S-01: realization-level/transient construction reveals materially more AOA
+extrapolation risk than S-01's smoothed ensemble-mean snapshot did, even at the unchanged 1x
+livestock baseline** (9-15% of days flagged here vs. 0% in S-01 at 1x/2x everywhere) — the
+scenario-construction method (smoothed composite vs. real transient weather) measurably changes how
+out-of-distribution a scenario looks, independent of the livestock question. SSP2-4.5 vs SSP5-8.5
+divergence is real, widens toward 2050 as expected, but stays under 1% of the mean throughout —a
+minor lever next to the livestock multiplier. Realization-level spread itself is small (1-5% of the
+mean, pooled) and *narrows* in relative terms as livestock stress increases. Full detail:
+`notebooks/07_scenario_analysis/s04_results.md`.
+
+**Architecture reference: S-01 (D-64)** — first bounded worked example, proving the
+scenario-simulation mechanism end-to-end; S-04 reuses its exact frozen hybrid, unmodified. **B-08
+confirmed superseded for Phase 07's purposes by U-03** (its extrapolation-check finding already
+answers what B-08 would have; B-08 remains available separately for the point-forecast track).
 
 **Architecture: level-residual hybrid.** A Ridge trend model (`fx_TA_mean`, `fx_lsu_dens`,
 `fx_DOY_sin/cos` + tower dummies), fit **once** on the full pooled real record (not per-anchor —
@@ -375,9 +407,9 @@ SPACSYS logged as future work) trend; 9/11 drivers historical-day-resampled, not
 weather; naive livestock multiplier (not a self-consistent management timeline); U-02/U-03's
 conformal intervals NOT attached (only ever valid for in-AOA points per U-03).
 
-**Queued next:** extend S-01 — SSP5-8.5, realization-level (not just ensemble-mean) spread, a
-self-consistent mechanistic livestock-scenario construction, and (if time permits) SPACSYS
-(already validated at North Wyke, Wu et al. 2016) for the trend/level component.
+**Queued-next update (D-82): SSP5-8.5 and realization-level spread are now DONE — see S-04 above.**
+Still outstanding: a self-consistent mechanistic livestock-scenario construction, and (if time
+permits) SPACSYS (already validated at North Wyke, Wu et al. 2016) for the trend/level component.
 
 **Related diagnostic, not a production-config change (D-70)**: S-03 isolated the cost of
 scenario-mode driver unavailability from extrapolation, on real historical anchors — found the

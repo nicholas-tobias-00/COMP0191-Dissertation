@@ -104,3 +104,33 @@ def fit(feat, trd):
     rf = RandomForestRegressor(n_estimators=500, min_samples_leaf=5, n_jobs=-1, random_state=42)
     rf.fit(imp.fit_transform(trd[feat].values), trd["target"].values)
     return rf, imp
+
+
+def evaluate_tower(t, d_all):
+    """Full gap-CV sweep (5 scenarios x N_REPS) for tower t, pooled RFm champion -- the standing
+    production-adopted config (D-77/D-79). Added here (D-79) so the champion can run through the
+    same benchmark harness as the other model families in gapfill_mds.py/gapfill_baselines.py/
+    gapfill_tabicl.py; not previously present since only the no-holdout production fit
+    (`build_fch4_gapfilled.py`) existed in src/ before this."""
+    import sys
+    from pathlib import Path
+    sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "evaluation"))
+    from gap_cv import dom_mask, SCENARIOS, insert_calendar_gaps, gapfilling_metrics, median_metrics  # noqa: E402
+
+    feat = feat_list() + DUM
+    frames = {tt: frame(tt, pooled=True, d=d_all) for tt in TOWERS}
+    g = frames[t]; dm = dom_mask(g.index, t)
+    train_std = float(g.loc[dm, "target"].std())
+    out = {}
+    for sc, gh in SCENARIOS.items():
+        rows = []
+        for gt in insert_calendar_gaps(g, "target", dm, gh):
+            if len(gt) < 5:
+                continue
+            trd = pd.concat([frames[tt][dom_mask(frames[tt].index, tt) & frames[tt]["target"].notna().values]
+                              .drop(index=gt, errors="ignore") for tt in TOWERS], ignore_index=True)
+            rf, imp = fit(feat, trd)
+            yp = rf.predict(imp.transform(g.loc[gt, feat].values))
+            rows.append(gapfilling_metrics(g.loc[gt, "target"].values, yp, train_std))
+        out[sc] = median_metrics(rows)
+    return out
