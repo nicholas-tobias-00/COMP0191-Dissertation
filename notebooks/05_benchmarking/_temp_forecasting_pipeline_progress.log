@@ -1,0 +1,17 @@
+Executing 31 cells.
+cell   2 OK in     0.9s (cum       3s)  import sys
+cell   4 OK in     0.1s (cum       3s)  dv = pd.read_csv(HOURLY / "forecast_daily_v3.csv", low_memory=False)
+cell   7 OK in     0.0s (cum       3s)  def mae(y, p):
+cell   9 OK in     0.0s (cum       3s)  def chain_persistence(anchor_value, n_days):
+cell  11 OK in     0.0s (cum       3s)  TABPFN_V2_GENERIC_CHECKPOINT = "tabpfn-v2-regressor.ckpt"   # original
+cell  13 OK in     0.0s (cum       3s)  FAMILIES = {
+cell  15 OK in     0.2s (cum       3s)  def build_climatology_baseline(T, towers=TOWERS, anchor_years=ANCHOR_Y
+cell  16 OK in     0.0s (cum       3s)  def mase_climatology(summary_df, clim=None, target_filter="observed", 
+cell  18 OK in     0.0s (cum       3s)  def run_foundation_sweep(model_fn, model_label, configs, hist_col="y_o
+cell  19 OK in    17.7s (cum      20s)  t0 = time.time()
+cell  22 OK in     0.0s (cum      21s)  FOUNDATION_SOURCES = [
+cell  24 OK in     0.0s (cum      21s)  tree_raw = pd.read_csv(RESULTS / "b16_recursive_rollout_v3_all_summary
+cell  26 OK in     0.0s (cum      21s)  MASTER = pd.concat([foundation_headline, tree_headline, dl_headline], 
+cell  27 OK in     0.0s (cum      21s)  # Verification against D-80's own established full recompute
+cell  30 OK in     0.0s (cum      21s)  # next experiment
+ALL CELLS COMPLETE in 22s

@@ -1,0 +1,200 @@
+% Author: Joseph Rowell
+% Version: 3.0
+% This work is licensed under a Creative Commons Attribution 4.0 International License.
+\documentclass[12pt, a4paper]{report}
+\usepackage[a4paper, total={6.25in, 8.25in}]{geometry} %%%%%% CHECK MARGIN REQ. 8.25 in?
+\input{Packages.tex}
+\usepackage{multicol}
+\hypersetup{pdftitle = {AI for Agriculture: Methane Emissions Gap-Filling, Forecasting, and Scenario Analysis}, pdfauthor = {Nicholas Tobias}, pdfstartview=FitH, pdfkeywords = essay, pdfpagemode = FullScreen, colorlinks, anchorcolor = black, citecolor = blue, urlcolor = blue, filecolor = green, linkcolor = blue, plainpages = false}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\pagestyle{fancy}
+\rhead{}
+\chead{}
+\lhead{University College London}
+\lfoot{\date{}}
+\cfoot{}
+\rfoot{\thepage}
+% Top and Bottom Line Rules
+
+\renewcommand{\headrulewidth}{0.4pt} %0.4pt
+\renewcommand{\footrulewidth}{0.4pt}
+\fancyheadoffset{8pt}
+\fancyfootoffset{8pt}
+% Line spacing
+\renewcommand{\baselinestretch}{1.5} %1.5
+\raggedbottom % let pages end short rather than stretching/overflowing into the footer
+
+\input{Glossary}
+
+\date{September 2026}
+
+\title{AI for Agriculture: Methane Emissions Gap-Filling, Forecasting, and Scenario Analysis}
+\author{\\ \Large{Nicholas Tobias}
+\\ Supervisors: 
+\\ Paul Harris, Rothamsted Research
+\\ Varun Varma, Rothamsted Research
+\\ Andrea Karlova, UCL Computer Science
+\\
+\\ Faculty of Engineering
+\\ Department of Computer Science
+\\
+\\ University College London
+\\
+A Project Report Presented in Partial Fulfillment of the Degree \\ \textit{MSc Artificial Intelligence for Sustainable Development}
+\\
+% \\Disclaimer:This report is submitted as part requirement for the MSc AI for Sustainable Development at University College London. It is substantially the result of my own work except where explicitly indicated in the text.The report may be freely copied and distributed provided the source is explicitly acknowledged.
+% September 2026
+}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\begin{document}
+%Adjust logo positions here
+% \AddToShipoutPicture*{\parbox[t][\paperheight][t]{\paperwidth}{%
+%           \includegraphics[width=\paperwidth]{\BackgroundPicturea{Logos/ucl_long%_logo.png}{3in}{3in}}
+%           }}
+% \AddToShipoutPicture*{\centering\BackgroundPictureb{Logos/Bentham2011_065_c623d.jpg}{3in}{3.7in}}
+\AddToShipoutPictureBG*{%
+  \AtPageUpperLeft{%
+    \raisebox{-\height}{%
+      \includegraphics[width=\paperwidth]{Logos/UCL page header.png}%
+    }}
+}
+\AddToShipoutPicture*{%
+      \parbox[t][\paperheight][t]{\paperwidth}{%
+          \includegraphics[width=1.2\paperwidth]{Logos/UCL page footer.png}
+      }}
+      
+
+\thispagestyle{headings}
+\maketitle
+\FloatBarrier
+\pagenumbering{roman}
+
+\thispagestyle{empty}
+\begin{abstract}
+\input{0 Abstract}
+
+\keywords{keyword 1 - keyword 2 - keyword 3}
+% \vspace{-10mm} %To remove added white space after
+\end{abstract}
+
+\thispagestyle{empty}
+\chapter*{Acknowledgements}
+
+
+\thispagestyle{empty}
+\chapter*{Declaration}
+I, Nicholas Tobias, declare that the thesis has been composed by myself and that the work has not been submitted for any other degree or professional qualification. I confirm that the work submitted is my own, except where work which has formed part of jointly-authored publications has been included and referenced. The report may be freely copied and distributed provided the source is explicitly acknowledged. \\
+%Add signature png here.
+% \begin{figure}[H]
+% \includegraphics{Logos/signature.PNG}
+% \end{figure}
+\vspace{-2cm}
+\noindent\begin{tabular}{ll}
+ & \\
+\makebox[2.5in]{\hrulefill} & \makebox[2.5in]{\hrulefill}\\
+\textit{Signature} & \textit{Date}\\
+\end{tabular}
+
+
+
+\tableofcontents
+
+\thispagestyle{plain}
+\listoffigures
+\listoftables
+%\lstlistoflistings
+% \listofalgorithms
+
+
+%\begin{singlespace}
+\chapter*{List of Abbreviations}
+\begin{sortedlist} %sort alphabetically
+  \sortitem{ACF:     Autocorrelation Function}
+  \sortitem{ANN:     Artificial Neural Network}
+  \sortitem{AR:      Autoregressive}
+  \sortitem{CMIP6:   Coupled Model Intercomparison Project Phase 6}
+  \sortitem{CQR:     Conformalized Quantile Regression}
+  \sortitem{DL:      Deep Learning}
+  \sortitem{DOY:     Day Of Year}
+  \sortitem{EC:      Eddy Covariance}
+  \sortitem{FCH4:    Methane Flux}
+  \sortitem{FCO2:    Carbon Dioxide Flux}
+  \sortitem{GCM:     Global Climate Model}
+  \sortitem{GPP:     Gross Primary Productivity}
+  \sortitem{LSTM:    Long Short-Term Memory}
+  \sortitem{LSU:     Livestock Unit}
+  \sortitem{MASE:    Mean Absolute Scaled Error}
+  \sortitem{MDS:     Marginal Distribution Sampling}
+  \sortitem{MICE:    Multivariate Imputation by Chained Equations}
+  \sortitem{ML:      Machine Learning}
+  \sortitem{MPIW:    Mean Prediction Interval Width}
+  \sortitem{NWFP:    North Wyke Farm Platform}
+  \sortitem{PACF:    Partial Autocorrelation Function}
+  \sortitem{PCA:     Principal Component Analysis}
+  \sortitem{PICP:    Prediction Interval Coverage Probability}
+  \sortitem{QRF:     Quantile Regression Forest}
+  \sortitem{RF:      Random Forest}
+  \sortitem{RFm:     Random Forest (met-driven variant)}
+  \sortitem{SARIMAX: Seasonal AutoRegressive Integrated Moving Average with eXogenous regressors}
+  \sortitem{SHAP:    SHapley Additive exPlanations}
+  \sortitem{SSP:     Shared Socioeconomic Pathway}
+  \sortitem{STL:     Seasonal-Trend decomposition using Loess}
+  \sortitem{SVM:     Support Vector Machine}
+  \sortitem{TFT:     Temporal Fusion Transformer}
+  \sortitem{TICA:    Time-lagged Independent Component Analysis}
+  \sortitem{UMAP:    Uniform Manifold Approximation and Projection}
+  \sortitem{UQ:      Uncertainty Quantification}
+  \sortitem{VPD:     Vapour Pressure Deficit}
+  \sortitem{VSN:     Variable Selection Network}
+  \sortitem{WAPE:    Weighted Absolute Percentage Error}
+  \sortitem{XGB:     XGBoost (Extreme Gradient Boosting)}
+  \end{sortedlist}
+% \end{singlespace}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{1 Introduction}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{2 Background}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{3 Data}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{4 Gap Filling}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{5 Forecasting}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{6 Scenario Projection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{7 Discussion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{8 Conclusion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\renewcommand{\bibname}{References}
+\bibliographystyle{ieeetr}
+%\bibliography{Bibliography.bib}
+\bibliography{references.bib}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% APPENDIX
+\begin{appendices}
+% \chapter{Project Plan}\label{app:projectplan}
+% Aims/objectives, work plan and ethics review, per the module's interim
+% submission (moved out of the main chapter sequence, matching the
+% appendix convention used in comparable UCL dissertations).
+
+% \chapter{Supplementary Experiments}\label{app:supplementary}
+% Compressed ablation/negative-result log (one line + finding each,
+% pointing to the DECISIONS.md decision ID) for experiments that inform
+% Chapters \ref{Chap4}-\ref{Chap6} but are not needed in the main text:
+% e.g. target transforms, hurdle-model diagnostics, monthly-downscale,
+% CV- vs. rollout-based hyperparameter tuning, SAITS, SVM.
+
+\chapter{Source Code} \label{System Requirements}
+Source code for all of the methods implemented in Chapters \ref{Chap3}-\ref{Chap6} for the project can be found in the GitHub repository: \newline \url{link}.
+
+\end{appendices}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% GLOSSARY
+\clearpage
+\printglossaries
+
+% INDEX?
+
+\end{document}

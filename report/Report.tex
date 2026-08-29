@@ -5,7 +5,7 @@
 \usepackage[a4paper, total={6.25in, 8.25in}]{geometry} %%%%%% CHECK MARGIN REQ. 8.25 in?
 \input{Packages.tex}
 \usepackage{multicol}
-\hypersetup{pdftitle = Project Report, pdfauthor = {First Last}, pdfstartview=FitH, pdfkeywords = essay, pdfpagemode = FullScreen, colorlinks, anchorcolor = black, citecolor = blue, urlcolor = blue, filecolor = green, linkcolor = blue, plainpages = false}
+\hypersetup{pdftitle = {AI for Agriculture: Methane Emissions Gap-Filling, Forecasting, and Scenario Projection}, pdfauthor = {Nicholas Tobias}, pdfstartview=FitH, pdfkeywords = {methane flux, eddy covariance, gap-filling, time-series forecasting, tabular foundation models, scenario projection}, pdfpagemode = FullScreen, colorlinks, anchorcolor = black, citecolor = blue, urlcolor = blue, filecolor = green, linkcolor = blue, plainpages = false}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \pagestyle{fancy}
 \rhead{}
@@ -22,24 +22,28 @@
 \fancyfootoffset{8pt}
 % Line spacing
 \renewcommand{\baselinestretch}{1.5} %1.5
+\raggedbottom % let pages end short rather than stretching/overflowing into the footer
 
 \input{Glossary}
 
-\date{September 2022}
+\date{September 2026}
 
-\title{Interesting Scientific Title}
-\author{\\ \Large{Your Name}
+\title{AI for Agriculture: Methane Emissions Gap-Filling, Forecasting, and Scenario Projection}
+\author{\\ \Large{Nicholas Tobias}
 \\ Supervisors: 
+\\ Paul Harris, Rothamsted Research
+\\ Varun Varma, Rothamsted Research
+\\ Andrea Karlova, UCL Computer Science
+\\
 \\ Faculty of Engineering
 \\ Department of Computer Science
-\\ 
 \\
 \\ University College London
 \\
-A Project Report Presented in Partial Fulfillment of the Degree \\ \textit{Your degree title}
-\\ \\
-% \\Disclaimer:This report is submitted as part requirement for the MSc in Robotics  and Computation at University College London. It is substantially the result of my own work except where explicitly indicated in the text.The report may be freely copied and distributed provided the source is explicitly acknowledged.
-% September 2022
+A Project Report Presented in Partial Fulfillment of the Degree \\ \textit{MSc Artificial Intelligence for Sustainable Development}
+\\
+% \\Disclaimer:This report is submitted as part requirement for the MSc AI for Sustainable Development at University College London. It is substantially the result of my own work except where explicitly indicated in the text.The report may be freely copied and distributed provided the source is explicitly acknowledged.
+% September 2026
 }
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \begin{document}
@@ -68,46 +72,40 @@ A Project Report Presented in Partial Fulfillment of the Degree \\ \textit{Your 
 \thispagestyle{empty}
 \begin{abstract}
 \input{0 Abstract}
-
-\keywords{keyword 1 - keyword 2 - keyword 3}
+\enlargethispage{\baselineskip}
+\par\noindent
+\keywords{methane flux -- eddy covariance -- time-series forecasting -- gap-filling}
 % \vspace{-10mm} %To remove added white space after
 \end{abstract}
-\newpage
-\thispagestyle{empty}
-\begin{center}
-I dedicate this ...
-\end{center}
 
-\newpage
-\thispagestyle{empty}
-\vspace*{\fill}
-\begin{center}
-Copyright \copyright  \thinspace 2022 by Joseph Rowell \\ All Rights Reserved
-\end{center}
-\vspace*{\fill}
-\newpage
-\thispagestyle{empty}
-%\epigraph{The Book of Nature is written in the language of mathematics.}{--- \textup{Galileo Galilei}}
-\epigraph{The computer was born to solve problems that did not exist before.}{--- \textup{Bill Gates}}
-
-
-\thispagestyle{empty}
-\chapter*{Acknowledgements}
-
+% \thispagestyle{empty}
+% \chapter*{Acknowledgements}
 
 \thispagestyle{empty}
 \chapter*{Declaration}
-I, Name,  I declare that the thesis has been composed by myself and that the work has not be submitted for any other degree or professional qualification. I confirm that the work submitted is my own, except where work which has formed part of jointly-authored publications has been included and referenced. The report may be freely copied and distributed provided the source is explicitly acknowledged. \\
-%Add signature png here.
-% \begin{figure}[H]
-% \includegraphics{Logos/signature.PNG}
-% \end{figure}
-\vspace{-2cm}
-\noindent\begin{tabular}{ll}
- & 12/09/22 \\
-\makebox[2.5in]{\hrulefill} & \makebox[2.5in]{\hrulefill}\\
-\textit{Signature} & \textit{Date}\\
-\end{tabular}
+I, Nicholas Tobias, declare that this thesis has been composed by myself and that the work has not
+been submitted for any other degree or professional qualification. I confirm that the work submitted
+is my own, except where work that formed part of jointly authored publications has been included and
+appropriately referenced. The report may be freely copied and distributed provided that the source is
+explicitly acknowledged.
+
+\vspace{1.5cm}
+
+\noindent
+\begin{minipage}[t]{0.46\textwidth}
+  \parbox[b][1.2cm][b]{\linewidth}{%
+    {\fontfamily{pzc}\selectfont\LARGE Nicholas Tobias}}
+  \hrule
+  \vspace{0.15cm}
+  \textit{Signature}
+\end{minipage}%
+\hfill
+\begin{minipage}[t]{0.46\textwidth}
+  \parbox[b][1.2cm][b]{\linewidth}{27 August 2026}
+  \hrule
+  \vspace{0.15cm}
+  \textit{Date}
+\end{minipage}
 
 
 
@@ -117,42 +115,87 @@ I, Name,  I declare that the thesis has been composed by myself and that the wor
 \listoffigures
 \listoftables
 %\lstlistoflistings
-\listofalgorithms
+% \listofalgorithms
 
 
 %\begin{singlespace}
 \chapter*{List of Abbreviations}
 \begin{sortedlist} %sort alphabetically
-  \sortitem{CNN:     Convolutional Neural Network}
-  \sortitem{DCNN:    Deep Convolutional Neural Network}
-  \sortitem{SLAM:    Simultaneous Localization And Mapping}   \sortitem{GNSS:    Global Navigation Satellite System}
-  \sortitem{vSLAM:   visual Simultaneous Localisation and Mapping}
-  \sortitem{MAP:     Maximum a Posteriori}
-  \sortitem{ML:      Maximum Likelihood}
-  \sortitem{BA:      Bundle Adjustment}
-  \sortitem{TRC:     TPU Research Cloud}
-  \sortitem{TPU:     Tensor Processing Unit}
-  \sortitem{SfM:     Structure from Motion}
-  \sortitem{MVS:     Multi-view Stereo}
-  \sortitem{SIFT:    Scale Invariant Feature Transform}
-  \sortitem{SURF:    Speeded-Up Robust Features}
-  \sortitem{ORB:     Oriented FAST Rotated BRIEF}
-  \sortitem{FAST:    Features from Accelerated Segment Test}
-  \sortitem{BRIEF:   Binary Robust Independent Elementary Features}
+  \sortitem{ACF:     Autocorrelation Function}
+  \sortitem{AIC:     Akaike Information Criterion}
+  \sortitem{ANN:     Artificial Neural Network}
+  \sortitem{AR:      Autoregressive}
+  \sortitem{Bi-LSTM: Bidirectional Long Short-Term Memory}
+  \sortitem{CMIP6:   Coupled Model Intercomparison Project Phase 6}
+  \sortitem{CQR:     Conformalized Quantile Regression}
+  \sortitem{CV:      Cross-Validation}
+  \sortitem{DL:      Deep Learning}
+  \sortitem{DLinear: Decomposition-Linear Model}
+  \sortitem{DOY:     Day Of Year}
+  \sortitem{EC:      Eddy Covariance}
+  \sortitem{FCH\textsubscript{4}:    Methane Flux}
+  \sortitem{FCO\textsubscript{2}:    Carbon Dioxide Flux}
+  \sortitem{GCM:     Global Climate Model}
+  \sortitem{GPP:     Gross Primary Productivity}
+  \sortitem{LightGBM: Light Gradient Boosting Machine}
+  \sortitem{LSTM:    Long Short-Term Memory}
+  \sortitem{LSU:     Livestock Unit}
+  \sortitem{MAE:     Mean Absolute Error}
+  \sortitem{MASE:    Mean Absolute Scaled Error}
+  \sortitem{MDS:     Marginal Distribution Sampling}
+  \sortitem{MET:     Meteorological Station}
+  \sortitem{MICE:    Multivariate Imputation by Chained Equations}
+  \sortitem{ML:      Machine Learning}
+  \sortitem{MPIW:    Mean Prediction Interval Width}
+  \sortitem{NWFP:    North Wyke Farm Platform}
+  \sortitem{OLS:     Ordinary Least Squares}
+  \sortitem{PACF:    Partial Autocorrelation Function}
+  \sortitem{PCA:     Principal Component Analysis}
+  \sortitem{PICP:    Prediction Interval Coverage Probability}
+  \sortitem{PPFD:    Photosynthetic Photon Flux Density}
+  \sortitem{QC:      Quality Control}
+  \sortitem{QRF:     Quantile Regression Forest}
+  \sortitem{RF:      Random Forest}
+  \sortitem{RFm:     Random Forest (met-driven variant)}
+  \sortitem{RMSE:    Root Mean Squared Error}
+  \sortitem{SAITS:   Self-Attention-based Imputation for Time Series}
+  \sortitem{SARIMAX: Seasonal AutoRegressive Integrated Moving Average with eXogenous regressors}
+  \sortitem{SMS:     Soil Moisture Station}
+  \sortitem{SSITC:   Steady-State and Integral Turbulence Characteristics}
+  \sortitem{SSP:     Shared Socioeconomic Pathway}
+  \sortitem{STL:     Seasonal-Trend decomposition using Loess}
+  \sortitem{SVM:     Support Vector Machine}
+  \sortitem{TabICLv2: Tabular In-Context Learning Version 2}
+  \sortitem{TabPFN:  Tabular Prior-Data Fitted Network}
+  \sortitem{TFT:     Temporal Fusion Transformer}
+  \sortitem{TICA:    Time-lagged Independent Component Analysis}
+  \sortitem{UMAP:    Uniform Manifold Approximation and Projection}
+  \sortitem{UQ:      Uncertainty Quantification}
+  \sortitem{VPD:     Vapour Pressure Deficit}
+  \sortitem{WAPE:    Weighted Absolute Percentage Error}
+  \sortitem{XGB/XGBoost: Extreme Gradient Boosting}
   \end{sortedlist}
 % \end{singlespace}
+\clearpage
+\pagenumbering{arabic}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{1 Project Plan}
+\input{1 Introduction}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{2 Introduction and Background}
+\input{2 Background}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{3 Methodology}
+\input{3 Data}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{4 Results and Analysis}
+\input{4 Models and Methods}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{5 Discussion}
+\input{5 Gap Filling}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-\input{6 Conclusion}
+\input{6 Forecasting}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{7 Scenario Projection}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\input{8 Discussion}
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+% \input{9 Conclusion}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 \renewcommand{\bibname}{References}
 \bibliographystyle{ieeetr}
@@ -161,24 +204,30 @@ I, Name,  I declare that the thesis has been composed by myself and that the wor
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % APPENDIX
 \begin{appendices}
-\chapter{Source Code} \label{System Requirements}
-Source code for all of the methods implemented in Chap. \ref{Chap3} for the project can be found in the GitHub repository: \newline \url{link}. \newline \\
-Project files can be found on Google Drive \url{link}
+% \chapter{Project Plan}\label{app:projectplan}
+% Aims/objectives, work plan and ethics review, per the module's interim
+% submission (moved out of the main chapter sequence, matching the
+% appendix convention used in comparable UCL dissertations).
 
+% \chapter{Supplementary Experiments}\label{app:supplementary}
+% Compressed ablation/negative-result log (one line + finding each,
+% pointing to the DECISIONS.md decision ID) for experiments that inform
+% Chapters \ref{Chap4}-\ref{Chap6} but are not needed in the main text:
+% e.g. target transforms, hurdle-model diagnostics, monthly-downscale,
+% CV- vs. rollout-based hyperparameter tuning, SAITS, SVM.
 
-\chapter{Project Introduction Video}\label{sec:projectIntroduction}
-A short video presentation, introducing background, aims and organisation of the project, as of 30$^{th}$ June 2022: \newline
-\url{link}
-\\
-\\
-\\
-
+\input{Appendices/A_Data}
+\input{Appendices/B_Models}
+\input{Appendices/C_Gap_Filling}
+\input{Appendices/D_Forecasting}
+\input{Appendices/E_Scenario_Projection}
+\input{Appendices/F_Source_Code}
 
 \end{appendices}
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % GLOSSARY
-\clearpage
-\printglossaries
+% \clearpage
+% \printglossaries
 
 % INDEX?
 

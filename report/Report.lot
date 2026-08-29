@@ -1,9 +1,36 @@
 \babel@toc {english}{}\relax 
 \addvspace {10\p@ }
 \addvspace {10\p@ }
+\contentsline {table}{\numberline {2.1}{\ignorespaces Characteristics of the NWFP catchments associated with the Eddy Covariance Towers.}}{7}{table.caption.7}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {3.1}{\ignorespaces NWFP datasets used to construct the analytical dataset. Dataset scope follows the NWFP Data Guide and platform design guide \cite {hawkins2025,hawkins2023design}}}{14}{table.3.1}%
+\contentsline {table}{\numberline {3.2}{\ignorespaces Availability of hourly FCH\textsubscript {4} observations over the common 2017--2023 EC analysis window. QC-valid observations pass the SSITC and plausibility filters used to construct the modelling target.}}{15}{table.caption.8}%
+\contentsline {table}{\numberline {3.3}{\ignorespaces Prior availability and synthetic-gap reconstruction accuracy of environmental drivers. Gap-CV $R^2$ is the mean across towers of the tower-level median over five gap-duration (1h, 4h, 32h, 288h, mixed) scenarios. Each scenario masks 25\% of eligible observations across two repetitions for evaluation. The auxiliary-data calibration component is detailed in Algorithm~\ref {alg:auxiliary-driver-gapfill} in Appendix~\ref {app:data-dictionary}. }}{18}{table.caption.10}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {4.1}{\ignorespaces Summary of the evaluation settings used in the dissertation.}}{24}{table.caption.13}%
+\contentsline {table}{\numberline {4.2}{\ignorespaces Model families and their roles in the dissertation.}}{28}{table.4.2}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {5.1}{\ignorespaces Expanded predictor frame used in the gap-filling benchmark. Counts exclude the FCH\textsubscript {4} target and tower-indicator variables.}}{37}{table.caption.14}%
+\contentsline {table}{\numberline {5.2}{\ignorespaces Full gap-filling model comparison under the common synthetic-gap protocol. Combined values are equal-weight averages of the three tower-specific \(R^2\) scores; improvement over MDS is the difference between each model's combined score and the combined MDS score. The training-set mean is constant, so its squared-correlation \(R^2\) is undefined.}}{38}{table.caption.15}%
+\contentsline {table}{\numberline {5.3}{\ignorespaces Raw and split-conformal 90\% prediction-interval performance on the held-out calibration-test subset of the synthetic-gap experiment. PICP has a nominal target of 0.90; MPIW is reported in \(\mathrm {nmol\,m^{-2}\,s^{-1}}\). Tower rows are equal-weight means across the four gap-duration settings; averages weight all tower--gap cells equally, while \(n\) reports their total test observations.}}{40}{table.caption.17}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {6.1}{\ignorespaces Complete daily predictor frame used by the TabPFN forecasting configuration. Simpler benchmark models use model-specific subsets of these variables.}}{43}{table.caption.19}%
+\contentsline {table}{\numberline {6.2}{\ignorespaces Forecasting performance against QC-valid observed FCH\textsubscript {4} across the evaluable 365-day fixed-origin backtests. MASE is scaled against the pre-origin seasonal-mean reference, for which MASE equals 1. Lower MASE, MAE, RMSE and WAPE indicate better performance, whereas higher correlation is preferable.}}{44}{table.caption.20}%
+\contentsline {table}{\numberline {6.3}{\ignorespaces Forecasting performance of the TabPFN model during non-spike and spike periods. Spike thresholds are the tower-specific 95th percentiles estimated from pre-origin observed FCH\textsubscript {4}.}}{46}{table.caption.22}%
+\contentsline {table}{\numberline {6.4}{\ignorespaces Raw and CQR-calibrated 90\% prediction-interval performance for the TabPFN model. PICP is the empirical coverage proportion and MPIW is reported in $\mathrm {nmol\,m^{-2}\,s^{-1}}$. CQR values are unavailable for T2 because too few observed targets remained to construct its calibration set.}}{48}{table.caption.24}%
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {7.1}{\ignorespaces Per-GCM correction factors used to standardise the simulated climate variables against the Tower~4 NWFP reference. Temperature offsets were added to raw simulated values; solar-radiation and precipitation ratios were multiplied by raw simulated values.}}{50}{table.caption.26}%
+\contentsline {table}{\numberline {7.2}{\ignorespaces Accuracy cost of restricting the feature set to what CMIP6 climate scenario can supply. MASE scaled against the day-of-year seasonal mean baseline.}}{51}{table.caption.27}%
+\contentsline {table}{\numberline {7.3}{\ignorespaces Mean percentage change in annual predicted FCH\textsubscript {4} relative to the matched baseline livestock scenario, averaged across five GCMs and ten realisations per GCM.}}{51}{table.caption.28}%
+\contentsline {table}{\numberline {7.4}{\ignorespaces Mean percentage change in annual predicted FCH\textsubscript {4} relative to the matched historical scenario, averaged across five GCMs and ten realisations per GCM.}}{52}{table.caption.29}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
+\contentsline {table}{\numberline {A.1}{\ignorespaces Complete base-variable dictionary for the raw eddy-covariance, biomet and turbulence files. Each listed base variable is repeated for Towers 2, 4 and 9. Definitions, units and native resolution follow the NWFP EC greenhouse-gas guide \cite {olde2023ec}; treatment and analytical role describe processing in this project. Tower identifiers and repeated suffixes are omitted for readability.}}{64}{table.1.A.1}%
+\contentsline {table}{\numberline {A.2}{\ignorespaces Dictionary of principal project-derived variables. These are not original NWFP portal columns: their definitions follow the repository's preprocessing and feature-construction code, while the underlying raw measurements use the guide-based definitions in the preceding tables.}}{67}{table.1.A.2}%
 \addvspace {10\p@ }
+\addvspace {10\p@ }
+\contentsline {table}{\numberline {C.1}{\ignorespaces Contextual adaptations of published methane gap-filling baselines. NWFP values are averaged equally across the towers included by each adaptation; cited values are those reported by the corresponding source. Only Zhu et al. is comparable to the NWFP pasture ecosystem. }}{86}{table.caption.34}%
+\contentsline {table}{\numberline {C.2}{\ignorespaces Aggregate error metrics for the gap-filling models in Table~\ref {tab:gf_model_comparison}. Values are equal-weight averages of the three tower-specific median scores across the common synthetic-gap settings. RMSE and MAE are reported in $\mathrm {nmol\,m^{-2}\,s^{-1}}$; lower values are preferable.}}{89}{table.caption.35}%
 \addvspace {10\p@ }
 \addvspace {10\p@ }
 \addvspace {10\p@ }

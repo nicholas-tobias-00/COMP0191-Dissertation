@@ -4,6 +4,10 @@
 /notebooks/03c_gap_filling_revisited/_data_gf_training/
 /notebooks/03c_gap_filling_revisited/_data_opus/
 /notebooks/03c_gap_filling_revisited/_data_focus/
+*.csv
+
+# Report (all except the final PDF)
+/report/
 
 # Conda environment
 .conda/
@@ -44,9 +48,11 @@ notebooks/03c_gap_filling_revisited/OPUS_RUNBOOK.md
 
 # CSV results in results/
 results/*.csv
+*.parquet
 
 # Not Necessary Images
 results/figures/gapfill_chains/*.png
+results/figures/
 notebooks/03c_gap_filling_revisited/_figures/*.png
 notebooks/03c_gap_filling_revisited/_figures_opus/*.png
 

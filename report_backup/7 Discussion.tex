@@ -1,0 +1,131 @@
+\chapter{Discussion} \label{Chap7}
+
+\section{Main Findings}
+
+\subsection{Overview of Model Performance}
+
+Across both gap-filling (Chapter~\ref{Chap4}) and forecasting (Chapter~\ref{Chap5}), the same
+broad ranking recurs: tabular foundation models (TabICLv2, TabPFN) lead, tree-ensemble and
+statistical models follow closely behind, and deep sequence models (Bi-LSTM, DLinear, TFT on its
+own base feature set) trail well behind both. This is best understood as two separate, already-
+established mechanisms stacked together, not one blanket explanation.
+
+The first mechanism is specific to this dissertation's data: \textbf{missingness-compensation}. FCH4
+target missingness at NWFP is severe -- 56.5\% at Tower 4, 75.0\% at Tower 9, and 88.5\% at Tower 2
+(Section 3.2.1) -- and every parameter-fitting model family (Random Forest, XGBoost, LSTM, SARIMAX)
+must learn its parameters directly from whatever clean signal survives that missingness. TabPFN and
+TabICLv2, by contrast, are pretrained on large volumes of synthetic tabular data and make
+predictions via in-context learning at inference time, fitting no dataset-specific parameters to
+NWFP's own record at all (Section~\ref{sec:tabular-modelling}). This structurally insulates them
+from a problem that measurably hurts every other model family here, and is the reason heavy
+missingness is treated as a thesis-wide theme in this dissertation rather than a detail confined to
+Chapter~\ref{Chap4}.
+
+The second mechanism is not specific to this dissertation at all: Zeng et al.'s finding, already
+introduced in Chapter~\ref{Chap2}, that permutation-invariant self-attention destroys the temporal
+ordering information sequence models depend on, causing sophisticated attention-based architectures
+to lose to much simpler tree-based and even linear baselines on standard long-horizon forecasting
+benchmarks. Chapter~\ref{Chap5}'s own results substantiate this directly: DLinear and LSTM perform
+far worse than every tree, statistical, or foundation model tested, even at each model's own
+best-found configuration (all-tower MASE of 1.187 and 0.952 respectively, against every other
+model's MASE below 0.88, Section 5.3.1), and
+TFT only reaches the mid-pack ranking in Table 5.1 once given the enriched feature set the tree and
+ensemble models gained nothing from (Section 5.2) -- reinforcing that architectural sophistication
+cannot be assumed to translate into forecasting accuracy on this task.
+
+Two scope notes are worth stating precisely rather than left implicit. In gap-filling, TabICLv2
+leads at two of three towers (Tower 2 and Tower 4), not all three -- RFm edges it narrowly at Tower
+9 (Section 4.5.3) -- so this dissertation states "leads at 2/3 towers," not an unqualified "wins."
+In forecasting, TabPFN's win is unambiguous across the full model roster and is not qualified in the
+same way. Separately, this ranking is stated purely on raw benchmark performance: whether a
+configuration has matching production-grade tooling built around it (Section 4.5.3) is irrelevant
+to the ranking itself -- this dissertation reports benchmark numbers, not a deployment
+recommendation.
+
+\subsection{Difficulty in Methane Flux Gap-Filling and Forecasting}
+
+Even at this dissertation's best-achieved results, absolute performance stays modest by the standard
+of many other applied ML domains: gap-filling's champion configuration reaches hourly $R^2_{OLS}$ of
+0.41--0.60 (Chapter~\ref{Chap4}), and forecasting's champion, while beating a defensible climatology
+baseline by a wide margin (MASE=0.691), does not do so uniformly -- Section 5.3.2's spike-vs-non-spike
+evaluation shows that advantage essentially disappears on high-magnitude days (Chapter~\ref{Chap5}).
+This is not a failure of the modelling approach so much as a
+reflection of the difficulty already established in Chapter~\ref{Chap2}: CH4 flux at a managed
+grassland is driven by the continuous interaction of non-stationary biophysical drivers together
+with discrete, spike-inducing livestock management events, evaluated here against a published
+literature ceiling of $R^2<0.1$ at hourly resolution for the same ecosystem type -- a ceiling this
+dissertation's gap-filling result clears by a wide margin, even as the absolute numbers remain
+modest in isolation. Both this dissertation's results and the wider literature reviewed in
+Chapter~\ref{Chap2} point to the same underlying source of that difficulty: a genuinely
+spike-dominated, high-variance target, not a deficiency specific to any one model family tested
+here.
+
+\section{Limitations}
+
+% \textbf{Spike-blindness in the forecasting champion.} The headline MASE=0.691 result
+% (Chapter~\ref{Chap1}, Chapter~\ref{Chap5}) is not uniformly earned: Section 5.3.2's spike-vs-non-spike
+% evaluation shows it is driven almost entirely by ordinary, non-spike days (seasonal-mean MASE 0.659
+% in the deep-dive breakdown, 0.524 for the standing headline configuration's own p95 component) and
+% essentially vanishes on spike days (seasonal-mean MASE $\approx1.001$ in the deep-dive, 3.285 for the
+% headline configuration under a stricter threshold) -- a statistical tie with, or an outright loss
+% against, naive seasonal-mean forecasting. Every spike observation in the deep-dive sample is
+% underpredicted and spike-event detection recall is 0.43\%. Raw, uncalibrated uncertainty intervals
+% cover as little as 26.6\% of spike days against a 90\% nominal target (Section 5.3.5.3); targeted
+% CQR correction closes most, though not all, of this gap (77.5\% spike coverage for the champion
+% configuration, 90.1\% for the scenario-projection engine's own model, both at a modest cost to
+% non-spike coverage), a genuine partial mitigation this dissertation reports directly alongside the
+% underlying problem rather than treating as fully solved. Since livestock-driven spikes are precisely
+% the events of greatest interest for emissions management, this is a limitation of the dissertation's
+% central forecasting claim, not a secondary footnote to it.
+
+\textbf{Data quality and reliance on artificial (gap-filled) data.} Forecasting's autoregressive
+history is seeded from Chapter~\ref{Chap4}'s gap-filled series rather than exclusively real
+observations, and this dissertation's own results show that choice is not neutral: scoring against
+the gap-filled target instead of real observations reverses the model ranking entirely
+(Section~5.1.3), a direct consequence of forecasting's weaker performance being at least partly
+rooted in the quality and completeness of the underlying gap-filled data it depends on. Tower 2 is
+the clearest single illustration of this limitation across the whole dissertation: its severe
+missingness, its distinct land-use-conversion history, its $R^2$-comparability caveat
+(Section 4.5.3.1), and its inability to support conformal calibration specifically in the
+forecasting rollout (Section 5.3.5.2 -- note this is a forecasting-rollout-specific limitation, not
+a gap-filling one: Tower 2's gap-filling uncertainty intervals, Section 4.5.4, are unaffected and
+calibrate normally) are each already established in full elsewhere in this dissertation; the summary
+point here is that Tower 2 is consistently this project's worst-conditioned data source, not a
+re-telling of why.
+
+\textbf{Scenario projection as a pure inference task.} As stated at the opening of
+Chapter~\ref{Chap6}, no future ground truth exists to validate a scenario projection against, and no
+existing diagnostic in this dissertation substitutes for that absence: PICP and MPIW
+(Chapter~\ref{Chap5}) measure interval calibration at real, historically-anchored points, not
+trustworthiness under genuine distribution shift, and nothing in the current pipeline can catch a
+smooth, confident, but structurally wrong extrapolation (Section 6.6).
+
+\textbf{CMIP6-vs-NWFP historical climate mismatch.} Independent of model choice, the CMIP6 climate
+projections underlying Chapter~\ref{Chap6}'s scenario work do not, in their raw form, match NWFP's
+own observed historical climate (Section 6.4.1); a delta/anomaly-style correction is applied, but
+does not eliminate this as a residual source of uncertainty in every downstream scenario result.
+
+\textbf{Compute-constrained uncertainty-quantification and scenario scope.} Uncertainty
+quantification and scenario projection were built specifically for the models suited to each
+architecture's own requirements -- one-shot inference, no fitting step, vectorised full-trajectory
+prediction -- and within the compute budget available to this project, not restricted to only the
+best-performing models by some other criterion. This distinction matters because TabICLv2, the model
+underlying Chapter~\ref{Chap6}'s scenario architecture, is not this dissertation's forecasting
+champion (that remains TabPFN with species features, Chapter~\ref{Chap5}); TabICLv2 was chosen for
+its fit to scenario inference's specific structural requirements, not because it is the most
+accurate forecaster available.
+
+\section{Future Work}
+
+Two extensions follow directly from findings established in this dissertation, rather than being
+generic placeholders. First, \textbf{livestock geolocation tracking relative to each tower's
+footprint} -- for example via satellite/remote-sensing platforms such as Google Earth Engine --
+could directly explain spike occurrence rather than relying on catchment-level stocking density as
+a proxy, since this dissertation's interpretability findings (Chapter~\ref{Chap5},
+Chapter~\ref{Chap6}) consistently identify livestock presence as the dominant CH4 driver without yet
+being able to resolve exactly when and where within a catchment that presence translates into a
+flux spike; this has the potential to improve both gap-filling and forecasting performance directly.
+Second, \textbf{rerunning this dissertation's full pipeline as further NWFP data accumulates} is a
+genuinely actionable, low-effort extension rather than a generic "more data would help" statement:
+NWFP's data collection is ongoing and continuous, and every model, feature, and evaluation script
+built in this dissertation is designed to accept an extended record without structural change.

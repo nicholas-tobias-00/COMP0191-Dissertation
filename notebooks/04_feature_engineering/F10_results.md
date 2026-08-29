@@ -356,6 +356,31 @@ under the observed-target metric only. Full bin-level detail:
 `results/b16_full_comparison_vs_gapfilled.csv`; the table above is compiled in
 `results/b16_final_table_vs_gapfilled_best_config.csv`.
 
+**Second correction (D-96, 2026-08-13, caught by direct user question).** The MASE (gapfilled)
+column in the table above was computed against **chain-persistence**, not climatology — this
+whole secondary-metric pipeline predates D-80's climatology switch and was never rescored under
+it, unlike the MASE (observed) column (rescored separately, D-80). So the "0.944 gapfilled vs.
+0.840 observed" comparison quoted above silently mixes two variables (target *and* baseline
+convention) at once, not target alone. Worse, the persistence baseline's anchor value is always
+`y_gapfilled`-sourced regardless of which target it scores against — the same apples-to-oranges
+issue D-71's `Climatology_gf` fix already addressed for a *different* comparison, never propagated
+here. Fixed with a genuinely fair `Climatology_gf`-vs-`y_gapfilled` baseline (`b16_gapfilled_
+climatology_fix.py`, pure arithmetic, no new model calls):
+
+| Model (own best config) | MASE (gapfilled, OLD — persistence, mismatched) | MASE (gapfilled, CORRECTED — climatology, fair) |
+|---|---|---|
+| TabPFN+species | 0.944 | **0.906** |
+| TabICLv2+species | 0.973 (BASE+ALL) | **0.938** |
+| Ensemble_unweighted+species | 0.749 | **0.665** |
+
+**The flip survives and the margin is similar** — `Ensemble_unweighted` still beats `TabPFN+species`
+by a wide margin under the corrected metric, so §"This means the headline..." above remains
+directionally correct. Only the exact figures were wrong. Full corrected 11-model table:
+`results/b16_gapfilled_climatology_fix_best_config.csv` (ranked: both Ensembles 0.665, XGB 0.670,
+LightGBM 0.684, RF 0.702, SARIMAX 0.831, TabPFN 0.903 — best config here is actually
+`BASE+bodyweight`, not `BASE+species` — TabICLv2 0.922, TFT 1.013, LSTM 1.122, DLinear 1.502
+worst). See D-96.
+
 **Caveats, stated plainly:**
 - Stage 1 was a single-seed, no-CV, direct-h-forecast smoke test on trees only; Stages 2b–2d are
   single fixed hyperparameter sets (existing published recipes, no new HPO) at the standard 5

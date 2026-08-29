@@ -27,9 +27,6 @@ INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\fontenc.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm1200.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\inputenc.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\inputenc.sty
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\latin1.def
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\latin1.def
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\latin1.def
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\generic\babel\babel.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\generic\babel\babel.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\generic\babel\txtbabel.def
@@ -120,9 +117,9 @@ INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatoo
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-l3fp.def
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-l3fp.def
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-l3fp.def
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-latin1.ldf
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-latin1.ldf
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-latin1.ldf
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-utf8.ldf
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-utf8.ldf
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\datatool\datatool-utf8.ldf
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\xcolor\xcolor.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\xcolor\xcolor.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\graphics-cfg\color.cfg
@@ -421,6 +418,8 @@ INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\arydshln\arydshl
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\arydshln\arydshln.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\booktabs\booktabs.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\booktabs\booktabs.sty
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\tools\tabularx.sty
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\tools\tabularx.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\tikz-3dplot\tikz-3dplot.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\tikz-3dplot\tikz-3dplot.sty
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\generic\pgf\frontendlayer\tikz\libraries\tikzlibrary3d.code.tex
@@ -618,23 +617,13 @@ INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\00miktex\epstopd
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\translator\translator-months-dictionary-English.dict
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\translator\translator-months-dictionary-English.dict
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\translator\translator-months-dictionary-English.dict
+INPUT .\Report.out
+INPUT .\Report.out
+INPUT Report.out
+INPUT Report.out
+INPUT .\Report.out
+INPUT .\Report.out
 OUTPUT Report.out
-INPUT .\Logos\UCL page header.png
-INPUT .\Logos\UCL page header.png
-INPUT .\Logos\UCL page header.png
-INPUT .\Logos\UCL page header.png
-INPUT .\Logos\UCL page header.png
-INPUT .\Logos\UCL page header.png
-INPUT .\Logos\UCL page header.png
-INPUT .\Logos\UCL page footer.png
-INPUT .\Logos\UCL page footer.png
-INPUT .\Logos\UCL page footer.png
-INPUT .\Logos\UCL page footer.png
-INPUT .\Logos\UCL page footer.png
-INPUT .\Logos\UCL page footer.png
-INPUT .\Logos\UCL page footer.png
-INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\map\pdftex\pdftex.map
-OUTPUT Report.ist
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm2074.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm1440.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmr12.tfm
@@ -686,18 +675,30 @@ INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msbm7.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm1728.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecti1440.tfm
+INPUT .\Logos\UCL page header.png
+INPUT .\Logos\UCL page header.png
+INPUT .\Logos\UCL page header.png
+INPUT .\Logos\UCL page header.png
+INPUT .\Logos\UCL page header.png
+INPUT .\Logos\UCL page header.png
+INPUT .\Logos\UCL page header.png
+INPUT .\Logos\UCL page footer.png
+INPUT .\Logos\UCL page footer.png
+INPUT .\Logos\UCL page footer.png
+INPUT .\Logos\UCL page footer.png
+INPUT .\Logos\UCL page footer.png
+INPUT .\Logos\UCL page footer.png
+INPUT .\Logos\UCL page footer.png
+OUTPUT Report.ist
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\map\pdftex\pdftex.map
 INPUT .\0 Abstract.tex
 INPUT .\0 Abstract.tex
 INPUT .\0 Abstract.tex
 INPUT .\0 Abstract.tex
 INPUT 0 Abstract.tex
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecbi1200.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\tcrm1200.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm1095.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmr10.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmr8.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmr6.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmmi10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmmi12.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmmi8.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmmi6.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmsy10.tfm
@@ -727,28 +728,33 @@ INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msbm10.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msbm10.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msbm7.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmmi12.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmsy10.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmex10.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\latex-fonts\lasy10.tfm
-INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\rsfs\rsfs10.tfm
-INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\esvect\vect10.tfm
-INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\stmaryrd\stmary10.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\esint\esint10.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msam10.tfm
-INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msbm10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm0800.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecbi1200.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\psnfss\t1pzc.fd
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\psnfss\t1pzc.fd
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\psnfss\t1pzc.fd
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\zapfchan\pzcmi8t.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\zapfchan\pzcmi8t.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\vf\adobe\zapfchan\pzcmi8t.vf
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\adobe\zapfchan\pzcmi8r.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\enc\dvips\base\8r.enc
+INPUT .\Report.toc
+INPUT .\Report.toc
+INPUT Report.toc
 OUTPUT Report.toc
+INPUT .\Report.lof
+INPUT .\Report.lof
+INPUT Report.lof
 OUTPUT Report.lof
+INPUT .\Report.lot
+INPUT .\Report.lot
+INPUT Report.lot
 OUTPUT Report.lot
-INPUT .\Report.loa
-INPUT .\Report.loa
-INPUT Report.loa
-OUTPUT Report.loa
-INPUT .\1 Project Plan.tex
-INPUT .\1 Project Plan.tex
-INPUT .\1 Project Plan.tex
-INPUT .\1 Project Plan.tex
-INPUT 1 Project Plan.tex
+INPUT .\1 Introduction.tex
+INPUT .\1 Introduction.tex
+INPUT .\1 Introduction.tex
+INPUT .\1 Introduction.tex
+INPUT 1 Introduction.tex
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmr17.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmmi12.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmsy10.tfm
@@ -760,48 +766,351 @@ INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\stmaryrd\stmary10.
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\esint\esint10.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msam10.tfm
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msbm10.tfm
-INPUT .\2 Introduction and Background.tex
-INPUT .\2 Introduction and Background.tex
-INPUT .\2 Introduction and Background.tex
-INPUT .\2 Introduction and Background.tex
-INPUT 2 Introduction and Background.tex
-INPUT .\3 Methodology.tex
-INPUT .\3 Methodology.tex
-INPUT .\3 Methodology.tex
-INPUT .\3 Methodology.tex
-INPUT 3 Methodology.tex
-INPUT .\4 Results and Analysis.tex
-INPUT .\4 Results and Analysis.tex
-INPUT .\4 Results and Analysis.tex
-INPUT .\4 Results and Analysis.tex
-INPUT 4 Results and Analysis.tex
-INPUT .\5 Discussion.tex
-INPUT .\5 Discussion.tex
-INPUT .\5 Discussion.tex
-INPUT .\5 Discussion.tex
-INPUT 5 Discussion.tex
-INPUT .\6 Conclusion.tex
-INPUT .\6 Conclusion.tex
-INPUT .\6 Conclusion.tex
-INPUT .\6 Conclusion.tex
-INPUT 6 Conclusion.tex
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecbx1728.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecbx1440.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecbx0800.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\tcrm1200.tfm
+INPUT .\2 Background.tex
+INPUT .\2 Background.tex
+INPUT .\2 Background.tex
+INPUT .\2 Background.tex
+INPUT 2 Background.tex
+INPUT .\Figures\ch2_NWFP Map.png
+INPUT .\Figures\ch2_NWFP Map.png
+INPUT .\Figures\ch2_NWFP Map.png
+INPUT .\Figures\ch2_NWFP Map.png
+INPUT .\Figures\ch2_NWFP Map.png
+INPUT .\Figures\ch2_NWFP Map.png
+INPUT .\Figures\ch2_NWFP Map.png
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm1095.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmr10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmmi10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmsy10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmex10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\latex-fonts\lasy10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\rsfs\rsfs10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\esvect\vect10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\stmaryrd\stmary10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\esint\esint10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msam10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msbm10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecbx1095.tfm
+INPUT .\3 Data.tex
+INPUT .\3 Data.tex
+INPUT .\3 Data.tex
+INPUT .\3 Data.tex
+INPUT 3 Data.tex
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\cmextra\cmex7.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\latex-fonts\lasy5.tfm
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\rsfs\rsfs5.tfm
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\esvect\vect5.tfm
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\tfm\public\stmaryrd\stmary5.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\esint\esint10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msam5.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\amsfonts\symbols\msbm5.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm0600.tfm
+INPUT .\Figures\ch3_fch4_three_tower_availability.png
+INPUT .\Figures\ch3_fch4_three_tower_availability.png
+INPUT .\Figures\ch3_fch4_three_tower_availability.png
+INPUT .\Figures\ch3_fch4_three_tower_availability.png
+INPUT .\Figures\ch3_fch4_three_tower_availability.png
+INPUT .\Figures\ch3_fch4_three_tower_availability.png
+INPUT .\Figures\ch3_fch4_three_tower_availability.png
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\t1cmtt.fd
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\t1cmtt.fd
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\tex\latex\base\t1cmtt.fd
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ectt1200.tfm
+INPUT .\Figures\ch3_fch4_target_correlations.png
+INPUT .\Figures\ch3_fch4_target_correlations.png
+INPUT .\Figures\ch3_fch4_target_correlations.png
+INPUT .\Figures\ch3_fch4_target_correlations.png
+INPUT .\Figures\ch3_fch4_target_correlations.png
+INPUT .\Figures\ch3_fch4_target_correlations.png
+INPUT .\Figures\ch3_fch4_target_correlations.png
+INPUT .\Figures\ch3_tica_umap_embeddings.png
+INPUT .\Figures\ch3_tica_umap_embeddings.png
+INPUT .\Figures\ch3_tica_umap_embeddings.png
+INPUT .\Figures\ch3_tica_umap_embeddings.png
+INPUT .\Figures\ch3_tica_umap_embeddings.png
+INPUT .\Figures\ch3_tica_umap_embeddings.png
+INPUT .\Figures\ch3_tica_umap_embeddings.png
+INPUT .\4 Models and Methods.tex
+INPUT .\4 Models and Methods.tex
+INPUT .\4 Models and Methods.tex
+INPUT .\4 Models and Methods.tex
+INPUT 4 Models and Methods.tex
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx12.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx8.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx6.tfm
+INPUT .\5 Gap Filling.tex
+INPUT .\5 Gap Filling.tex
+INPUT .\5 Gap Filling.tex
+INPUT .\5 Gap Filling.tex
+INPUT 5 Gap Filling.tex
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx12.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx12.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm1000.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx10.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx7.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\public\cm\cmbx5.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecbx1000.tfm
+INPUT .\Figures\ch4_tabiclv2_daily_T4_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T4_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T4_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T4_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T4_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T4_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T4_2023H2.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T9_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T9_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T9_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T9_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T9_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T9_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T9_3month_example.png
+INPUT .\6 Forecasting.tex
+INPUT .\6 Forecasting.tex
+INPUT .\6 Forecasting.tex
+INPUT .\6 Forecasting.tex
+INPUT 6 Forecasting.tex
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ectt1000.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecti1000.tfm
+INPUT .\Figures\ch5_champion_3towers.png
+INPUT .\Figures\ch5_champion_3towers.png
+INPUT .\Figures\ch5_champion_3towers.png
+INPUT .\Figures\ch5_champion_3towers.png
+INPUT .\Figures\ch5_champion_3towers.png
+INPUT .\Figures\ch5_champion_3towers.png
+INPUT .\Figures\ch5_champion_3towers.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_overall.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_overall.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_overall.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_overall.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_overall.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_overall.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_overall.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T04_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T04_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T04_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T04_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T04_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T04_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T04_2021.png
+INPUT .\7 Scenario Projection.tex
+INPUT .\7 Scenario Projection.tex
+INPUT .\7 Scenario Projection.tex
+INPUT .\7 Scenario Projection.tex
+INPUT 7 Scenario Projection.tex
+INPUT .\8 Discussion.tex
+INPUT .\8 Discussion.tex
+INPUT .\8 Discussion.tex
+INPUT .\8 Discussion.tex
+INPUT 8 Discussion.tex
+INPUT .\Report.bbl
+INPUT .\Report.bbl
+INPUT Report.bbl
+INPUT .\Appendices\A_Data.tex
+INPUT .\Appendices\A_Data.tex
+INPUT .\Appendices\A_Data.tex
+INPUT .\Appendices\A_Data.tex
+INPUT Appendices\A_Data.tex
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ectt0800.tfm
+INPUT .\Figures\ch3_fch4_target_correlations_full.png
+INPUT .\Figures\ch3_fch4_target_correlations_full.png
+INPUT .\Figures\ch3_fch4_target_correlations_full.png
+INPUT .\Figures\ch3_fch4_target_correlations_full.png
+INPUT .\Figures\ch3_fch4_target_correlations_full.png
+INPUT .\Figures\ch3_fch4_target_correlations_full.png
+INPUT .\Figures\ch3_fch4_target_correlations_full.png
+INPUT .\Figures\ch3_acf_pacf_observed.png
+INPUT .\Figures\ch3_acf_pacf_observed.png
+INPUT .\Figures\ch3_acf_pacf_observed.png
+INPUT .\Figures\ch3_acf_pacf_observed.png
+INPUT .\Figures\ch3_acf_pacf_observed.png
+INPUT .\Figures\ch3_acf_pacf_observed.png
+INPUT .\Figures\ch3_acf_pacf_observed.png
+INPUT .\Figures\ch3_stl_decomposition_observed.png
+INPUT .\Figures\ch3_stl_decomposition_observed.png
+INPUT .\Figures\ch3_stl_decomposition_observed.png
+INPUT .\Figures\ch3_stl_decomposition_observed.png
+INPUT .\Figures\ch3_stl_decomposition_observed.png
+INPUT .\Figures\ch3_stl_decomposition_observed.png
+INPUT .\Figures\ch3_stl_decomposition_observed.png
+INPUT .\Appendices\B_Models.tex
+INPUT .\Appendices\B_Models.tex
+INPUT .\Appendices\B_Models.tex
+INPUT .\Appendices\B_Models.tex
+INPUT Appendices\B_Models.tex
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ectt1095.tfm
+INPUT .\Appendices\C_Gap_Filling.tex
+INPUT .\Appendices\C_Gap_Filling.tex
+INPUT .\Appendices\C_Gap_Filling.tex
+INPUT .\Appendices\C_Gap_Filling.tex
+INPUT Appendices\C_Gap_Filling.tex
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\ecrm0700.tfm
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\tfm\jknappen\ec\tcrm0700.tfm
+INPUT .\Figures\ch4_tabiclv2_daily_T2_2019H1.png
+INPUT .\Figures\ch4_tabiclv2_daily_T2_2019H1.png
+INPUT .\Figures\ch4_tabiclv2_daily_T2_2019H1.png
+INPUT .\Figures\ch4_tabiclv2_daily_T2_2019H1.png
+INPUT .\Figures\ch4_tabiclv2_daily_T2_2019H1.png
+INPUT .\Figures\ch4_tabiclv2_daily_T2_2019H1.png
+INPUT .\Figures\ch4_tabiclv2_daily_T2_2019H1.png
+INPUT .\Figures\ch4_tabiclv2_daily_T9_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T9_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T9_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T9_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T9_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T9_2023H2.png
+INPUT .\Figures\ch4_tabiclv2_daily_T9_2023H2.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T2_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T2_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T2_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T2_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T2_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T2_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T2_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T4_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T4_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T4_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T4_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T4_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T4_3month_example.png
+INPUT .\Figures\ch4_latest_tabicl_uq_hourly_T4_3month_example.png
+INPUT .\Appendices\D_Forecasting.tex
+INPUT .\Appendices\D_Forecasting.tex
+INPUT .\Appendices\D_Forecasting.tex
+INPUT .\Appendices\D_Forecasting.tex
+INPUT Appendices\D_Forecasting.tex
+INPUT .\Figures\ch5_B18_p95_spike_timing_all_towers.png
+INPUT .\Figures\ch5_B18_p95_spike_timing_all_towers.png
+INPUT .\Figures\ch5_B18_p95_spike_timing_all_towers.png
+INPUT .\Figures\ch5_B18_p95_spike_timing_all_towers.png
+INPUT .\Figures\ch5_B18_p95_spike_timing_all_towers.png
+INPUT .\Figures\ch5_B18_p95_spike_timing_all_towers.png
+INPUT .\Figures\ch5_B18_p95_spike_timing_all_towers.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_by_tower.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_by_tower.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_by_tower.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_by_tower.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_by_tower.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_by_tower.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_by_tower.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_species.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_species.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_species.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_species.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_species.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_species.png
+INPUT .\Figures\ch5_tabpfn_permutation_sensitivity_species.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T02_2018.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T02_2018.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T02_2018.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T02_2018.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T02_2018.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T02_2018.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T02_2018.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T09_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T09_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T09_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T09_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T09_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T09_2021.png
+INPUT .\Figures\cqr_gallery\ch5_cqr_forecast_T09_2021.png
+INPUT .\Appendices\E_Scenario_Projection.tex
+INPUT .\Appendices\E_Scenario_Projection.tex
+INPUT .\Appendices\E_Scenario_Projection.tex
+INPUT .\Appendices\E_Scenario_Projection.tex
+INPUT Appendices\E_Scenario_Projection.tex
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp245.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp245.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp245.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp245.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp245.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp245.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp245.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp585.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp585.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp585.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp585.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp585.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp585.png
+INPUT .\Figures\ch6_livestock_ladder_trajectory_ssp585.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp245.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp245.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp245.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp245.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp245.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp245.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp245.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp585.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp585.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp585.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp585.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp585.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp585.png
+INPUT .\Figures\ch6_grazing_trajectory_ssp585.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp245.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp245.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp245.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp245.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp245.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp245.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp245.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp585.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp585.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp585.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp585.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp585.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp585.png
+INPUT .\Figures\ch6_fertilizer_trajectory_ssp585.png
+INPUT .\Appendices\F_Source_Code.tex
+INPUT .\Appendices\F_Source_Code.tex
+INPUT .\Appendices\F_Source_Code.tex
+INPUT .\Appendices\F_Source_Code.tex
+INPUT Appendices\F_Source_Code.tex
 INPUT Report.aux
 INPUT .\Report.out
 INPUT .\Report.out
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\tcrm0700.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\tcrm0700.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ectt1095.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ectt1095.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ectt0800.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ectt0800.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecti1000.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecti1000.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ectt1000.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ectt1000.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1000.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1000.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1000.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1000.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ectt1200.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ectt1200.pk
-INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecti1200.pk
-INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecti1200.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm0600.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm0600.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1095.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1095.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1095.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1095.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\tcrm1200.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\tcrm1200.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx0800.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx0800.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1440.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1440.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1728.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1728.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecti1200.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecti1200.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbi1200.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbi1200.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm0800.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm0800.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1200.pk
+INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1200.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1200.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecbx1200.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecti1440.pk
@@ -812,9 +1121,37 @@ INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1728.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm2074.pk
 INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm2074.pk
-INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1200.pk
-INPUT C:\Users\Nicholas\AppData\Local\MiKTeX\fonts\pk\ljfour\jknappen\ec\dpi600\ecrm1200.pk
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmbx10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmbx10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmbx12.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmbx12.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmex10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmex10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmmi10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmmi10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmmi12.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmmi12.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmmi6.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmmi6.pfb
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmmi8.pfb
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmmi8.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr12.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr12.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr6.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr6.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr7.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr7.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr8.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmr8.pfb
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmsy10.pfb
 INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmsy10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmsy6.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmsy6.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmsy8.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\cm\cmsy8.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\symbols\msbm10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\public\amsfonts\symbols\msbm10.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\urw\zapfchan\uzcmi8a.pfb
+INPUT C:\Users\Nicholas\AppData\Local\Programs\MiKTeX\fonts\type1\urw\zapfchan\uzcmi8a.pfb

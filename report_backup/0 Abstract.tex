@@ -1,0 +1,30 @@
+% Methane (CH\textsubscript{4}) is agriculture's dominant greenhouse gas, and managed grassland
+% livestock systems are a major, poorly-instrumented source of it. Ecosystem-scale CH\textsubscript{4}
+% flux is difficult to predict because it is driven by the continuous interaction of non-stationary
+% biophysical drivers with discrete, spike-inducing livestock management events, and existing
+% machine-learning work in this space addresses only gap-filling (within-distribution interpolation),
+% not forecasting (sequential extrapolation) or the further step of scenario-based "what-if" analysis
+% that a genuine agricultural digital twin requires. This dissertation addresses that gap using seven
+% years of Eddy Covariance CH\textsubscript{4} flux data from the North Wyke Farm Platform, a managed
+% beef-cattle grassland research site, through a three-stage pipeline: gap-filling a continuous
+% CH\textsubscript{4} series, forecasting that series recursively over a full annual horizon, and
+% projecting its response under synthetic management and climate scenarios. Each stage benchmarks
+% statistical baselines, tree ensembles, and newer tabular foundation models (TabPFN, TabICLv2) under
+% a common, leakage-safe temporal evaluation protocol, with uncertainty quantification and
+% interpretability attached throughout. The improved gap-filling pipeline's best configuration reaches
+% hourly $R^2$ of 0.40--0.58 across all three towers (with a further tabular-foundation-model
+% challenger reaching as high as 0.68 at individual towers), comfortably clearing the $R^2<0.1$
+% ceiling reported in the closest published literature for this ecosystem type; the resulting
+% forecasting benchmark, the
+% first applied to this ecosystem-scale signal at a managed temperate grassland to the author's
+% knowledge, beats a day-of-year climatology baseline by a wide margin (MASE = 0.691); and the
+% scenario-projection stage produces distinguishable, interpretable CH\textsubscript{4} responses to
+% livestock-density and grazing-timing changes under CMIP6-derived climate trajectories to 2050. A
+% single finding recurs independently across all three stages, via genuinely different methods each
+% time: livestock density -- and specifically cattle density -- is the dominant driver of
+% CH\textsubscript{4} flux at this site. Absolute predictive accuracy nonetheless remains modest by
+% the standards of many other applied machine-learning domains, a reflection of the genuinely
+% spike-dominated, high-variance nature of the target rather than a deficiency of any single model
+% family tested; this dissertation is accordingly positioned as a benchmarked, uncertainty-quantified
+% foundation for CH\textsubscript{4} forecasting and scenario projection at a managed UK grassland
+% site, not a finished, deployment-ready system.

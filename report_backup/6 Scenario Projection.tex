@@ -1,0 +1,438 @@
+\chapter{Scenario Projection} \label{Chap6}
+
+Scenario projection is structurally different from every chapter preceding it in this
+dissertation. Chapters~\ref{Chap4} and~\ref{Chap5} are both checkable against real observations --
+a gap-filled or forecast value can always, in principle, be compared against a genuine held-out
+FCH4 measurement. Scenario projection has no such anchor: there is no ground truth for
+CH\textsubscript{4} flux under a livestock density, grazing pattern, or climate trajectory that has
+never actually occurred at NWFP, and there never will be, regardless of how the underlying model is
+built. Every result in this chapter should be read with that structural limitation in mind; it is
+returned to explicitly in Section 6.6.
+
+\section{Outline of Scenario Projection Task}
+
+Scenario projection extends the forecasting architecture of Chapter~\ref{Chap5} to produce
+CH\textsubscript{4} projections under conditions that depart from NWFP's observed historical
+record -- altered livestock stocking density, shifted grazing timing, adjusted fertiliser
+application, and future climate trajectories drawn from CMIP6 projections -- rather than forecasting
+forward from real, currently-observed conditions. This dissertation's scenario architecture asks a
+single central "what-if" question along several axes: how does projected CH\textsubscript{4}
+respond to a change in livestock management or climate, holding everything else at its
+historically-observed pattern.
+
+\section{Interpretability and Feature Importance}
+
+The scenario architecture developed in this chapter is deliberately built around livestock density
+as its central management lever, not as an unmotivated design choice. This is grounded in the
+convergent interpretability evidence already established across gap-filling and forecasting
+(Chapter~\ref{Chap5}): livestock density is the single feature ranked most important by every
+method capable of producing an attribution on this project's model roster -- native tree-model
+importance and SHAP (Random Forest, XGBoost, LightGBM), SARIMAX coefficients, and TabPFN permutation
+importance -- at every tower except Tower 2, and species-disaggregated permutation importance on
+this dissertation's forecasting champion further isolates that dominance to the cattle component
+specifically (Chapter~\ref{Chap5}). A dedicated permutation-importance pass on TabICLv2's own
+one-shot output, specific to the simplified architecture this chapter uses (Section 6.4.3), had not
+yet been executed as of this writing -- a natural, low-cost follow-up flagged here rather than
+assumed. The livestock-centric, species-disaggregated design of this chapter's scenario architecture
+is accordingly grounded in convergent evidence from a different model and a different chapter's
+work, not a fresh finding specific to this exact configuration.
+
+\section{Simulated Climate Dataset}
+
+Future climate projections are drawn from Semenov et al.'s large-ensemble dataset of transient
+CMIP6-based climate scenarios for Great Britain \cite{semenov2025transient}, providing daily
+weather series for the North Wyke location under multiple Shared Socioeconomic Pathways (SSPs) and
+multiple Global Climate Models (GCMs), each contributing several stochastic realisations. This
+dissertation uses SSP2-4.5 and SSP5-8.5, spanning five GCMs (ACCESS-ESM1-5, CNRM-CM6-1,
+HadGEM3-GC31-LL, MPI-ESM1-2-LR, MRI-ESM2-0), transient from 2020 through to a 2050 projection
+horizon.
+
+\section{Data Pre-processing and Model Adjustment}
+
+\subsection{Standardisation of New Data with the NWFP Dataset}
+
+Two preprocessing steps standardise the CMIP6 series against NWFP's own historical baseline before
+any scenario inference. First, of the roughly eleven driver variables this dissertation's
+forecasting feature set uses, four are derived directly or near-directly from the CMIP6 series
+itself (minimum, maximum, and mean air temperature; precipitation; and shortwave radiation, the
+latter requiring a verified unit conversion from CMIP6's MJ/m\textsuperscript{2}/day to this
+project's W/m\textsuperscript{2} convention); the remaining variables, for which CMIP6 provides no
+equivalent projection, are resampled from NWFP's own historical day-of-year climatology. Second, a
+direct comparison of CMIP6's own historical-period values against NWFP's real observed climate
+found a genuine, non-trivial mismatch rather than a close match, in three distinct directions at
+once: raw simulated air temperature runs roughly 2--3.5$^\circ$C too cool, raw simulated
+precipitation is roughly 4.3 times too wet, and raw simulated incoming shortwave radiation is
+roughly 8\% too low, each relative to NWFP's own real historical record. This motivated a
+delta/anomaly-style bias correction, applied per GCM: an additive offset for minimum and maximum
+air temperature, and a multiplicative ratio for shortwave radiation and precipitation, each
+calibrated against the difference between CMIP6's own historical-period statistics and NWFP's real
+observed record over the same period. The five correction factors used in this dissertation are
+summarised below.
+
+\begin{table}[h]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lcccc}
+\toprule
+GCM & Offset TA\_min ($^\circ$C) & Offset TA\_max ($^\circ$C) & Ratio SWIN & Ratio Precipitation \\
+\midrule
+ACCESS-ESM1-5 & 1.81 & 2.60 & 1.034 & 0.225 \\
+CNRM-CM6-1 & 2.26 & 3.09 & 1.083 & 0.229 \\
+HadGEM3-GC31-LL & 1.97 & 2.79 & 1.044 & 0.236 \\
+MPI-ESM1-2-LR & 2.71 & 3.56 & 1.060 & 0.226 \\
+MRI-ESM2-0 & 2.29 & 3.03 & 1.043 & 0.240 \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Per-GCM bias-correction factors applied to CMIP6 driver variables against NWFP's own
+historical baseline.}
+\end{table}
+
+Every result in Section 6.5 uses these bias-corrected drivers rather than CMIP6's raw output. This
+is a materially different, and preferred, standardisation to the coarser, output-level bias
+correction used earlier in this project's scenario-analysis development (correcting a model's
+predicted output to match the real historical mean, rather than correcting its input drivers) --
+correcting the climate inputs themselves is the more defensible fix where the underlying mismatch is
+demonstrably in the input data, rather than in the model's own extrapolation behaviour.
+
+% \subsection{Why a Simplified, One-Shot Architecture}
+
+% Before selecting a scenario architecture, the full forecasting roster of Chapter~\ref{Chap5} was
+% rerun under a reduced-driver setting -- restricted to only the variables a genuine future climate
+% scenario can actually supply, rather than the full enriched feature set Chapter~\ref{Chap5}'s
+% champion has access to when forecasting from real, currently-observed conditions:
+
+% \begin{table}[h]
+% \centering
+% \footnotesize
+% \resizebox{\textwidth}{!}{%
+% \begin{tabular}{lcccccc}
+% \toprule
+% Model & $R^2$ & RMSE & MAE & MASE & WAPE & Correlation \\
+% \midrule
+% \textbf{TabPFN} & \textbf{$-0.122$} & \textbf{56.12} & \textbf{33.14} & \textbf{0.733} & \textbf{0.899} & \textbf{0.358} \\
+% TabICLv2 & $-0.330$ & 58.05 & 34.95 & 0.782 & 0.988 & 0.255 \\
+% TFT & $-0.363$ & 56.59 & 35.62 & 0.841 & 1.045 & 0.292 \\
+% LSTM & $-1.357$ & 63.22 & 41.06 & 0.956 & 1.268 & 0.212 \\
+% SARIMAX & $-1.416$ & 65.63 & 49.54 & 1.108 & 1.516 & 0.332 \\
+% XGBoost & $-1.611$ & 71.87 & 58.50 & 1.297 & 1.706 & 0.250 \\
+% DLinear & $-2.068$ & 64.53 & 47.52 & 1.265 & 1.638 & 0.237 \\
+% Ensemble (MASE-weighted) & $-2.101$ & 75.37 & 63.22 & 1.455 & 1.972 & 0.298 \\
+% Ensemble (unweighted) & $-2.104$ & 75.31 & 63.16 & 1.454 & 1.972 & 0.299 \\
+% LightGBM & $-2.682$ & 83.59 & 70.59 & 1.593 & 2.122 & 0.255 \\
+% Random Forest & $-7.051$ & 99.11 & 87.77 & 2.270 & 3.121 & 0.190 \\
+% \bottomrule
+% \end{tabular}%
+% }
+% \caption{Model comparison under reduced, scenario-realistic driver availability (persistence-scaled
+% MASE, distinct from Chapter~\ref{Chap5}'s climatology-scaled convention). Not the final scenario
+% engine result -- a diagnostic step motivating the architecture chosen in Section 6.4.3.}
+% \end{table}
+
+% Driver availability alone reorders Chapter~\ref{Chap5}'s ranking severely: locally-fitted tree
+% models collapse under reduced drivers (Random Forest falls to $R^2=-7.051$, over 28 times worse than
+% its full-driver result), while the two tabular foundation models degrade far more gracefully --
+% TabPFN remains the strongest model under this constraint, and TabICLv2 remains clearly usable. This
+% is the direct evidence behind this chapter's model choice: a locally-fitted tree or ensemble model,
+% however strong under Chapter~\ref{Chap5}'s full feature set, is not a safe choice once restricted to
+% what a genuine climate scenario can actually supply.
+
+\subsection{Generation of Simplified Scenario Model}
+
+The scenario architecture used throughout Section 6.5 is \texttt{Direct\_TabICLv2\_solo\_trend}: a
+per-tower direct tabular regression fit (\texttt{TabICLv2Regressor.fit/predict}, one fit per tower,
+reused across every scenario combination for that tower) on the restricted \texttt{FX\_A\_SPECIES}
+feature set plus a single linear trend covariate (\texttt{b17\_days\_since\_2010}), with no pooling
+across towers and no spike-gate correction. This supersedes an earlier one-shot, no-fit
+in-context configuration (\texttt{TabICLForecaster}) used in this project's initial scenario-engine
+development, following B18's (Chapter~\ref{Chap5}) demonstration that direct-regression
+architectures generally outperform time-series-wrapper forecasting on this task: a real-anchor
+backtest (5 anchors, 3 towers, climatology-scored MASE, the same convention used throughout
+Chapter~\ref{Chap5}) found every direct-regression candidate beat the prior one-shot production
+architecture by a real margin, though the specific configuration mattered. A first, pooled-across-
+towers candidate beat the prior architecture by 4.4\% MASE (0.726 vs.\ 0.760), but pooling assumes
+one shared training cutoff across all three towers, which does not match this project's real
+per-tower anchoring pipeline; a faithful, solo-per-tower adaptation without pooling recovered only
+0.6\% of that margin (noise-level), until adding the trend covariate back in isolated the true
+driver and recovered most of the original gain (0.738 vs.\ 0.760, \textbf{+2.79\% MASE}) -- this is
+the locked-in \texttt{Direct\_TabICLv2\_solo\_trend} configuration used throughout this chapter.
+The trend covariate's own training range (2018--2025, roughly 2{,}557--5{,}480 days since 2010) is
+around 2.7$\times$ shorter than the horizon it is asked to extrapolate to at 2050 ($\sim$14{,}600
+days) -- a genuine extrapolation risk that this dissertation checked directly rather than assumed
+away: querying the fitted trend term 27--47 years past its own training maximum shows it saturates
+to a bounded, plausible value ($\sim$8.3~nmol m\textsuperscript{-2} s\textsuperscript{-1}) rather
+than diverging, unlike SARIMAX's known explosive extrapolation behaviour under a comparable stress
+test (Chapter~\ref{Chap5}). This is a single, targeted sanity check on the trend term specifically,
+not a full stress test of every scenario perturbation in Section 6.5 -- a distinction returned to in
+Section 6.6.
+
+This remains a deliberately narrower feature configuration than Chapter~\ref{Chap5}'s forecasting
+champion, using the same 13 \texttt{FX\_A\_SPECIES} features as before (mean/minimum/maximum air
+temperature, mean shortwave radiation, summed precipitation, day-of-year sine/cosine, growing-season
+and winter indicator flags, and species-disaggregated livestock density -- combined, cattle, sheep,
+and lamb) plus the trend term above, rather than the roughly 52-column enriched feature set
+Chapter~\ref{Chap5}'s champion uses. It remains important to be explicit that TabICLv2 is not this
+dissertation's forecasting champion -- that remains the TabPFN-based blend described in
+Chapter~\ref{Chap5} (MASE=0.691) -- TabICLv2 is selected here specifically because this simplified
+architecture's smaller, CMIP6-derivable feature set is a better match to what a genuine future
+climate scenario can actually supply as covariates, and because the direct-regression family
+degrades more gracefully than the alternatives once restricted this way (the driver-availability
+ablation cited in Section 6.4.1 uses TabPFN's own reduced-driver result as the motivating evidence
+for this family choice, not yet the final \texttt{FX\_A\_SPECIES} + trend configuration reported
+below).
+
+\subsection{Result of the Simplified Model}
+
+\begin{table}[h]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tabular}{lc}
+\toprule
+Configuration & MASE (climatology) \\
+\midrule
+TabICLv2, BASE + ALL (Chapter~\ref{Chap5} config) & 0.7385 \\
+TabICLv2, BASE + species (Chapter~\ref{Chap5} config) & 0.7405 \\
+TabICLv2, FX\_A\_SPECIES, one-shot wrapper (superseded engine) & 0.7588 \\
+TabICLv2, FX\_A\_SPECIES + fertiliser v2\textsuperscript{\dag} & 0.7591 \\
+\textbf{Direct\_TabICLv2\_solo\_trend, FX\_A\_SPECIES + trend (this chapter's engine)} & \textbf{0.738} \\
+\bottomrule
+\end{tabular}%
+}
+\caption{Cost of simplifying to a scenario-realistic feature set, TabICLv2 only. $R^2$ is not
+reported for forecasting-style comparisons anywhere in this dissertation (Section 5.1.3).
+\textsuperscript{\dag}Fertiliser-variable extension tested only against the superseded one-shot
+architecture, not retested against the current engine.}
+\end{table}
+
+Restricting the feature set to only what a genuine climate scenario can supply still carries a
+small, quantifiable accuracy cost relative to TabICLv2's own full-feature configurations from
+Chapter~\ref{Chap5} (MASE rises from 0.7405, \texttt{BASE+species}, to 0.738 under this chapter's
+current engine, an increase of around 0.3\% -- a smaller gap than the superseded one-shot
+architecture's own 2.5\% cost, since switching to direct regression recovers most of that
+difference) -- a modest, reportable cost rather than a disqualifying one. A further
+fertiliser-variable extension (\texttt{FX\_A\_SPECIES + fertiliser v2}), tested against the earlier
+one-shot architecture, did not improve on it and was not adopted, consistent with this project's
+general finding that fertiliser-related features add little once a richer base feature set is
+already present (Section 6.5.2); it has not been retested against the current
+\texttt{Direct\_TabICLv2\_solo\_trend} engine, and is not expected to change that conclusion given
+the null result already found on the superseded architecture.
+
+\section{Inference with Simulated Climate Dataset}
+
+\subsection{Base Case}
+
+The scenario architecture's baseline case holds livestock stocking density, grazing pattern, and
+fertiliser schedule at their historically-observed day-of-year patterns, varying only the underlying
+climate trajectory (SSP pathway, GCM, and realisation) drawn from the bias-corrected CMIP6 series
+described above. This baseline is the reference point every induced perturbation below is measured
+against.
+
+\subsection{Induced Perturbations}
+
+\subsubsection{Livestock Density}
+
+Livestock density is varied along a four-point ladder, externally anchored rather than built from
+an arbitrary multiplier: the historically-observed baseline (1$\times$); half that density
+(0.5$\times$); a literature-informed stocking ceiling for UK grassland (drawn from stewardship
+stocking-density guidance); and each tower's own historical maximum observed density. Two variants
+are tested at each ladder rung: scaling all livestock species jointly, and scaling cattle alone
+(motivated by Section 6.2's finding that cattle specifically drives the livestock-density signal).
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Level & T2 (\% vs.\ baseline) & T4 (\% vs.\ baseline) & T9 (\% vs.\ baseline) \\
+\midrule
+Baseline (1$\times$) & -- & -- & -- \\
+Half (0.5$\times$), all species & $-27.1\%$ & $-14.7\%$ & $-27.0\%$ \\
+Half (0.5$\times$), cattle alone & $-24.6\%$ & $-14.0\%$ & $-17.6\%$ \\
+Literature ceiling, all species & $+4.5\%$ & $+0.9\%$ & $-2.6\%$ \\
+Literature ceiling, cattle alone & $-2.1\%$ & $+0.9\%$ & $-2.6\%$ \\
+Own historical max, all species & $+98.7\%$ & $+137.8\%$ & $+182.9\%$ \\
+Own historical max, cattle alone & $+57.6\%$ & $+132.5\%$ & $+187.6\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Annual-mean FCH4 change relative to the historically-observed baseline, under the
+bias-corrected livestock-density ladder, this chapter's current
+\texttt{Direct\_TabICLv2\_solo\_trend} scenario engine.}
+\end{table}
+
+Each tower's own historical maximum livestock density sits in a different position relative to the
+literature ceiling used here, directly reflecting the differing management history described in
+Chapter~\ref{Chap2}: Tower 4 and Tower 9 have both, at points in their own record, exceeded the
+literature stocking ceiling used in this ladder, so their "own historical max" scenario represents a
+livestock density genuinely higher than the literature-informed reference point -- consistent with
+NWFP's identity as an intensively-managed research platform rather than a typical extensive UK
+grassland site (Chapter~\ref{Chap2}). Tower 9's negative response at the literature-ceiling rung
+($-2.6\%$) is the clearest signature of this: scaling Tower 9's livestock \emph{down} to the
+literature ceiling actually reduces projected FCH4 relative to baseline, because Tower 9's real
+historical stocking density already sits above that ceiling. Tower 2's own historical maximum, by
+contrast, never reached this literature ceiling, reflecting its distinct land-use history (the
+permanent-pasture-to-arable conversion described in Section 3.2.1). The literature-ceiling reference
+value used to produce the table above is 2.5 LSU/ha, drawn from UK Countryside Stewardship
+stocking-density guidance (Annex 8, non-Severely-Disadvantaged-Area land).
+
+The scaling response is not uniformly weaker at Tower 2 across every rung of this ladder: at the
+"half" and "literature-ceiling" rungs, Tower 2's proportional swing is comparable to, or larger
+than, Towers 4 and 9's -- a consequence of Tower 2's much smaller absolute baseline (27.7 kg
+CH4~ha\textsuperscript{-1}~yr\textsuperscript{-1}, against 72.4 and 92.2 at Towers 4 and 9
+respectively, reported in full below), so the same absolute change in kg~ha\textsuperscript{-1} terms
+produces a much larger percentage swing off a smaller base, not evidence of a stronger underlying
+livestock response. At the "own historical maximum" rung specifically -- the most extreme, and the
+only rung anchored to each tower's own real management history rather than an external reference --
+Tower 2's response is decisively and consistently weaker than Towers 4 or 9's ($+98.7\%$ against
+$+137.8\%$ and $+182.9\%$), consistent with Tower 2's established livestock-blindness
+(Chapter~\ref{Chap4}, Section 4.5.3.1; Chapter~\ref{Chap5}, Section 5.3.4) -- a real model-behaviour
+finding independently confirmed here for a fourth time, under a different model architecture and
+different climate driver source than every prior confirmation, though this dissertation is explicit
+that the effect is rung-dependent rather than uniform across the whole ladder.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Figures/ch6_livestock_ladder_trajectory.png}
+\caption{Monthly-mean projected FCH4 to 2050 under the livestock-density ladder (SSP2-4.5, one
+representative GCM/realisation), all three towers, this chapter's current scenario engine.
+Own-historical-max visibly separates from the other three rungs at every tower.}
+\end{figure}
+
+\FloatBarrier
+
+\paragraph{Annual CH4 generation in absolute terms.}
+
+The percentage changes above are all relative to each tower's own historical baseline, which
+differs sharply in absolute magnitude across towers and can make a small absolute change look large,
+or vice versa (the literature-ceiling discussion above is one direct example). The livestock-density
+ladder is reported below in absolute annual CH4 generation terms instead:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lccc}
+\toprule
+Level & T2 (kg~ha\textsuperscript{-1}~yr\textsuperscript{-1}) & T4 (kg~ha\textsuperscript{-1}~yr\textsuperscript{-1}) & T9 (kg~ha\textsuperscript{-1}~yr\textsuperscript{-1}) \\
+\midrule
+Baseline (1$\times$) & 27.7 & 72.4 & 92.2 \\
+Half (0.5$\times$), all species & 20.2 & 61.7 & 67.3 \\
+Literature ceiling, all species & 29.0 & 73.0 & 89.7 \\
+Own historical max, all species & 55.1 & 172.1 & 260.7 \\
+\bottomrule
+\end{tabular}
+\caption{Projected annual CH4 generation (kg CH4 per hectare per year) under the livestock-density
+ladder, SSP2-4.5, this chapter's current scenario engine.}
+\end{table}
+
+In absolute terms, Tower 9's baseline and own-historical-max generation both exceed Tower 4's, which
+in turn exceeds Tower 2's, at every rung of the ladder -- the same tower ordering the percentage
+table above can obscure at the smaller rungs. Own-historical-max remains the largest single lever
+tested anywhere in this chapter in absolute terms too, reaching 260.7 kg~ha\textsuperscript{-1}~yr\textsuperscript{-1}
+at Tower 9, nearly three times its own baseline.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Figures/ch6_annual_ch4_livestock.png}
+\caption{Projected annual CH4 generation (kg CH4 per hectare per year) under the livestock-density
+ladder, SSP2-4.5, all three towers. Grazing-timing and fertiliser-schedule perturbations (Section
+6.5.2) produce the analogous absolute-terms figures, not reproduced here since their percentage
+effects are already small (Table above, Section 6.5.2).}
+\end{figure}
+
+\FloatBarrier
+
+\subsubsection{Grazing Timing and Fertiliser Schedule}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lccc}
+\toprule
+Intervention & T2 & T4 & T9 \\
+\midrule
+Extend grazing season by 4 weeks & $-3.8\%$ & $+19.9\%$ & $+19.9\%$ \\
+Fertiliser frequency $+50\%$ & $-8.2\%$ & $-0.1\%$ & $\approx 0\%$ \\
+Fertiliser rate $+50\%$ & $-1.7\%$ & $-2.0\%$ & $\approx 0\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Annual-mean FCH4 change relative to baseline under grazing-timing and fertiliser
+perturbations (SSP2-4.5), this chapter's current \texttt{Direct\_TabICLv2\_solo\_trend} scenario
+engine.}
+\end{table}
+
+Two further management perturbations are tested against the same bias-corrected climate driver
+pipeline. Shifting the grazing season four weeks later still produces a real, monotonic increase in
+projected FCH4 at Towers 4 and 9 (+19.9\% each, materially larger than this same perturbation's
++18.6\% under the earlier one-shot scenario engine, though the qualitative conclusion -- a real,
+management-actionable lever -- is unchanged). Tower 2's response, however, \emph{reverses sign}
+under this chapter's current engine: $-3.8\%$, against $+3.8\%$ under the earlier architecture. This
+dissertation reports this reversal directly rather than smoothing over it: Tower 2's grazing response
+was already the smallest-magnitude and least livestock-driven result in this table under the
+earlier architecture, consistent with Tower 2's established livestock-blindness
+(Chapter~\ref{Chap4}, Section 4.5.3.1; Chapter~\ref{Chap5}, Section 5.3.4), so a sign flip at this
+small a magnitude is consistent with Tower 2 genuinely lacking a stable livestock-driven signal to
+extend, rather than the underlying architecture change producing a materially different real-world
+finding -- Towers 4 and 9's own management-actionable conclusion is unaffected either way. Fertiliser
+schedule perturbations (a 50\% increase in either application frequency or per-event rate) produce a
+small, still sign-inconsistent-across-towers effect, now reaching as much as $-8.2\%$ at Tower 2
+(frequency) rather than the earlier architecture's $-3.5\%$ -- a larger magnitude than before, but
+still consistent with this project's standing conclusion that fertiliser timing carries little
+independent signal once livestock density and the richer base feature set are already present, and
+still the smallest management lever tested in this chapter for Towers 4 and 9 specifically ($\leq
+2.0\%$ in either direction). Separately, the SSP2-4.5 vs.\ SSP5-8.5 pathway divergence is small
+relative to every management perturbation above throughout most of the projection horizon, though it
+grows toward the end of the horizon and reaches its largest value at Tower 2 (approximately 2.9\%
+divergence late in the horizon) -- a minor lever next to the livestock and grazing-timing effects
+reported above, but not strictly negligible everywhere.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=\textwidth]{Figures/ch6_grazing_trajectory.png}
+\caption{Monthly-mean projected FCH4 to 2050 under the grazing-timing shift (SSP2-4.5, one
+representative GCM/realisation), all three towers, this chapter's current scenario engine. The
+shifted-timing curve sits visibly above the historical-timing curve at Towers 4 and 9, and is
+slightly below it at Tower 2.}
+\end{figure}
+
+\FloatBarrier
+
+\section{Limitations}
+
+Three limitations apply specifically to this chapter's scenario projections, beyond the general
+absence of ground truth stated in its opening framing.
+
+First, TabICLv2's extrapolation behaviour under genuine distribution shift has not been formally
+stress-tested to the standard Chapter~\ref{Chap5}'s uncertainty-quantification stress test applied
+to the production ensemble -- TabICLv2 was not part of that model roster, and this chapter's
+livestock-ladder sweep, while exposing the model to out-of-historical-range livestock density, is a
+behavioural probe rather than a controlled extrapolation test with any ground truth to check
+against. TabICLv2 belongs to the TabPFN-family of in-context tabular models, a family with a
+documented structural extrapolation limitation under genuine distribution shift
+(Section~\ref{sec:tabular-modelling}). One narrower piece of this concern was checked directly rather
+than left as an open risk: the current engine's trend covariate (Section 6.4.3) is fitted on roughly
+2018--2025 data and queried out to 2050, a genuine extrapolation in time, and a direct sanity check
+found it saturates to a bounded, plausible value rather than diverging when queried decades past its
+own training range. This is reassuring for the time-trend extrapolation specifically, but it is a
+single, targeted check on one covariate, not a substitute for a full stress test of the model's
+behaviour under livestock-density or climate-driver distribution shift -- the two forms of
+extrapolation this chapter's scenarios actually rely on most heavily. This remains a limitation of
+this chapter's headline result specifically, not a secondary footnote, since the livestock-density
+and climate scenarios reported above are precisely the kind of distribution shift this limitation
+concerns.
+
+Second, no diagnostic available to this dissertation can detect a smooth-but-confidently-wrong
+extrapolation. This is a structural gap rather than a tooling gap that could simply be built:
+historical PICP (Chapter~\ref{Chap5}) measures calibration only at real, historically-anchored
+points, and cannot be computed at all for a genuine future scenario, since no future ground truth
+exists to check against; a narrow prediction interval width is fully compatible with a confidently
+wrong extrapolation; and GCM/realisation spread (Section 6.3) measures sensitivity to the climate
+input alone, not error in the underlying model's own extrapolation. One further distinction is
+stated explicitly here to avoid it being misread elsewhere in this dissertation: prediction
+intervals were successfully generated for over 99\% of eligible scenario rows in this chapter's
+pipeline, but this is \emph{interval availability} (the pipeline ran without failure), not
+\emph{empirical coverage} -- it says nothing about whether those intervals are actually well
+calibrated under scenario conditions, for exactly the reason given above.
+
+Third, the CMIP6-vs-NWFP historical mismatch identified in Section 6.4.1 is a real, separate
+limitation independent of model choice -- it reflects a genuine discrepancy between the global
+climate model ensemble's own historical baseline and NWFP's real local climate record, corrected for
+as best this dissertation can (Section 6.4.1), but not eliminated as a source of residual
+uncertainty in the corrected driver series feeding every result in Section 6.5.

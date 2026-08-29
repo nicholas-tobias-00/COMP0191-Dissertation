@@ -1,0 +1,125 @@
+\chapter{Background and Related Work} \label{Chap2}
+
+\section{North Wyke Farm Platform}
+
+The North Wyke Farm Platform (NWFP), operated by Rothamsted Research in Devon, UK, comprises three
+hydrologically isolated, intensively-monitored grazed grassland catchments -- referred to
+throughout this dissertation as Towers 2, 4, and 9 -- each instrumented with an Eddy Covariance
+(EC) flux tower since 2017--2018. The three catchments are managed as beef-cattle farmlets under a
+shared research programme, and NWFP's broader research output, including EC-based flux studies of
+CO\textsubscript{2} \cite{cardenas2022} and spatial variability in greenhouse gas fluxes at
+comparable UK sheep-grazed pastures \cite{charteris2021spatial}, positions it as a long-running,
+representative case study of intensively-managed UK grassland livestock systems rather than a
+single, idiosyncratic site. NWFP has also been the subject of prior quantile-machine-learning work
+on soil moisture \cite{oulaid2025} and animal-scale methane prediction from the platform's GreenFeed
+system \cite{partridge2024}, and is explicitly named as a candidate site for a farm-scale digital
+twin \cite{fakeye2024}. Full technical specifications of the dataset used in this dissertation --
+catchment areas, sensor configurations, and coordinates -- are given in Chapter~\ref{Chap3}.
+
+\section{Eddy Covariance Measurement of FCH4 and Other Gases}
+
+\subsection{Gap-Filling Methodology and Its Difficulty}
+
+The EC-ML literature for CH\textsubscript{4} flux prediction is dominated by tree-based ensemble
+methods. Irvin et al.\ established a benchmark across 17 FLUXNET-CH4 wetland sites, finding Random
+Forest and XGBoost superior to Artificial Neural Networks and penalised linear regression across
+all biomes, with soil temperature the most important predictor, and documented that raw ML
+uncertainty estimates were systematically underestimated across every site tested
+\cite{irvin2021}. Kim et al.\ confirmed Random Forest dominance across five wetland and rice paddy
+sites, adding that lagged environmental variables improve CH\textsubscript{4} prediction
+substantially more than CO\textsubscript{2} does \cite{kim2020}. Zhu et al.\ extended these
+findings to challenging ecosystems including UK managed pastures, validating Random-Forest-based
+gap-filling over Marginal Distribution Sampling (MDS) as the recommended approach for precisely
+the ecosystem type studied at NWFP \cite{zhu2023a}, and Kheradmand et al.\ confirm a similar
+pattern for CO\textsubscript{2} gap-filling at grassland and cropland sites using tower-based EC
+data \cite{kheradmand2023}. Across this literature, the models used are almost exclusively simple
+ANN and tree-based ensembles -- a contrast this chapter returns to in
+Section~\ref{sec:tabular-modelling}.
+
+\subsection{Lack of Forecasting/Scenario-Projection Work in This Sector}
+
+This literature is nonetheless answering a different question from the one this dissertation
+asks. Gap-filling is a within-distribution interpolation task: a model reconstructs missing
+observations inside a known regime, using both past and future context around the gap. Forecasting
+is sequential extrapolation: a model predicts forward from real or previously-predicted history
+alone, with no access to future context, and temporal dependencies become the dominant modelling
+challenge rather than a secondary concern. Every gap-filling benchmark reviewed above answers the
+former question; none addresses the latter. To the author's knowledge, no prior study has applied
+ML-based forecasting to EC CH\textsubscript{4} flux at a managed temperate grassland -- this is the
+central gap this dissertation addresses.
+
+\section{Towards Digital Twins and the What-If Simulation Gap}
+
+Agricultural digital twins are difficult to build precisely because agricultural systems are
+living, weather-dependent, and non-stationary, unlike the controlled, deterministic environments
+industrial digital twins are usually built for. Purcell and Neubauer's systematic review of
+agricultural digital twins finds that what-if scenario simulation -- the capability that would
+transform a digital twin from a monitoring tool into a decision-support system -- remains
+critically absent across the field \cite{purcell2023state}. Fakeye et al.\ propose a three-tier
+digital twin architecture specifically for NWFP and name CH\textsubscript{4} forecasting as a
+missing module within it \cite{fakeye2024}. Four components motivate this dissertation's response
+to that gap:
+
+\begin{enumerate}
+    \item \textbf{Forecasting} -- as established in Section 2.2.2, this gap exists independently
+    of any digital-twin framing.
+    \item \textbf{Scenario projection} -- the specific what-if capability Purcell and Neubauer
+    identify as missing.
+    \item \textbf{Interpretability} -- Buzacott et al.\ demonstrate via Shapley-value analysis
+    that raw predictive accuracy can mask a highly entangled multi-driver dependency in
+    CH\textsubscript{4} emissions \cite{buzacott2024}; Sharma et al.\ caution that models lacking
+    site-specific calibration frequently miss episodic, high-emission events \cite{sharma2026};
+    Fuchs et al.\ show that ignoring discrete management interventions leads to systematic
+    under-prediction of peak emission fluxes \cite{fuchs2020}.
+    \item \textbf{Uncertainty quantification} -- anchored on Irvin et al.'s finding that raw ML
+    uncertainty is systematically underestimated \cite{irvin2021}: a model that performs well on
+    average but misrepresents its own confidence is not safe to use for scenario-based
+    decision-support.
+\end{enumerate}
+
+\section{Recent Developments in Tabular Modelling Approaches}
+\label{sec:tabular-modelling}
+
+Section 2.2.1 shows the EC-ML gap-filling literature is dominated by simple ANN and tree-based
+ensembles. A newer generation of tabular and sequence architectures, not yet applied in this
+domain, motivates the model roster benchmarked in Chapters~\ref{Chap4} and~\ref{Chap5}.
+
+\subsection{Tabular Foundation Models}
+
+TabPFN-family foundation models are pretrained on large volumes of synthetic tabular data and make
+predictions via in-context learning at inference time, without any dataset-specific parameter
+fitting. TabICL extends this approach to substantially larger tables via a two-stage
+column-then-row attention architecture \cite{qu2025tabicl}, and TabICLv2 further improves
+generalisation and pretraining efficiency \cite{qu2026tabiclv2}. Hoo et al.\ extend the underlying
+TabPFN-v2 model to time-series forecasting by treating it as a tabular regression problem with
+lightweight temporal featurisation \cite{hoo2026tabpfnts} -- the same family of models this
+dissertation applies to CH\textsubscript{4} forecasting (Chapter~\ref{Chap5}) and scenario
+projection (Chapter~\ref{Chap6}), and a family with a documented structural limitation under
+genuine distribution shift, returned to in Chapter~\ref{Chap6}'s discussion of extrapolation risk.
+
+\subsection{Sequence Architectures and the Attention-vs-Linear Debate}
+
+Whether architectural sophistication translates into forecasting accuracy is itself an open
+question in the wider time-series literature. Zeng et al.\ demonstrate across nine standard
+long-term forecasting benchmarks that a set of embarrassingly simple linear models outperform
+sophisticated Transformer-based architectures, attributing the failure to permutation-invariant
+self-attention destroying temporal ordering information \cite{zeng2023}. Montero-Manso and Hyndman
+further show that global forecasting methods -- a single model fit across many related series --
+can match or exceed local, per-series methods without assuming similarity between series
+\cite{montero2021global}, directly relevant to this dissertation's pooled and per-tower model
+comparisons. Together, this literature cautions against assuming any one architecture family will
+win in advance, motivating the identical-conditions benchmarking pipeline adopted throughout this
+dissertation.
+
+\section{Synthesis and Gap Statement}
+
+Read together, this literature establishes that ecosystem-scale CH\textsubscript{4} forecasting at
+a managed temperate grassland is unaddressed: gap-filling benchmarks are mature but answer a
+structurally different question (Section 2.2); what-if scenario simulation is a named, open gap in
+the agricultural digital twin literature (Section 2.3); and the newer tabular and foundation model
+families capable of addressing both problems have not yet been applied in this domain
+(Section~\ref{sec:tabular-modelling}). To the author's knowledge, no prior study has applied
+ML-based forecasting to EC CH\textsubscript{4} flux at a managed temperate grassland. This
+dissertation's specific combination -- tabular and foundation models, applied to forecasting,
+scenario projection, interpretability, and uncertainty quantification together, at a representative
+UK managed grassland site -- is the necessary and appropriate response to that gap.

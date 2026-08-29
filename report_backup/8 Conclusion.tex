@@ -1,0 +1,76 @@
+\chapter{Conclusion} \label{Chap8}
+
+\section{Summary and Contribution}
+
+This dissertation set out, against the five objectives stated in Chapter~\ref{Chap1}, to develop
+and evaluate machine learning approaches for CH\textsubscript{4} forecasting at the North Wyke Farm
+Platform and to demonstrate their integration with scenario projection under contrasting management
+and climate conditions. Each objective has been met directly: a systematic review of the relevant
+literature (Chapter~\ref{Chap2}) established that ecosystem-scale CH\textsubscript{4} forecasting at
+a managed temperate grassland was, to the author's knowledge, previously unaddressed; NWFP's EC
+CH\textsubscript{4} record was acquired, corrected, and gap-filled to a continuous series
+(Chapter~\ref{Chap3}, Chapter~\ref{Chap4}); a benchmarking pipeline spanning statistical baselines,
+tree ensembles, and tabular foundation models was designed and evaluated under temporal
+cross-validation throughout (Chapter~\ref{Chap4}, Chapter~\ref{Chap5}); interpretability and
+uncertainty quantification were applied across every stage (Chapter~\ref{Chap4},
+Chapter~\ref{Chap5}, Chapter~\ref{Chap6}); and synthetic management and climate scenarios were
+generated and evaluated against the resulting models (Chapter~\ref{Chap6}).
+
+The research questions posed in Chapter~\ref{Chap1} are each answered directly by this work. RQ1's
+survey of ML approaches for CH4 gap-filling and its distinction from multi-step forecasting is
+answered in Chapter~\ref{Chap2}: gap-filling and forecasting are structurally different problems,
+and forecasting at this ecosystem scale had no prior treatment in the literature. RQ2's comparison
+of statistical baselines, tree ensembles, and deep learning under NWFP's own temporal variability is
+answered in Chapters~\ref{Chap4} and~\ref{Chap5}: tabular foundation models lead, tree ensembles
+follow closely, and deep sequence models trail, for the two separable reasons established in
+Chapter~\ref{Chap7}. RQ3's question of transferability from adjacent domains is answered throughout
+Chapter~\ref{Chap4}: some published findings (Random Forest beating MDS, ANN's competitiveness at
+longer gaps) replicate cleanly at NWFP, while others (PCA degrading ML performance) do not,
+underscoring that findings from wetland and rice-paddy sites do not transfer uniformly to managed
+UK grassland. RQ4's question of how interpretability and uncertainty quantification decode the
+interaction between continuous environmental drivers and discrete management events is answered by
+this dissertation's single most robust finding, discussed below. RQ5's question of the structural
+requirements for integrating forecasting into scenario-based "what-if" analysis is answered by
+Chapter~\ref{Chap6}'s working scenario architecture and, equally importantly, by the structural
+limitations that architecture surfaces (Section 7.2) -- what such a system requires is now
+considerably better understood than it was at the outset of this project, including where it
+currently falls short.
+
+If this dissertation is remembered for a single finding, it should be this one: \textbf{livestock
+density is the dominant driver of CH\textsubscript{4} flux at NWFP, and this is not a fragile,
+single-method result.} It recurs independently across gap-filling feature importance, forecasting
+SHAP attribution and permutation importance, SARIMAX regression coefficients, and scenario
+projection's own livestock-ladder response -- genuinely different methods, different model
+architectures, and different chapters of this dissertation, each arriving at the same answer
+independently. Most empirical work produces one headline number and hopes it survives scrutiny; this
+project instead produced a finding that shows up no matter which door is used to go looking for it.
+
+Alongside the modelling results, this dissertation's evaluation-methodology corrections deserve
+explicit credit rather than being read as small next to the headline model numbers, since several of
+them were larger in effect than any single feature-engineering gain in the entire project. Tower 2's
+evaluation-protocol fix alone (Section 4.4.3) moved its gap-filling sklearn $R^2$ from $-16.9$ under
+an early, seasonally-mismatched train/test split to a positive result under the corrected
+full-period gap-CV protocol used throughout Chapter~\ref{Chap4}'s improved pipeline
+(Section 4.5.3.1) -- a bigger single
+correction than any feature added across the whole gap-filling programme. The reversal from
+single-anchor to multi-anchor rollout evaluation is a genuine, non-obvious methodological lesson in
+its own right, not a footnote: single-anchor rankings in this project's own preliminary work proved
+unreliable and would have supported different conclusions had they been trusted. And catching the
+observed-versus-gap-filled-target scoring circularity (Section 5.1.3) before it was allowed to
+corrupt a headline forecasting claim is exactly the kind of methodological rigour that is easy to
+skip and expensive to get wrong.
+
+Finally, it is worth being precise about what this dissertation has, and has not, shown. On
+gap-filling, this project has demonstrated a significant, benchmarked improvement over traditional
+methods such as MDS and plain RFm, achieved through a combination of tabular foundation models and a
+substantially richer feature set than the published baselines this work replicates. On forecasting,
+this project has generated models that reliably beat naive and climatological baselines, but does
+not yet produce fully trustworthy point forecasts, particularly during the high-magnitude spike
+events that dominate CH\textsubscript{4}'s error budget throughout this dissertation. Scenario
+projection, in turn, demonstrates that the resulting architecture can produce distinguishable,
+interpretable projections under contrasting management and climate conditions, while carrying the
+structural limitation that no future scenario can ever be checked against ground truth. Taken
+together, this dissertation delivers a benchmarked, uncertainty-quantified, and interpretable
+foundation for CH\textsubscript{4} forecasting and scenario projection at a managed UK grassland
+site that did not previously exist in the literature -- not a finished, deployment-ready forecasting
+system, but a substantial and honestly-bounded step toward one.

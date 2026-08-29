@@ -2197,3 +2197,1829 @@ D-70 (S-03, the driver-availability ablation this is distinct from),
 realization_spread,aoa_trend,aoa_early_vs_late,hybrid_vs_benchmark_raw,hybrid_vs_benchmark_summary,
 hybrid_vs_benchmark_response}.csv`, `results/figures/s04_summary/*.png`,
 `results/figures/s04_chains/` (180 figures, pre-existing).
+
+---
+
+### D-83 -- 2026-08-08 -- S-03 brought up to speed: climatology MASE (D-80), TabICL-sourced data
+(D-79), full 11-model roster wired into the notebook -- plus an unplanned, more consequential
+finding about TabICL as a forecasting *training target* specifically
+
+**Context:** user asked for S-03 (D-70, the driver-availability ablation) to be updated three
+ways: (1) MASE baseline switched to climatology, matching D-80's project-wide convention change
+(persistence -> climatology) that postdates S-03's original run by three weeks; (2) rerun on the
+latest imputed data (TabICL-sourced gap-filling, D-79); (3) full model roster (TabPFN/TabICLv2/DL)
+-- which already existed as a standalone addendum script (`s03_model_roster_extension.py`,
+2026-07-15) but had never actually been wired into `S03_driver_availability_ablation.ipynb`
+itself.
+
+**Implementation.** `s03_driver_availability_ablation.py` and `s03_model_roster_extension.py` both
+gained a `climatology_baseline()` helper (day-of-year climatology from strictly pre-anchor real
+`y_observed`, same recipe as `b10_b13_climatology_baseline.py`) used in place of
+`rr.chain_persistence()` for every MASE/RMSSE call; the persistence series is still saved in chain
+output for reference, just no longer the denominator. Both scripts also gained a `daily_csv`
+parameter so Variant A/B can run against `forecast_daily_v2_tabicl.csv` (confirmed via direct diff
+to be schema-identical to `forecast_daily_v2.csv` -- only `y_gapfilled`/`ar_ch4_*` differ, every
+`fx_` driver and `y_observed` are byte-identical).
+
+**A design tension resolved along the way, not left implicit.** S-03's "Model 1" was always read
+from an existing, never-rerun table (D-65, RF-sourced, persistence-scored). Swapping only Variant
+A/B to TabICL-sourced data while leaving Model 1 on the old table would reintroduce exactly the
+data-source/feature-availability conflation S-03 exists to avoid (isolating one axis of variation
+at a time is the entire point of this experiment). Fixed by recomputing Model 1 too, wherever a
+TabICL-sourced daily file makes that possible, via the SAME code path as the real ablation
+(`remove_cols=[]`/`resample_cols=[]`/`degraded_cols=[]` collapses both variants to an identical
+full-feature/no-substitution config) -- not a separately-written "similar" computation. TFT/
+DLinear/LSTM read the hourly `forecast_features_v2.csv`, which has no TabICL-sourced sibling
+anywhere in this project (`build_forecasting_matrix_v2_tabicl.py`'s own docstring: "hourly does
+not depend on the gap-filled CH4 series at all") -- these 3 stay RF-sourced throughout (Model 1
+*and* Variant A/B), an unavoidable data-availability limit, not a gap introduced here. Their
+Variant A/B predictions are unaffected by either requested change (climatology is scoring-only;
+there is no TabICL data to swap to), so they were rescored from the already-saved chains
+(`s03_model_roster_extension_chains_dl.csv`) rather than retrained for a metric-only update.
+
+New committed orchestrator script, `s03_climatology_tabicl_update.py` (~21 min full run, both
+halves smoke-tested first): (1) tree/SARIMAX/ensemble Variant A/B on TabICL data, (2) the same
+architecture's Model-1-equivalent on TabICL data, (3-4) the same pair for TabPFN/TabICLv2, (5)
+climatology-rescoring of the existing DL chains, (6) assembling the full 11-model Model1/VariantA/
+VariantB tables for both targets (`results/s03_table_all_towers_climatology_tabicl.csv` /
+`_by_tower_climatology_tabicl.csv`). Wired into `S03_driver_availability_ablation.ipynb` as new
+cells (loads the pre-computed tables, does not re-execute the 21-minute sweep inline, matching the
+project's established script-does-the-heavy-lifting pattern); notebook re-executed clean end to
+end via `nbconvert`.
+
+**Result 1 (the two requested changes): the original driver-availability finding replicates
+qualitatively unchanged.** For every one of the 11 models, Variant B (resample) still beats or is
+within noise of Model 1 on MASE, and the removal/resample ordering matches the original
+persistence-scored, RF-sourced run (TFT remains the one genuine reversal; TabICLv2 remains a close
+wash). Driver degradation itself still does not cost material accuracy under either the
+climatology-baseline switch or the TabICL data swap -- that headline is robust to both changes
+tested here.
+
+**Result 2 (unplanned, and more consequential than either requested change): TabICL-sourced
+gap-filling is a substantially worse *training target* for the tree/SARIMAX/ensemble family,
+well beyond D-80's earlier (softer) finding.** D-80 found TabICL-sourced *context* makes
+TabPFN/TabICLv2 forecasting modestly worse (MASE +0.05 to +0.10, persistence-scored). Here,
+RF/XGB/LightGBM/SARIMAX/the 2 ensembles -- which train directly ON `y_gapfilled` as their fitting
+target, not just condition on it -- show a much larger absolute MASE increase (roughly 1.3-2.5x
+the original RF-sourced numbers, e.g. RF Model1 climatology-MASE 2.270 on TabICL data vs. an
+apples-to-apples ~0.84-1.06 range on RF-sourced data checked directly in this session) at all 3
+towers, not just the towers with sparse real coverage (T4, the best-covered tower, shows the
+single largest absolute jump). **Mechanism, confirmed directly (not inferred)**: TabICL's
+gap-filled CH4 series sits at a substantially different mean level than RF's at every tower (T2:
+54.2 vs. 19.4; T4: 33.7 vs. 30.0; T9: 72.2 vs. 36.7 -- vs. real `y_observed` means of 30.8/29.5/
+36.1 respectively) -- training a regression target directly on a differently-calibrated series
+propagates that miscalibration into every prediction, a much larger effect than merely using it as
+historical *context* for a zero-shot foundation model (which is invariant to this, since
+TabPFN/TabICLv2 always condition on real `y_observed`, never `y_gapfilled`). TFT/DLinear/LSTM (no
+TabICL data available at all) are entirely unaffected, confirming the effect is specific to models
+that fit `y_gapfilled` directly.
+
+**Outcome: independently confirms and extends D-80's own conclusion** ("the standing forecasting
+champion is unchanged -- D-79's better gap-filling is a real, useful result for gap-filling
+itself, but does not transfer to forecasting"). It now also does not transfer to the tree/SARIMAX/
+ensemble family, and the failure mode there is considerably more severe than the
+foundation-model-context case D-80 already flagged. **RF-sourced gap-filling remains the right
+choice for every model family this project forecasts with** -- no change to the standing
+recommendation, but a sharper, independently-derived reason why for the tree/SARIMAX/ensemble
+family specifically. No `BEST_RESULTS.md` change (S-03 remains a diagnostic result, not a
+production-config input, per D-70's own framing). See D-80, D-79, D-70, D-71, D-37,
+`notebooks/07_scenario_analysis/s03_driver_availability_ablation.py`,
+`s03_model_roster_extension.py`, `s03_climatology_tabicl_update.py`,
+`S03_driver_availability_ablation.ipynb`, `s03_results.md` (second addendum),
+`results/s03_table_all_towers_climatology_tabicl.csv`, `s03_table_by_tower_climatology_tabicl.csv`.
+
+**Addendum -- 2026-08-13 -- correction to an explanatory (not tabular) error, caught by direct
+user question ("are you sure this is correct? refer back to B16 and B15").** When later asked why
+this table's `Ensemble_unweighted` MASE (1.454) looked so much worse than the standing B16/F-10
+result (0.809, `results/b09_b16_climatology_mase_full_table.csv`, `BASE+ALL` config), an initial
+verbal explanation used that 0.809 number as an "isolate the metric-convention effect alone"
+reference point -- **invalid**: 0.809 runs on F-10's v3/`BASE+ALL` feature set, while this entire
+addendum's harness (confirmed directly in `s03_driver_availability_ablation.py`) defaults to the
+older v2 feature set throughout, so that comparison silently changed two variables (feature set
+AND metric convention) instead of one. **The table above and every number in it is unaffected and
+correct** -- only the verbal decomposition was wrong. Corrected via a clean, purely arithmetic
+same-feature-set (v2) isolation, no new model calls: since `climatology_baseline()` depends only
+on real `y_observed` (confirmed byte-identical between the RF-sourced and TabICL-sourced daily
+files), its own MAE can be backed out of the already-computed TabICL-sourced+climatology table
+and reapplied to the RF-sourced+persistence file's own saved MAE (mirrors D-80's own rescoring
+technique exactly). Result, `Ensemble_unweighted`: RF-sourced+persistence 0.936/0.900
+(VarA/VarB) -> RF-sourced+climatology 0.736/0.717 (climatology alone genuinely improves it, as
+D-80 predicts, and lands in the same healthy ballpark as B16's own 0.809 -- different feature set,
+same order of magnitude) -> TabICL-sourced+climatology 1.346/1.250 (climatology held fixed; the
+real, isolated TabICL-sourced-data effect). **Confirms the headline finding is not just intact but
+better evidenced** -- the 1.3-2.5x degradation is entirely the TabICL-sourced-data swap, not a
+contradiction of B16's real (unaffected) production-relevant Ensemble result. Full table (all 6
+tree/SARIMAX/ensemble models) in `results/s03_rf_sourced_climatology_isolation.csv`;
+`s03_results.md`'s Result-2 section updated with the corrected isolation table and an explicit
+cross-reference to B16's own number, to prevent the same confusion for future readers.
+
+---
+
+### D-84 -- 2026-08-08 -- S-05: TabICLv2 + S-03's Variant A + F-10's species split, run as a
+10-year transient CMIP6 trajectory with independent per-species livestock multipliers
+
+**Context:** live-discussion follow-up to D-83/S-03. User asked whether S-03's Variant A
+(driver-removal) could be run further out than S-03's own 365-day horizon. Key realization,
+corrected mid-discussion: TabICLv2 is a one-shot foundation model (same architecture as
+`tabpfn_forecast()` -- a single forward pass over however long a target window is given), not a
+recursive day-by-day rollout, so extending its horizon doesn't carry a tree/SARIMAX rollout's
+compounding-error risk. Initial framing ("we don't have 10 years of real driver data") was wrong
+and corrected by the user: `data/Simulated Climate Data/` (Semenov et al. CMIP6/LARS-WG, 2020-2090,
+5 GCMs x 3 SSPs x 100 realizations) is exactly the dataset `build_transient_scenario_drivers.py`
+already draws from for S-04, and S-03's Variant A feature set (10 columns: TA/SWIN/PRECIP/DOY/
+season/livestock) is almost exactly what that CMIP6 data can supply directly -- a clean fit, not a
+new data-engineering problem.
+
+**Scope decision, user-confirmed after empirically measuring cost (not estimated).** User wanted
+S-05 scoped like S-04 (multi-GCM/realization/SSP sweep) AND wanted independent per-species
+livestock multipliers (Option B: cattle/sheep/lamb each scaled separately, 27 combos, not S-01/
+S-04's single shared scalar) -- explicitly chosen over the cheaper shared-multiplier option
+(Option A, 3 combos) to isolate species-specific effects. A single 10-year `tabicl_forecast()`
+call was timed directly before committing to a scope: ~3.8s cold. At S-04's full scale (3 towers x
+2 SSPs x 5 GCMs x 100 realizations x 27 combos = 81,000 calls), that would be ~85 hours --
+infeasible against the 1 Sept deadline. Presented 4 concrete scope options with measured/
+extrapolated wall-clock times via `AskUserQuestion`; user selected **10 realizations/GCM, both
+SSPs, full 27 combos** (~8.5h estimated, mirrors S-04's own precedent of cutting realization count
+for its B-10 diagnostic when it hit the same problem). Actual runtime: **2.54 hours** (steady-state
+per-call rate ~1.2-1.3s, faster than the cold-call estimate) -- 8,100 calls, 0 skipped/failed.
+
+**Implementation, additive only.** New sibling module
+`src/features/build_transient_scenario_drivers_species.py` (imports from, does not modify,
+`build_transient_scenario_drivers.py`): `FX_A_SPECIES` (13 cols) = S-03's own `FX_A` (10 cols) +
+F-10's 3 species-density columns (`fx_cattle_dens`/`fx_sheep_dens`/`fx_lamb_dens`) -- exactly the
+"BASE+species" config behind the standing `TabPFN+species` forecasting champion (D-67), applied to
+Variant A's narrower BASE. Independent per-species multipliers scale each species' own day-of-year
+climatology base (built from the FULL real historical record, matching S-04's own convention, not
+S-03's pre-anchor-only restriction -- no leakage risk for a genuinely blind trajectory);
+`fx_lsu_dens` is rebuilt as the exact LSU-weighted sum (`1.0*cattle + 0.1*sheep + 0.05*lamb`) under
+every combo, preserving F-10's own construction identity. New script
+`notebooks/07_scenario_analysis/s05_trajectory_10yr.py` anchors each tower at its own last real
+`y_observed` date (T4/T9: 2023-12-29; T2: 2019-05-31, its usual data-scarce anchor -- matches
+S-01/S-04's end-of-real-data convention, not S-03's mid-history anchors, since there's no real
+future to leak from for a genuinely blind trajectory), precomputes each tower's AOA threshold ONCE
+(not per scenario call, which `scenario_hybrid.dissimilarity_index()`'s own naive per-call
+recomputation would have made a real cost at 8,100 calls).
+
+**Result 1: species response is highly asymmetric -- cattle dominates far beyond its own
+LSU-weight share.** Holding the other two species at 1x, tripling cattle ALONE roughly triples
+predicted FCH4 at T4 (+205.6%) and T9 (+195.6%); sheep/lamb stay under 25% even at 3x at every
+tower. Cattle contributes 74-88% of real historical `fx_lsu_dens` at these towers, but its share of
+the *response* is even higher than that -- the model has learned cattle-specific signal beyond
+what the single aggregate `fx_lsu_dens` feature alone could carry, the entire point of F-10's
+species split, now shown to hold at CMIP6-scenario scale, not just F-10's own real-historical-
+anchor signal check. Tower 2 is muted across every species (max +2.3%) -- consistent with its
+known different-regime status (D-18 lineage), not a new limitation.
+
+**Result 2: joint (all-3-species) scaling is close to additive at the best-covered tower, with one
+real exception.** T4's response to scaling all three species to 3x together is almost exactly the
+sum of each species' individual marginal effect (-0.2% synergy). T9 shows a real +8.8%
+super-additive effect. T2's -8.1% is not read as real -- its absolute deltas are too small (0.1-0.5
+nmol) for a percentage synergy figure to mean much there.
+
+**Result 3, the most consequential correction this session: realization/GCM spread is small once
+correctly isolated, but a first-pass metric mirroring S-04's own pooling convention was
+misleading, and this was caught and fixed before being reported, not left as a headline number.**
+Pooling year+realization+GCM together (S-04 Finding 1's own convention) gave 32-69% band-width-as-
+%-of-mean -- an order of magnitude larger than S-04's 1-5%. Investigated directly rather than taken
+at face value: a single fixed (GCM, realization, SSP) already ranges 9.98-15.46 across its own 10
+years at T4 -- the pooled number was dominated by genuine year-to-year weather variability, not by
+which of the 50 weather sequences was drawn (per-GCM means, pooled across realizations/years, sit
+within 13.11-13.29 of each other -- essentially identical). **Isolating the realization/GCM axis
+alone (fixed year) gives 2.4-6.6%** -- consistent with S-04's own finding. Read as a genuine,
+TabICLv2-specific architectural difference, not a contradiction: S-04's hybrid has an explicit
+smooth Ridge trend that damps year-to-year weather noise; TabICLv2 has no such backbone and is
+directly, much more strongly sensitive to which specific year's weather it's asked to predict
+from. Both `s05_realization_spread_pooled.csv` (conflated) and `_isolated.csv` (corrected) are
+kept, not just the corrected one, so the correction itself is visible in the record.
+
+**Result 4: AOA extrapolation risk is high in absolute level (62-68% flagged at every tower) but
+flat across the 10-year horizon** -- no evidence risk grows with horizon length, matching S-04's
+own Finding 3. The high absolute level vs. S-04's 9-15% is the concrete confirmation of S-04's own
+"AOA can be diluted by many in-range dimensions" hypothesis: S-05's feature space is deliberately
+narrow (13 columns, Variant A's whole point) vs. S-04's ~40+, so it dilutes less. Second
+independent confirmation (S-04 -> S-05) that AOA's absolute flagged-% depends heavily on
+feature-space breadth -- any AOA number from this project should be read with its feature-space
+dimensionality stated alongside it, not compared raw across experiments.
+
+**Result 5: SSP2-4.5 vs SSP5-8.5 divergence stays under 1% of the mean at every tower/window** --
+same order of magnitude as S-04, the SSP choice remains a minor lever relative to the livestock
+question.
+
+**Outcome: no change to any standing recommendation** (TabPFN+species remains the forecasting
+champion; RF-sourced gap-filling remains correct per D-83; B-10's ensemble / the S-01 hybrid remain
+the standing scenario-architecture choices) -- this is a diagnostic extension of S-03/F-10's own
+findings to a longer horizon and a species-disaggregated livestock lever, not a production-config
+change. Genuinely new, reportable findings: cattle-dominant species asymmetry (beyond its own
+LSU-weight share), near-additive joint scaling with one real T9 exception, and the
+realization-vs-year-variability decomposition (a methodological lesson worth carrying into any
+future TabICLv2-based scenario work: pool year and realization separately, don't conflate them
+into one "spread" number). See D-70, D-79, D-80, D-83, D-67, D-64,
+`src/features/build_transient_scenario_drivers_species.py`,
+`notebooks/07_scenario_analysis/s05_trajectory_10yr.py`, `s05_analysis.py`, `s05_results.md`,
+`S05_species_trajectory.ipynb`, `results/s05_trajectory_realizations.csv`.
+
+---
+
+### D-85 -- 2026-08-08 -- S-05 extended to 2050 + full daily chains saved for every scenario point
+
+**Context:** direct follow-up to D-84, same session. Two user requests, addressed together: (1)
+extend S-05's horizon from a fixed 10 years to **2050**, matching S-04's own endpoint; (2) save
+**full daily chains** for every one of the 8,100 calls, not just the annual mean the original run
+kept -- motivated by a smaller interim check (18-call representative subset, saved separately) that
+confirmed the within-year seasonal pattern looked physically sensible (T4 baseline: clear summer
+peak ~18 nmol m⁻² s⁻¹ in June, winter trough ~3 nmol in December, no negative predictions) and the
+user wanted that same daily-resolution view available for the complete grid, not just a subset.
+
+**Cost, measured before committing (not assumed cheap just because it sounds incremental).** A
+single 27-year call (T4/T9's new horizon: anchor 2023-12-29 to 2050) was timed directly at 4.07s,
+vs. ~1.2-1.3s for the original 10-year call -- the horizon extension, not the daily-chain save,
+is what dominates the new cost (T2's horizon is longer still: 2020-2050, 31 years). At the full
+8,100-call grid that's ~9h, not the original ~2.5h. Since compute was already the bottleneck
+either way, the daily-chain save was folded into the same run rather than done as a separate pass
+(I/O is negligible next to inference time) -- storage was measured too: 83,767,500 daily rows
+across the full grid, ~6GB as CSV (impractical), ~0.8-1GB estimated as Parquet (pyarrow already
+installed, 7.5x compression measured directly on the smaller subset). **Actual runtime: 5.44h**
+(faster than the 9h estimate), 0 failed calls, 1.25GB Parquet (written incrementally via
+`pyarrow.parquet.ParquetWriter`, never holding the full 83.8M rows in memory).
+
+**New script `s05_trajectory_2050.py`** (sibling to, does not modify, `s05_trajectory_10yr.py` --
+both kept, this one is now canonical): same 8,100-call grid, years computed per-tower from anchor
+to 2050 instead of a fixed `N_YEARS=10`, same AOA/climatology-base machinery reused unchanged.
+Smoke-tested (1 tower, 1 SSP, 1 GCM, 2 realizations, 3 combos, both output formats verified) before
+the full run, per the project's own standing convention. Reproducibility spot-checked directly
+against the original 10-year run's overlapping year (T4/2024/baseline/ACCESS-ESM1-5/realization1):
+9.981 (original) vs. 9.974 (this run) -- 0.07% apart, ordinary GPU inference variance, not drift.
+
+**Result: every finding from the 10-year version (D-84) replicates at the extended horizon, several
+more clearly than before.** Cattle-dominance holds and if anything strengthens (T4 3x-alone:
++205.6% -> +214.5%; T9: +195.6% -> +186.4%). Joint-vs-additive holds (T4: -0.2% -> -0.6% synergy;
+T9's real super-additive effect: +8.8% -> +9.1%). Realization/GCM spread, correctly isolated, stays
+in the same small range (2.4-6.6% -> 2.5-7.6%) -- the pooled-vs-isolated distinction from D-84
+remains essential at the longer horizon, since pooling more years together means more year-to-year
+weather variability to conflate with realization choice if not separated. **AOA's flatness over
+time is now confirmed far more strongly** -- stable within ~1 percentage point across the *entire*
+27-31-year horizon (not just the original 10 years) at every tower. **One genuine new pattern that
+the 10-year window was too short to show**: SSP2-4.5 vs SSP5-8.5 divergence now visibly grows from
+the early to the late window (e.g. T4: +0.09% -> +0.77%), matching S-04's own "widens toward end of
+century" finding much more directly -- T9 shows a direction-inconsistent late-window number
+(+0.09% -> -0.75%), flagged rather than smoothed over.
+
+**Outcome: no change to any standing recommendation** -- this extends and strengthens D-84's own
+diagnostic findings, doesn't overturn or supersede them methodologically (both the 10-year and
+2050-horizon outputs are kept on disk and referenced in `s05_results.md`, not one overwriting the
+other). New capability going forward: the full daily-resolution Parquet file
+(`s05_daily_chains_2050.parquet`) means any future question about within-year seasonal shape, at
+any of the 8,100 scenario points, can be answered by querying already-computed output rather than
+rerunning the model. See D-84, D-70, D-67,
+`notebooks/07_scenario_analysis/s05_trajectory_2050.py`, `s05_analysis_2050.py`,
+`s05_daily_chains_subset.py`, `s05_results.md`'s "Update: extended to 2050" section,
+`S05_species_trajectory.ipynb`, `results/s05_trajectory_realizations_2050.csv`,
+`results/s05_daily_chains_2050.parquet`.
+
+---
+
+### D-86 -- 2026-08-08 -- S-05 extended to farming-practice scenarios: grazing timing and
+fertilizer schedule, run as two separate baseline-livestock experiments
+
+**Context:** same-session follow-up to D-84/D-85. User asked to extend S-05 beyond the
+livestock-density axis to farming-practice management levers -- specifically grazing practices and
+fertilizer addition, both explicitly named. Before building anything, expectations were stated
+directly (not fitted after the fact): both axes expected to show a smaller effect than livestock's
+cattle result, per F-01/F-04/F-05's repeated "redundant on the rich base" finding for management
+features on real historical data -- but the two axes were expected to differ from EACH OTHER:
+grazing timing is directly tied to livestock presence (the #1 driver throughout this project's
+history), while fertilizer's stronger mechanistic link is to N2O, which this project doesn't
+model, not CH4 specifically. The user confirmed this framing before any code was written.
+
+**Design, resolved before implementation.** Unlike livestock density (a continuous quantity
+directly scalable by a multiplier), both target features are DERIVED, not directly scalable:
+`fx_grazing_active`/`fx_days_since_grazing` come from a presence pattern (any species density > 0
+that day); `fx_mgmt_fertN_recency`/`fx_mgmt_fertN_rate` come from a discrete event list run through
+an exponential-decay function (`recency_series()`, tau=14 days, `build_management_features.py`).
+Resolved by reusing both real construction functions UNCHANGED, applied to synthetic scenario
+inputs instead of real data, rather than reimplementing either:
+- **Grazing**: the real day-of-year species-density climatology (already built for
+  `FX_A_SPECIES`) is phase-shifted at the season edges -- first half of the year sampled at
+  `doy+shift_days`, second half at `doy-shift_days` -- extending the shoulder seasons (earlier
+  turnout, later housing) without needing per-tower/species boundary-detection logic. Re-derives
+  `fx_grazing_active`/`fx_days_since_grazing` from the same shifted presence pattern via
+  `days_since_grazing()` (`build_forecasting_matrix_v2.py`), reused directly.
+- **Fertilizer**: real per-tower fertN event history (`Field_Event_Data_Format_1.csv`) summarized
+  into a "typical year" template (event count, DOY range, mean rate) rather than replaying one
+  arbitrary specific year -- checked directly this session: T4 ~8.25 events/yr (DOY 82-234, mean
+  127 kg/ha), T9 ~4/yr (DOY 87-204, mean 90 kg/ha), T2 ~5/yr (DOY 55-268, mean 137 kg/ha). Levels
+  scale the template's rate or event count; `recency_series()` run over real pre-anchor events +
+  the synthetic future schedule, same decay function the real columns use.
+
+Both held at BASELINE (1x/1x/1x) livestock and run as two SEPARATE experiments (not stacked onto
+the 27-combo livestock grid) -- matches the project's "isolate one axis at a time" convention (same
+reasoning as S-05's own species-marginal-response design) and keeps compute tractable: 900 calls
+per axis (3 towers x 2 SSPs x 5 GCMs x 10 realizations x 3 levels), at the current canonical 2050
+horizon. Both smoke-tested (1 tower, 1 SSP, all 5 GCMs, 1 realization, all 3 levels) before the
+full run -- smoke test alone was informative enough to preview the eventual finding (grazing showed
+a clear, monotonic +8.7%/+18.9% pattern; fertilizer showed a muted +1%/+0.9%), confirmed at full
+scale. **Actual runtime: ~51 minutes per axis (~1.7h combined)**, 0 skipped/failed calls, 0 NaN.
+
+**Result: both stated priors confirmed, cleanly, not adjusted after seeing the numbers.**
+
+- **Grazing timing shows a real, substantial, monotonic effect at every tower**: T4 14.81 -> 17.61
+  nmol (+18.9% at +4 weeks), T9 30.67 -> 35.93 (+17.2%), T2 muted in magnitude but same monotonic
+  direction (+4.1%). A genuine, previously-untested management lever.
+- **Fertilizer schedule shows a small effect, inconsistent in DIRECTION across towers**: T2/T9 show
+  increased application frequency *decreasing* predicted FCH4 (-4.1%/-2.2%), T4 shows the opposite
+  (+1.2%), every magnitude under 5%. Read as genuinely weak/noise-level -- extends F-01/F-04/F-05's
+  standing "redundant on the rich base" finding from real-data feature importance to scenario
+  response, the first time that finding has been tested this way.
+- **AOA side-finding**: grazing's AOA-flagged-% is both higher in absolute level (76-88% vs.
+  fertilizer's 59-68%) and grows monotonically with the shift level (T4: 76.0%->82.0%->88.0%) --
+  extending the season genuinely pushes the scenario further from the real training distribution, a
+  sensible pattern fertilizer's schedule changes don't show as cleanly.
+
+**Outcome: no change to any standing recommendation** -- both are diagnostic scenario extensions.
+Genuinely useful for the dissertation regardless of direction: grazing-season length joins
+livestock density as a real, substantial management lever worth reporting; fertilizer's null result
+is itself a legitimate, now twice-confirmed (real-data feature importance AND scenario response)
+finding, not a failed experiment. See D-84, D-85, D-70, D-67, F-01, F-04, F-05,
+`src/features/build_transient_scenario_drivers_practices.py`,
+`notebooks/07_scenario_analysis/s05_practices_trajectory.py`, `s05_practices_analysis.py`,
+`s05_results.md`'s "Second update" section, `S05_species_trajectory.ipynb`,
+`results/s05_practices_grazing.csv`, `results/s05_practices_fertilizer.csv`.
+
+**Addendum, same day: daily-resolution figures for all 3 scenario families, made naming-consistent,
+extended to both SSPs.** User asked for daily-chain figures (full horizon/single-year zoom/
+monthly-smoothed) "similar to" an earlier livestock-axis check, for all three families -- livestock
+already had every daily prediction saved (`s05_daily_chains_2050.parquet`), so its figures were
+free (pyarrow predicate-pushdown query, ~0.6s/slice); grazing/fertilizer never had daily chains
+saved (only `annual_mean`), so a small representative subset was rerun (`s05_practices_daily_
+chains_subset.py`, 3 towers x 1 GCM/realization x each axis's 3 levels). User then flagged a real
+naming inconsistency (livestock's files didn't match grazing/fertilizer's `s05_practices_{axis}_
+daily_*` pattern) -- fixed by renaming livestock's script/figures to `s05_livestock_daily_*`
+(`s05_daily_chains_2050_plots.py` -> `s05_livestock_daily_chains_plots.py`; nothing was tracked in
+git yet, so a clean rename, not a git-history-preserving move). User then asked for a second SSP,
+correctly anticipating (confirmed directly, not assumed) that realization/GCM choice barely moves
+the result (S-05's own isolated-realization-spread finding, 2.4-7.6%) but SSP is a real, separate
+axis worth showing both sides of -- livestock's SSP5-8.5 was free (requery the existing full grid);
+grazing/fertilizer's subset script was extended to loop both SSPs (18 calls/axis now, ~60s each,
+re-run). Applied the SSP-labeling fix to BOTH SSPs uniformly (regenerated ssp245's files with the
+`_ssp245` suffix too, not just adding `_ssp585`) rather than leaving one SSP implicit and the other
+explicit -- final convention: `s05_{axis}_daily_{view}_{ssp}.png`, `axis` in {livestock,
+practices_grazing, practices_fertilizer}, `view` in {full_horizon, zoom2035, monthly_smoothed},
+`ssp` always explicit, 18 figures total. See `s05_livestock_daily_chains_plots.py`,
+`s05_practices_daily_chains_subset.py`, `s05_practices_daily_chains_plots.py`, `s05_results.md`'s
+file inventory (updated to match).
+
+---
+
+### D-87 -- 2026-08-08 -- Streamlit digital-shadow interface (Objective 6) dropped from scope
+
+**Decision:** the Streamlit interactive interface named in the project's own Objective 6
+("Digital shadow interface (Streamlit) with scenario analysis and uncertainty visualisation") is
+dropped from scope, user-directed, given the 1 Sept deadline. Explicitly scoped narrowly: this
+drops the INTERFACE deliverable only -- the underlying digital-shadow substance (scenario
+simulation, management/climate levers, uncertainty quantification once attached) is exactly what
+S-01/S-03/S-04/S-05 have spent this project building, and none of that work is affected or
+devalued by this decision. The interface would have been a packaging/presentation layer on top of
+already-complete analysis, not a prerequisite for it.
+
+**Context for the call:** with Phase 07's analysis substance now genuinely rich (validated
+end-to-end mechanism, both SSPs, three independent management levers tested, extrapolation risk
+quantified, full daily-resolution output) but UQ intervals still unattached to any of it (flagged
+repeatedly, not yet built) and the deadline fixed, building a full interactive interface would
+trade dissertation-writing/UQ time for a presentation layer with lower marginal value against the
+actual assessment criteria. A reasonable call given the constraint, not a quality judgment on the
+original objective.
+
+**Outcome:** Objective 6 in `CONTEXT.md` marked dropped (not silently deleted -- the original
+wording is kept, struck through, with this decision cited), matching this project's own
+established convention for scope changes (e.g. B-08's "confirmed superseded" treatment, D-70's
+"not a production-config change" framing) -- decisions are recorded, not erased. No other
+methodology, finding, or standing recommendation in this project is affected. If a lightweight
+static summary of the scenario results is wanted later (e.g. a rendered notebook or a simple
+static page, well short of a full Streamlit app), that remains a cheap, separate option -- not
+precluded by this decision, just not the originally-scoped interactive interface. See CONTEXT.md's
+Objectives section.
+
+---
+
+### D-88 -- 2026-08-10 -- U-04: UQ recalibrated for the current forecasting champion
+(TabPFN+species, TabICLv2), closing the gap U-02 left behind
+
+**Context:** direct follow-up to the UQ discussion this session. Checking exact dates surfaced a
+real, undernoticed gap: U-02 (D-62, 2026-07-06) built leave-one-anchor-out conformal calibration
+on `forecast_daily_v2.csv` with an 8-model roster -- but **TabICLv2 joined the roster 3 days
+later** (D-66, 2026-07-09), **F-10's species-disaggregated features landed 4 days after that**
+(D-67, 2026-07-10), and the standing forecasting champion became **TabPFN+species** off the back
+of F-10 (reconfirmed under the climatology-MASE convention at D-80). U-02's "TabPFN" conformal
+interval is calibrated for a feature configuration this project no longer recommends; TabICLv2 has
+never had UQ built for it at all. User named this "Option A" of a two-part plan (A: close the
+current-pipeline gap; B: build on it for scenario-analysis UQ) -- this decision covers A.
+
+**Scope, user-confirmed via explicit choice (not assumed).** Two options were presented: recalibrate
+the full 11-model roster (matches CLAUDE.md's "full coverage by default" convention, but requires
+retraining RF/XGB/LightGBM/SARIMAX/TFT/DLinear/LSTM -- expensive) vs. champion-focused (TabPFN +
+TabICLv2 only -- both zero-shot with native quantile support already, no retraining). User chose
+champion-focused, reasoning that the other 6 models' feature configuration never changed, so their
+existing U-02 numbers remain valid as-is -- only the two models whose production config actually
+changed needed rebuilding.
+
+**Implementation, deliberately minimal-diff for direct comparability.** New script
+`u04_champion_uq.py`: same 3-tower x 5-anchor sweep, same quantiles (0.05, 0.5, 0.95), same
+`rr.conformal_margins_by_bin()` leave-one-anchor-out calibration, same PICP/MPIW/pinball metrics.
+`evaluate_stage()` is **imported unmodified from `u02_multi_anchor_tower.py`** rather than
+reimplemented -- only `fit_stage` differs (TabPFN/TabICLv2 zero-shot rollout on `forecast_daily_v3
+.csv`'s `BASE+species` config, instead of U-02's pooled tree/SARIMAX/TFT fitting on `v2.csv`) -- so
+U-02 and U-04's numbers are directly comparable, not just similarly-computed. `BASE+species`
+construction imported in spirit from `b16_foundation_models_v3.py`'s own `FAMILIES`/`BASE_FX`
+logic (`SPECIES_COLS` = `["fx_cattle_dens","fx_sheep_dens","fx_lamb_dens"]`), not retyped
+independently. Smoke-tested in two stages: 1 tower/1 anchor first (caught, correctly, that
+leave-one-anchor-out calibration produces all-NaN conformal columns with only 1 anchor available --
+expected, not a bug, since there's no "other anchor" left to pool residuals from), then 1 tower/2
+anchors to confirm the calibration path itself works (PICP 0.84-0.86, sane). **Full run: 25
+seconds** -- no model training at all, both models are zero-shot.
+
+**Result 1: calibration converges to ~0.89-0.90 PICP at T4/T9**, replicating U-02's own headline
+finding ("every model converges to ~0.88-0.90 regardless of raw coverage") on the new champion
+feature config. **Tower 2 still cannot support calibration** (all-NaN conformal columns) -- the
+exact same pre-existing limitation U-02 already documented ("Tower 2 cannot support calibration at
+all -- real `y_observed` in only 1/5 anchor windows"), confirmed to persist independent of the
+feature-set change (T2's real coverage ends May 2019 regardless of which columns are used).
+
+**Result 2, the actual finding, not guaranteed in advance: species enrichment improved point
+accuracy without materially changing calibration quality.** Direct old-vs-new comparison, TabPFN:
+T4 conformal MPIW 148.44 (U-02, BASE-only) vs. 149.52 (U-04, BASE+species); T9 190.31 vs. 188.93;
+pinball essentially unchanged at both towers (10.56/10.56, 13.00/12.86). Read as mechanistically
+sensible, not surprising once seen: conformal margins track residual *distribution*, and D-80's
+own numbers show the species-config MASE gain over BASE was modest, not dramatic -- a modest
+point-accuracy change shouldn't be expected to move interval width much either. Still a genuinely
+new, directly-measured result -- "does closing the UQ gap change the answer" could have gone
+either way and didn't get assumed.
+
+**Outcome:** the UQ gap for the two models that actually need it (TabPFN+species, the standing
+champion; TabICLv2, its closest zero-shot competitor) is closed. No recalibration needed for the
+other 6 U-02 models -- their feature configuration never changed. This is the validated foundation
+"Option B" (scenario-analysis UQ, AOA-stratified) builds on next -- same
+`conformal_margins_by_bin()`/leave-one-anchor-out machinery, extended to scenario points rather
+than real historical anchors. See D-62, D-63, D-66, D-67, D-80,
+`notebooks/06_interpretability_uq/u04_champion_uq.py`, `U04_results.md`,
+`results/u04_chains.csv`, `results/u04_summary.csv`.
+
+**Addendum, same day: U-04 fancharts built.** `u04_fanchart_plots.py`, same visual convention as
+`u02_fanchart_plots.py`, all 30 (tower x anchor x model) combinations, `results/figures/
+u04_fancharts/`. U-04 had shipped without figures despite U-01/U-02/U-03 all having them --
+flagged directly (checking actual file locations surfaced the gap), not left unaddressed.
+
+---
+
+### D-89 -- 2026-08-10 -- U-05: scenario-analysis UQ ("Option B"), built on U-04's validated method
+but on S-05's own architecture, with an AOA-stratified two-tier margin resolved empirically
+
+**Context:** direct follow-up to D-88 (U-04, "Option A"), completing the two-part plan. Key
+design realization stated before building: U-04's calibration (on `forecast_daily_v3.csv`'s
+`BASE+species`, 52 columns) is NOT reusable for S-05, which uses a deliberately narrower
+`FX_A_SPECIES` (13 columns, S-03's Variant A + species) -- a different feature space is a
+genuinely different model with different error characteristics, S-03's whole ablation exists to
+demonstrate exactly that. This decision repeats U-04's *method* on the correct architecture rather
+than reusing its numbers.
+
+**Implementation, Steps 1-2 (calibration set).** New script `u05_scenario_uq.py`: TabICLv2
+zero-shot, `FX_A_SPECIES`, 5 real historical anchors (2018-2022) x 3 towers, same quantiles/
+leave-one-anchor-out `conformal_margins_by_bin()`/`evaluate_stage()` (imported unmodified from
+`u02_multi_anchor_tower.py` a third time) as U-02/U-04. **Full run: 9 seconds.**
+
+**A real bug caught by smoke-testing before the full run, not shipped.** First version computed
+each tower's AOA nearest-neighbour training set from the unrestricted full historical record --
+correct for S-05's own AOA check (its scenario dates are genuinely future, never overlapping real
+data) but wrong here, since U-05 tests on real historical anchors: a test point can be a literal
+row already inside its own unrestricted training set, giving distance-to-self = 0 for every point.
+Caught directly (`aoa_dist` was uniformly 0.0 in the 2-anchor smoke test) before the full run,
+diagnosed correctly (not just "a bug," the specific leakage mechanism was identified), and fixed
+by restricting the AOA training set to pre-anchor-only data, recomputed fresh per anchor -- this
+project's standing no-leakage convention, applied here for the first time to an AOA computation
+rather than a model-fitting one.
+
+**Step 3, the actual design question from the original plan -- resolved empirically, exactly as
+promised, not assumed either way.** Does |residual| correlate with AOA-flagged status in real
+historical data? **Result: weak raw linear correlation (pooled Pearson r=0.146) but a real,
+substantial categorical difference** -- out-of-AOA residuals are ~48% larger than in-AOA, pooled
+(46.03 vs. 31.14, n=529/1,793). T4 (+49%) and T9 (+39%) both confirm the same direction cleanly;
+T2 shows a reversed small difference but on n=4 out-of-AOA points, not trusted. **This resolves the
+plan's Level-1-vs-Level-2 fork with a genuine third option neither fully anticipated**: weak linear
+correlation rules out fitting a smooth continuous widening function (Level 2 as originally
+sketched), but the real categorical gap rules out ignoring AOA entirely (which would leave Level 1
+as the only "safe" fallback). Landed on a **two-tier margin, interpolated continuously by each
+point's own `aoa_flagged_pct`** (0-100%, not a hard cutoff) between the in-AOA and out-of-AOA base
+margins -- smoother than a strict binary split, without overclaiming a distance-response
+relationship the correlation check doesn't support.
+
+**Step 4 (apply to S-05's existing output -- zero new model calls, pure post-processing).** Joins
+the two-tier margin onto `s05_trajectory_realizations_2050.csv` (229,500 rows), `s05_practices_
+grazing.csv`/`s05_practices_fertilizer.csv` (25,500 each) against each row's own already-saved
+`aoa_flagged_pct`. **A second real issue caught and fixed before finalizing**: the first Step-4
+implementation applied one flat per-tower margin regardless of whether a given row was itself
+flagged -- didn't actually use Step 3's finding. Fixed to genuinely interpolate per-row.
+**T2 is forced to NaN throughout Step 4**, gated on Step 2's own `conformal_mpiw` (not merely
+whether AOA-stratified residuals exist for T2) -- T2 already fails proper leave-one-anchor-out
+calibration (only 1 anchor has real ground truth) and its own out-of-AOA sample is n=4; a cruder
+fallback standard for T2 here would have quietly contradicted the same finding U-02/U-04 already
+established, so it wasn't allowed to.
+
+**Result: calibration converges to ~0.88-0.89 PICP at T4/T9** (0.8907/0.8821), matching U-02/U-04's
+pattern a third time. **The calibrated interval is genuinely very wide, stated plainly**: roughly
+±94-100% of the mean in-AOA, ±139-140% out-of-AOA (T4: 93.9%->139.6%; T9: 100.4%->139.2%) --
+consistent with, not contradicting, U-01's original "intervals are wide... CH4 carries large
+aleatoric uncertainty" finding (D-40), now confirmed on the scenario architecture specifically.
+T2 remains uncalibratable -- a third independent confirmation of the same structural limitation.
+
+**Figures**: `u05_fanchart_plots.py` (15 figures, U-02/U-04's fanchart convention, TabICLv2 on
+`FX_A_SPECIES`, real anchors -- AOA-flagged days marked directly on the chain, a visual addition
+not present in U-02/U-04's fancharts). `u05_trajectory_with_uq_plots.py` -- the actual deliverable:
+S-05's livestock-baseline trajectory with the two-tier interval overlaid, kept **visibly separate**
+from S-05's own realization-spread band (a different uncertainty source entirely -- weather/GCM
+draw variability, not predictive/model uncertainty), per this session's own pooled-vs-isolated
+realization-spread lesson (D-85) -- not merged into one band despite the temptation to simplify.
+
+**Outcome: scenario-analysis UQ is no longer missing.** S-05's livestock/grazing/fertilizer
+outputs now carry a calibrated, AOA-aware interval (`u05_{axis}_with_uq.csv`), not just a point
+estimate. No change to any standing forecasting/scenario recommendation -- this is UQ
+infrastructure, not a new finding about the scenario levers themselves. See D-88, D-70, D-84-D-86,
+D-62, `notebooks/06_interpretability_uq/u05_scenario_uq.py`, `u05_fanchart_plots.py`,
+`u05_trajectory_with_uq_plots.py`, `U05_results.md`, `results/u05_livestock_with_uq.csv`.
+
+---
+
+### D-90 -- 2026-08-10 -- U-06: Conformalized Quantile Regression (CQR) fixes the spike-coverage
+failure U-04/U-05's own fancharts revealed visually
+
+**Context:** user observation on U-04/U-05's fancharts, checked directly rather than taken on
+faith: "a lot of spikes are still beyond the interval." Confirmed and quantified against U-04's
+chains: overall PICP≈0.89 looked fine, but **75% of the top-10%-magnitude (spike) days fell
+entirely outside the interval, vs. 3.3% for the bottom 90%**. Mechanism: split-conformal's flat,
+symmetric per-bin margin (`median +/- constant`) guarantees only *average* coverage across a bin,
+and was hitting its ~90% target almost entirely by nailing the easy majority of low-flux days
+while systematically failing the rare high-magnitude ones -- a distinction the aggregate PICP
+number alone can never reveal. Not a new problem for this project (U-01/D-40 already flagged "even
+wide intervals miss the biggest spikes"; B-05/B-06's point-forecast-level fixes both came back
+negative) but not yet addressed at the UQ-calibration level specifically.
+
+**A second empirical check, run before committing to any fix (matching this session's own standing
+"measure before deciding" practice).** Does the model's own raw (uncalibrated) quantile spread
+already track spike magnitude better than the median does? **Yes**: raw `q95-q05` spread widens
+1.3-1.8x on spike days vs. normal days, and on spike days the raw q95 ALONE already sits close to
+(TabPFN: 182.7 vs. actual 193.1) or exceeds (TabICLv2: ~360 vs. 193.1) the actual spike value --
+while the median (~35) massively undershoots. This directly motivated CQR over alternatives (a
+smooth AOA-distance-widening function, or magnitude-binned margins) -- the raw quantiles already
+carry real, usable adaptive signal the flat margin was throwing away entirely.
+
+**Implementation: Conformalized Quantile Regression (Romano et al. 2019).** Nonconformity score =
+`max(q05-y_true, y_true-q95)` instead of split-conformal's `|y_true-median|`; calibrated interval =
+`[q05-margin, q95+margin]` (asymmetric-capable) instead of `[median-margin, median+margin]`.
+**`rr.conformal_margins_by_bin()` reused completely unchanged** -- already generic over whatever
+nonconformity-score array it receives; CQR only changes what's computed and how the margin is
+applied, not the calibration function itself (the fourth reuse of this one function across
+U-02/U-04/U-05/U-06). Same leave-one-anchor-out structure, same bins, same 3-tower coverage.
+**No new model calls anywhere** -- pure recalibration of U-04's/U-05's already-saved chains.
+
+**A real bug caught and fixed before reporting, not shipped.** First aggregation pass showed T2 at
+`0.0000` PICP instead of the expected `NaN`. Checked directly against the per-bin rows (correctly
+NaN) before concluding anything -- the bug was in the new script's own `wavg()` aggregator, missing
+the exact all-NaN guard `u02_multi_anchor_tower.py`'s own `wavg()` already carries and documents
+in its own comment (pandas silently sums an all-NaN column to `0.0`, not `NaN`). Fixed by
+replicating that guard verbatim rather than rediscovering the fix independently.
+
+**Result: spike coverage roughly triples, at an honest, stated cost, not hidden.**
+
+| Model / data | Spike coverage (old->CQR) | Normal-day coverage (old->CQR) | Spike interval width (old->CQR) |
+|---|---|---|---|
+| TabICLv2 (U-04, BASE+species) | 24.3% -> **79.7%** | 96.7% -> 83.7% | 183 -> 394 |
+| TabPFN (U-04, BASE+species) | 24.3% -> **57.2%** | 96.7% -> 88.4% | 177 -> 248 |
+| TabICLv2 (U-05, FX_A_SPECIES) | 22.1% -> **79.3%** | 96.1% -> 82.5% | 185 -> 405 |
+
+**TabICLv2 benefits substantially more than TabPFN** (~80% vs. ~57% spike coverage) -- consistent
+with the raw-quantile check above (TabICLv2's raw q95 already exceeds actual spike values on
+average; TabPFN's sits just short). Normal-day coverage drops from ~96-97% to ~83-88% (still
+comfortably above an 80% practical floor); spike intervals roughly double in width -- the honest
+price of actually covering the events that matter, rather than a flat interval that only looks
+good on average by ignoring them. **Aggregate (non-spike-specific) PICP stays similar to U-04/U-05's
+original numbers** -- CQR doesn't change the headline PICP much, because that number was never the
+real problem; it changes *where* the coverage comes from, invisible to the headline alone.
+
+**Outcome: CQR should replace the symmetric-margin approach as this project's standing UQ method**
+going forward, given the fix's magnitude and that it costs nothing extra (same calibration
+function, same already-available native-quantile inputs). **Not yet applied to S-05's actual
+scenario trajectories** -- U-05's Step 4 output used a %-of-mean margin from the old symmetric
+calibration; extending CQR there would need S-05's scenario points to have raw daily q05/q95 saved,
+which the current daily-chains-subset scripts don't currently request -- flagged as a small, cheap,
+concrete next step, not yet built. This reframes what "the UQ gap is closed" meant from D-88/D-89:
+those closed "no interval exists"; this closes "the interval exists but silently fails on the days
+that matter most," invisible to the PICP headline number alone. See D-88, D-89, D-40, D-42, D-43,
+`notebooks/06_interpretability_uq/u06_cqr_recalibration.py`, `u06_cqr_comparison_plots.py`,
+`U06_results.md`, `results/u06_u04_cqr_summary.csv`, `results/u06_spike_coverage_U04.csv`.
+
+---
+
+### D-91 -- 2026-08-10 -- U-07: livestock-density-stratified CQR -- thinner margins where
+livestock presence is smaller, a much cleaner stratifier than AOA distance turned out to be
+
+**Context:** direct user question on U-06's output, checked empirically before building anything
+(matching this session's own standing practice): "can't the margin be thinner for instances where
+livestock presence is smaller?" U-06's CQR already lets the model's own raw q05/q95 respond to
+livestock density implicitly (it's a model input), but the additive calibration margin layered on
+top was only binned by lead-time (U-04) or lead-time x AOA-flagged status (U-05) -- never by the
+covariate actually driving the heteroscedasticity most strongly.
+
+**Checked directly, and the signal is much stronger than U-05's AOA-distance check**:
+`corr(|residual|, fx_lsu_dens) = 0.43-0.45` (vs. AOA-distance's weak 0.09-0.15), residuals ~3.2x
+larger on above-median-LSU days (51.0 vs. 15.9-16.2 mean |residual|). `fx_cattle_dens` correlates
+almost identically (0.427) -- consistent with S-05's own cattle-dominance finding; sheep/lamb
+correlate at noise level (0.03-0.05). Used `fx_lsu_dens` directly (standard, interpretable
+aggregate), not a species-specific variable.
+
+**Implementation.** Same CQR machinery as U-06 -- only the bin KEY changes, from lead-time-bin
+alone to lead-time-bin x LSU-tertile (e.g. `"31-90_low"`). `conformal_margins_by_bin()` needed
+ZERO code changes -- already generic over arbitrary dict keys, the fifth reuse of this one function
+across U-02/U-04/U-05/U-06/U-07. Tertile boundaries (1/3, 2/3 quantiles of `fx_lsu_dens`) computed
+from LEAVE-IN (calibration) anchors only per test fold, never the held-out anchor -- same
+no-leakage discipline as every other leave-one-anchor-out step this project uses (the same class
+of bug U-05 caught and fixed for its own AOA computation, applied correctly here from the start).
+No new model calls -- recalibrates U-04's/U-05's already-saved chains a second time.
+
+**Result: low-LSU intervals are 29-46% the width of high-LSU intervals -- a genuine win-win, not a
+trade-off.** TabPFN (U-04): low MPIW=84.3 vs. high=293.7 (29%). TabICLv2 (U-04): 177.3 vs. 419.8
+(42%). TabICLv2 (U-05): 206.1 vs. 447.4 (46%). PICP stays reasonably consistent across tiers
+(0.76-0.83) -- each tier calibrated against its own now-homogeneous residual distribution, not one
+pooled distribution compromising between very different regimes the way the flat margin had to.
+
+**Verified this doesn't trade away U-06's spike-coverage fix, not assumed**: spike days (top 10%
+magnitude) average 3.2x higher `fx_lsu_dens` than normal days (3.30 vs. 1.04) -- the "high" tier
+substantially captures the spike population with its OWN dedicated, appropriately-wide calibration
+set, not diluted by mixing in low-LSU days the way the single pooled CQR margin was. Genuine
+improvement on both axes simultaneously: tighter where the model and the real driver both say
+confidence should be high, still wide where it shouldn't be.
+
+**Outcome: LSU-density stratification should be the standing UQ method going forward, layered on
+top of U-06's CQR** -- costs nothing extra (same calibration function, same already-available
+`fx_lsu_dens` input). A broader lesson worth carrying forward: a domain-meaningful covariate
+directly tied to the outcome's own magnitude (0.43 correlation) was a substantially cleaner
+stratifier than a generic distance-to-training-data metric (0.09-0.15) -- worth checking for a
+covariate like this FIRST, before reaching for a more abstract distance-based one, if this pattern
+recurs. Not yet applied to S-05's actual scenario trajectories -- same standing caveat as U-06
+(would need raw daily q05/q95 saved for scenario points). See D-90, D-89, D-88,
+`notebooks/06_interpretability_uq/u07_lsu_stratified_cqr.py`, `u07_lsu_cqr_comparison_plot.py`,
+`U07_results.md`, `results/u07_u04_lsu_cqr_summary.csv`.
+
+**Addendum -- 2026-08-10 -- full-coverage figures.** Original comparison plot showed one
+representative chain (T4/TabICLv2) only; underlying `lsu_cqr_margin` numbers were already computed
+for the full champion roster (T2/T4/T9 x TabPFN+TabICLv2 for U-04, T2/T4/T9 x TabICLv2 for U-05)
+but never plotted or tabulated per combination. Extended `u07_lsu_cqr_comparison_plot.py` to loop
+all (tower, model, data_label) combinations -- 6 figures now saved (T4/T9 x TabPFN/TabICLv2 for
+U-04, T4/T9 x TabICLv2 for U-05). T2 explicitly logged as skipped, not silently omitted: 0 of its
+rows have a valid `lsu_cqr_margin` in either summary, because T2's base split-conformal calibration
+(U-04/U-05's own Step 2) already failed before CQR or LSU-stratification were applied -- same
+finding already established in U-04/U-05, not new. Full-roster MPIW low-as-%-of-high range is
+26-59% (T9/TabPFN best at 26%, T4/TabICLv2-U05 weakest at 59%) -- wider than the original two-point
+29-46% estimate but the direction/magnitude of the effect holds at every tower and model it can be
+computed for.
+
+### D-92 -- 2026-08-10 -- S-05 + UQ: U-06/U-07's CQR calibrations attached to actual scenario
+trajectories, closing the last gap between scenario analysis and UQ
+
+**Context:** flagged repeatedly since U-06 (D-90) as a small, cheap, not-yet-built next step, then
+directly confirmed by the user ("let's do (1)") after I framed it as the natural close-out task
+before shifting to write-up given the 1 Sept deadline. U-06/U-07's calibrations had only ever
+touched U-04/U-05's historical calibration chains -- S-05's own sweeps (`s05_trajectory_2050.py`,
+`s05_practices_trajectory.py`) only ever saved point predictions, so Objectives 4 (UQ) and 5
+(scenario analysis) never actually connected in the output.
+
+**Method, two new scripts, zero new calibration fitting (pure inference + post-processing):**
+`s05_uq_daily_chains_subset.py` reruns S-05's existing small representative subset (3 towers x 2
+SSPs x 3 levels/combos/axis = 18 calls/axis x 3 axes = 54 calls, 2050 horizon) requesting
+`quantiles=(0.05,0.5,0.95)` from `tabicl_forecast()` instead of a point prediction -- confirmed
+free (4.3s/call, same as point-only) since TabICL always computes an internal quantile grid
+regardless of the argument. Full 54-call run: ~2.5 min, 0 failures. `s05_uq_cqr_apply.py` attaches
+U-06's flat CQR margin and U-07's LSU-tier CQR margin (both from U-05's FX_A_SPECIES-architecture
+summaries, not U-04's -- D-89's feature-space finding) via a (tower, lead-bin[, LSU-tier]) lookup,
+margins pooled across U-05's 5 anchor years since scenario points have no anchor year of their own.
+
+**Two explicit extrapolation assumptions, stated not hidden:** (1) lead times beyond 365 days hold
+the widest calibrated bin's margin flat -- no calibration evidence exists past ~1 year for a
+horizon running to 2050, and this likely UNDERSTATES true uncertainty at year 20+ (error should
+plausibly grow with lead time, not plateau) -- read far-horizon CQR bands as a floor, not a
+ceiling. (2) grazing/fertilizer axes reuse the livestock-architecture margins despite their own
+extra covariates -- same approximation U-05's own Step 4 already made applying its margins
+uniformly across all three axes.
+
+**Result: works cleanly, >99% coverage at T4/T9** (T2 0% -- same pre-established degeneracy as
+every prior UQ step, not new). One genuine thin spot: Tower 4's days-1-7 x mid-LSU-tier cell has
+zero calibration samples across all 5 U-05 anchors (surfaced as NaN, not filled in) -- a real
+data-sparsity limit inherited from U-07's own summary. Verified directly: zero interval inversions
+anywhere; CQR correctly TIGHTENS the model's own raw quantile spread on average at T4 (raw MPIW
+572.6 vs. U-06 514.6 vs. U-07 523.4), consistent with U-06's original historical finding.
+
+**Outcome: this closes the experimental UQ-for-scenarios arc (U-04 through U-07, now connected to
+S-05).** No further "not yet applied to S-05" caveat remains outstanding. Figures:
+`results/figures/s05_uq_cqr/s05_uq_cqr_{livestock,grazing,fertilizer}.png`. Data:
+`results/s05_{livestock,grazing,fertilizer}_with_cqr.csv`. See D-91, D-90, D-89, D-88,
+`notebooks/07_scenario_analysis/s05_uq_daily_chains_subset.py`, `s05_uq_cqr_apply.py`,
+`s05_uq_cqr_plots.py`, `s05_results.md`.
+
+**Addendum -- 2026-08-10 -- Tower 2 + second SSP added to D-92's figures.** User question ("where
+is tower 2 and the other ssp?") caught two real gaps in the first draft: `s05_uq_cqr_plots.py` had
+hardcoded `TOWERS = [4, 9]` (T2 silently excluded from the loop entirely, not even attempted) and
+`SSP = "ssp245"` (single value, no loop) despite both T2 and ssp585 already being present in the
+underlying `s05_*_with_cqr.csv` data (no new model calls needed -- purely a plotting-scope fix).
+Fixed: all 3 towers now plotted in every figure (T2 shows its raw `[q05,q95]` band, which is valid
+-- TabICL forecasts fine for T2 -- with an explicit on-figure annotation that no calibrated CQR
+band exists, rather than being omitted); both SSPs now plotted, filename always carries the SSP
+suffix (matching the naming convention the rest of S-05's daily-chain figures already use). 6
+figures total (was 3): `s05_uq_cqr_{livestock,grazing,fertilizer}_{ssp245,ssp585}.png`.
+
+---
+
+### D-93 -- 2026-08-10 -- B-16 round 2: TICA embeddings + static AR-lag features for TabICLv2 --
+both negative, combining them is actively worse, BASE+species remains champion
+
+**Context:** user revisited forecasting, focused specifically on Track B (TabICLv2, zero-shot)
+rather than Track A's trained trees (explicit choice via AskUserQuestion). Wanted to test TICA
+embeddings and expanded autocorrelation/lag features. Before building, worked through two real
+design forks with the user rather than picking silently:
+
+1. **Dynamic vs. static AR-lag features.** `tabpfn_forecast()`/`tabicl_forecast()` are single-shot
+   (one call produces the whole 365-day chain; no day-by-day recursion like Track A's
+   `tree_rollout()`), so a genuinely dynamic lag feature would need a new day-by-day (or
+   block-recursive) roller -- costed at ~30h+ (daily) or ~75-90min (30-day blocks) for a full
+   sweep vs. seconds for a static, frozen-at-anchor design. User caught a real weakness in the
+   static design directly ("does that mean May/June forecasts still use December's AR features?")
+   -- confirmed yes, explicit acknowledged tradeoff, user chose to proceed with static anyway
+   ("use static AR features if no other option").
+2. **Does S-05 (scenario projection) already have this problem?** Checked directly: S-05 uses the
+   identical single-shot architecture (one `tabicl_forecast()` call per (tower, scenario-combo),
+   producing the full 27-31-year chain at once) and currently has ZERO explicit AR-lag columns at
+   all in `FX_A_SPECIES`. A block-recursive design that's cheap for a 365-day evaluation window
+   becomes ~30x more expensive over S-05's multi-decade horizon (untenable at full-sweep scale) --
+   flagged a climatology-anchored (not model-prediction-chained) alternative as a cheaper, more
+   portable idea for later, but not built this round (out of scope, user chose to focus back on
+   TabICL/static features for now).
+
+**Method, single consolidated notebook** (`B16_tica_static_ar_features.ipynb`, user-requested
+format for easy rerun/tweaking) **-- TabICLv2 only, all 3 towers x 5 anchors (2018-2022), 4
+configs (60 calls total)**:
+- **`+static_ar`**: 10 pre-anchor summary features (mean/std7,14,28d, max28d, days-since-spike,
+  trend14d, autocorr7) of the CH4 target -- future window frozen at the anchor's own value (stated
+  tradeoff above); **historical context uses genuinely time-varying rolling stats** (a real bug
+  caught by the smoke test: an earlier version broadcast the frozen scalar across history too,
+  giving TabICL zero-variance history columns that broke an internal feature-deduplication filter,
+  `IndexError: boolean index did not match indexed array` -- fixed via
+  `historical_static_ar_frame()`, vectorized rolling stats using only data strictly before each
+  historical day).
+- **`+tica`**: reuses D-79's exact TICA method (`temp_gap_filing_exploration copy.ipynb`, gap-filling)
+  verbatim -- generalized eigenvalue problem on symmetrized lag-covariance matrices, from scratch
+  (no `deeptime` dependency). Adapted `tau=7` (1 week) for daily data (D-79 used `tau=24` hours on
+  hourly data); 3 components; input = 43 continuous drivers (excludes calendar cyclical encodings
+  and binary flags, same exclusion logic D-79 used to avoid a trivial tau-alignment artifact). Fit
+  leak-free per anchor on pre-anchor history only. **Smoke test caught a second real bug**: with 43
+  collinear continuous drivers (e.g. `fx_SWC_lag7/14/21/28/roll7/14` are near-linear transforms of
+  one signal), the instantaneous covariance matrix `C0` was not positive definite --
+  `scipy.linalg.eigh`'s generalized solve failed outright. Fixed with a small relative ridge
+  regularization on `C0`'s diagonal (standard TICA/PCA stabilization, matches deeptime/PyEMMA's own
+  shrinkage handling).
+
+**Result: clean, consistent negative -- BASE+species remains the standing champion.**
+
+| Config | MASE (climatology) | R2 | vs. baseline |
+|---|---|---|---|
+| BASE+species (baseline) | 0.7353 | -0.1070 | -- |
+| +tica | 0.7348 | -0.0937 | -0.0005 (noise) |
+| +static_ar | 0.7358 | -0.0924 | +0.0005 (noise) |
+| +static_ar+tica | **0.7603** | -0.1559 | **+0.025 (clearly worse)** |
+
+TICA alone replicates D-79's own "wash" finding from gap-filling, this time on a genuinely
+different task (extrapolation, not interpolation) -- the prior transferred directionally (still a
+wash) even though the task differs. Static AR features alone are also a wash, consistent with the
+stated expectation (TabICLv2 already sees raw `y_observed` history natively, so explicit derived
+summary statistics add little). **Combining both is clearly worse, consistent across all 3
+towers** (T2/T4/T9 all degrade) -- matches this project's own recurring "stacking too many feature
+families hurts more than any one family helps" pattern (D-67's original `BASE+ALL` finding).
+
+**Outcome:** no new champion. Both feature families are negative results worth keeping on record.
+`BASE+species` (MASE=0.715 in the original 5-anchor headline table, D-80) remains production. Full
+write-up in the notebook's own Section 9 (Verdict). Files:
+`notebooks/05_benchmarking/B16_tica_static_ar_features.ipynb`,
+`results/b16_tica_static_ar_{chains,summary}.csv`.
+
+---
+
+### D-94 -- 2026-08-10 -- B-16 round 4: pooled vs. solo for TabPFN/TabICLv2 on the forecasting
+task specifically -- splits by model, TabPFN gets a small real gain, TabICLv2 replicates the
+gap-filling wash
+
+**Context:** direct follow-up user question -- pooling was adopted for Track A (RF/XGB/LightGBM,
+DL) from gap-filling's F-02/F-03 finding, and Track B (TabPFN/TabICLv2) was left solo based on a
+gap-filling-only precedent (D-79/D5: "TabICL-solo beats TabICL-pooled at every tower"). That
+precedent used a DIFFERENT API (`TabICLRegressor`/`TabPFNRegressor`, plain sklearn-style tabular
+regressors, pooled via simple row-stacking) than what the forecasting champion actually runs on
+(`TabICLForecaster`/`TabPFNTSPipeline`, genuine time-series-native forecasters) -- never re-tested
+on the forecasting task with the champion's own architecture until now.
+
+**Verified before building, not assumed:** both `TabICLForecaster.predict_df()` and
+`TabPFNTSPipeline.predict_df()` natively support an `item_id` column for genuine multi-series panel
+input (direct inspection of both signatures/docstrings), then smoke-tested (~2-5s for a pooled
+call covering all 3 towers, actually faster than 3 solo calls since the GPU batches all items
+together).
+
+**Method** (`B16_pooled_vs_solo.ipynb`): `BASE+species` + `is_t2/is_t4/is_t9` tower dummies as
+covariates (matching Track A's own pooling convention). One pooled call per (anchor, model) covers
+all 3 towers at once -- 10 calls total (5 anchors x 2 models), cheaper than solo's 30. **Solo
+baseline reused from U-04's already-saved `u04_chains.csv`** (same exact config/anchors/models,
+D-88) rather than rerun, rescored via the same `bin_metrics()` + climatology-MASE convention for a
+direct comparison. **Two real bugs caught by the smoke test/full traceback, not silently patched:**
+(1) the pooled/batched multi-item_id call path does not tolerate the same partial NaN in covariates
+that solo calls handle fine internally (`sklearn`'s own array validation inside TabICL's batch
+dispatch raised `Input contains NaN` even though these exact tower/anchor combos succeed solo) --
+fixed with explicit mean-imputation (context-only, leak-free, same convention as Track A's
+`SimpleImputer`). (2) Tower 9's two earliest anchors (2018, 2019) have empty pre-anchor history
+(its real analyser data only starts Feb 2020) -- `doy_climatology()`'s global-mean fallback
+silently produces NaN on an empty series, poisoning `mean_absolute_error` downstream -- fixed with
+an explicit skip-and-log guard (same pre-established T9 data-scarcity class as everywhere else in
+this project, not new).
+
+**Result, splits by model:**
+
+| Model | Solo MASE (climatology) | Pooled MASE | Delta |
+|---|---|---|---|
+| TabICLv2 | 0.7353 | 0.7355 | +0.0002 (noise) |
+| TabPFN | 0.7166 | **0.7138** | **-0.0028 (pooled better)** |
+
+**TabICLv2** is a wash either way -- directionally consistent with D-79's gap-filling finding
+(TabICL prefers solo, context-cap dilution) but far smaller in magnitude than D-79's own +0.005 to
++0.118 gap; plausible mechanism: the dilution effect matters less for a temporally-coherent 365-day
+rollout window than for gap-filling's dense full-record pooled context. **TabPFN beats solo at all
+3 towers, consistently** (T2: 0.4477 vs. 0.4502; T4: 0.7600 vs. 0.7628, R2 crosses from slightly
+negative to slightly positive; T9: 0.6658 vs. 0.6687) -- small but real and not driven by one
+tower. **This was never tested by D-79 at all** (its pooled-vs-solo comparison only covered TabICL)
+-- a genuinely new finding, not a contradiction of prior work.
+
+**Outcome:** a small, real, TabPFN-specific case for pooling -- not large enough to force an
+immediate champion switch given the 1 Sept deadline, but a concrete, cheap (no retraining, same
+call cost) improvement lead if forecasting is revisited again. `BASE+species` (solo) remains the
+currently-documented champion. Files: `notebooks/05_benchmarking/B16_pooled_vs_solo.ipynb`,
+`results/b16_pooled_{chains,vs_solo_summary}.csv`.
+
+---
+
+### D-95 -- 2026-08-10 -- S05-T2: does pooling rescue Tower 2's muted livestock-scenario response?
+No -- exact 0.0pp effect for both TabICLv2 and TabPFN, a decisive negative result
+
+**Context:** direct follow-up to the Tower-2-muted-response discussion (cattle 3x = only +1.8-2.3%
+at T2 vs. +186-215% at T4/T9, s05_results.md). User's own hypothesis: T2's real `fx_lsu_dens`
+never exceeds ~0.71 (T4/T9's own 1x baseline is ~5), so the zero-shot model solo-per-tower has no
+historical livestock->CH4 covariation to learn from at T2 -- would pooling T2's context with T4/T9's
+real (livestock-rich) history let the model borrow their learned cattle sensitivity when projecting
+T2's scenario? Directly motivated by precedent: pooling is exactly what rescued Tower 9 in
+gap-filling (F-02/F-03, solo~0 -> pooled +0.29 R2).
+
+**Method** (`s05_t2_pooled_test.py`): pooled context = T2+T4+T9's real pre-anchor history
+(`item_id`-tagged, the pooling itself); T2 gets its real scenario future (full 2050 horizon, 3
+combos x 2 SSPs); T4/T9 get a minimal 30-day placeholder future window at their own baseline
+scenario purely to satisfy the API (confirmed directly, not assumed: `TabICLForecaster`'s
+multi-item_id dispatcher requires every context `item_id` to also appear in `future_df`, or it
+raises a `KeyError` deep in its batch dispatch -- caught via a smoke test before the full run, not
+mid-sweep). T4/T9's own predictions are discarded; the pooling benefit (if any) comes purely from
+their real rows being present in context, not from their future window. Both TabICLv2 (compared
+against T2's already-recorded solo numbers, same GCM/realization draw) and TabPFN (compared
+against a freshly-computed solo baseline, since S-05 never used TabPFN before -- no prior record
+existed) tested, closing the same "only tested one model" gap D-94 flagged.
+
+**Result: exactly 0.0 percentage points of difference, both models, all 4 comparisons** --
+
+| Model | Solo (cattle 3x) | Pooled (cattle 3x) | Solo (all-species 3x) | Pooled (all-species 3x) |
+|---|---|---|---|---|
+| TabICLv2 | +1.8% | +1.8% | +4.2% | +4.2% |
+| TabPFN | +11.0-11.2% | +11.0-11.2% | +17.2-17.5% | +17.2-17.5% |
+
+Not just "small" -- an EXACT match to the decimal across both SSPs for both models. **Mechanistic
+read**: this "pooling" only shares context ROWS within one batched inference call -- it is not
+retraining shared parameters the way Track A's RF/XGB pooling is (every split in a pooled tree is
+genuinely informed by all towers' rows together). A zero-shot in-context forecaster's output for a
+given series still appears driven almost entirely by that series' OWN history in the query; other
+towers being present in the same batch does not change what the model outputs for Tower 2 at all.
+This also retroactively explains why D-94's own pooling gain (TabPFN, ~0.4% MASE in the *standard*
+evaluation) was so small to begin with -- likely a minor batching/numerical effect, not genuine
+cross-series transfer, and that effect vanishes entirely once tested against a genuine
+extrapolation (T2 has never had 3x cattle, in reality or in the model's own experience).
+
+**Secondary finding, incidental to the main question**: TabPFN's own SOLO response to livestock
+scaling at T2 (+11-17.5%) is meaningfully larger than TabICLv2's (+1.8-4.2%) -- a real model-choice
+difference in how muted T2's sensitivity is, independent of pooling.
+
+**Outcome: pooling does not rescue Tower 2's livestock-scenario response, for either champion
+model.** Closes the debate opened alongside the muted-T2-response discussion -- the "maybe pooling
+fixes it" possibility is now closed empirically, not left open. T2's muted response should continue
+to be read as a genuine model-extrapolation limit (T2's arable regime gives the model nothing to
+learn a livestock relationship from, and simply providing more context rows from other towers does
+not transfer one in) rather than a fixable data-availability gap. Files:
+`notebooks/07_scenario_analysis/s05_t2_pooled_test.py`,
+`results/s05_t2_{pooled_trajectory,tabpfn_solo_trajectory,pooled_vs_solo_compare}.csv`.
+
+**Addendum -- 2026-08-10 -- figure added.** User asked "where are the figures tho?" — the initial
+D-95 build was numeric-only (comparison table + CSVs), no plot. Added
+`s05_t2_pooled_plot.py`: solo (dashed) vs. pooled (solid) annual-mean trajectories, both models,
+all 3 combos, ssp245, full 2050 horizon — the direct visual of the "exactly 0.0pp" finding. Solo
+and pooled lines overlap completely for both models across the entire 30-year horizon, confirming
+the numeric result visually. `results/figures/s05_t2_pooled/s05_t2_pooled_vs_solo_ssp245.png`.
+
+**Second addendum -- 2026-08-10 -- daily-resolution figures matching the project's standard
+livestock-figure format.** User asked for the same format as
+`s05_livestock_daily_full_horizon_ssp585.png` (stacked panels, thin daily lines, one condition per
+panel) rather than the annual-mean version above. Required a rerun preserving daily chains (the
+first D-95 pass only saved annual aggregates) -- `run_pooled()`/`run_solo_tabpfn()` now return
+`(annual_df, daily_df)`, same underlying calls, no new compute. New script
+`s05_t2_pooled_daily_plot.py`: 4 stacked panels (TabICLv2 solo/pooled, TabPFN solo/pooled), both
+SSPs, full 2050 horizon -- TabICLv2 solo pulled directly from the existing
+`s05_daily_chains_2050.parquet` (no new calls needed for that half). **Solo/pooled panels remain
+visually indistinguishable at daily resolution**, for both models -- confirms the 0.0pp finding
+holds day-by-day, not just in annual aggregate.
+`results/figures/s05_t2_pooled/s05_t2_pooled_daily_full_horizon_{ssp245,ssp585}.png`,
+`results/s05_t2_pooled_daily_chains.csv`, `results/s05_t2_tabpfn_solo_daily_chains.csv`.
+
+### D-96 -- 2026-08-13 -- Fix: F-10/D-67's "vs. y_gapfilled" secondary MASE metric was never
+rescored under D-80's climatology convention -- it silently mixed target AND baseline at once
+
+**Context:** while retracing "what is the best model, how was it evaluated, what is y_true"
+(direct user request), quoted F-10's gapfilled-target secondary metric (`TabPFN+species`
+MASE=0.944 gapfilled, per `b16_final_table_vs_gapfilled_best_config.csv`/`F10_results.md`)
+alongside the observed-target climatology-scored headline (0.715). **User caught the problem
+immediately**: "the MASE for y_gapfilled is weird... but perhaps its because climatology refers
+to the wrong variable as well here?" Checked the actual code, not just the table.
+
+**Root cause, confirmed via direct code inspection:** `b16_foundation_models_v3.py` (and every
+sibling `b16_*_gf`/`b16_recursive_rollout_v3_gapfilled.py`/`b16_dl_models_v3.py` script) computes
+the gapfilled-target row via `rr.bin_metrics(y_gf, yp, target_dates, anchor, y_persist=persist)`
+where `persist = chain_persistence(anchor_val, N_DAYS)` and `anchor_val = dft.loc[anchor,
+"y_gapfilled"]` -- the OLD (D-37) chain-persistence baseline, held flat from the anchor's
+gap-filled value. D-80's climatology rescoring (`mase_climatology()` in
+`temp_forecasting_pipeline.ipynb`) was only ever built and applied with `target_filter="observed"`
+as its sole mode -- it never touched the gapfilled-target secondary metric at all. So **0.715
+(observed, climatology) and 0.944 (gapfilled, persistence) differ in both target AND baseline
+convention simultaneously** -- not an isolated target-only comparison, despite being presented
+side by side as one. A second, independent problem: the persistence baseline's anchor value is
+itself always `y_gapfilled`-sourced regardless of which target it scores against -- the exact
+apples-to-oranges pattern D-71's follow-up ("fairness fix", `Climatology_gf`) already identified
+and fixed for a *different* comparison (persistence vs. climatology on the observed target); that
+fix was never propagated into the foundation-model gapfilled-secondary-metric scripts.
+
+**Fix (`b16_gapfilled_climatology_fix.py`, pure arithmetic, zero new model calls):** built a
+`Climatology_gf` baseline -- day-of-year climatology (D-80's exact recipe, +/-7-day window) built
+from `y_gapfilled` history instead of `y_observed`, reusing D-71's already-approved
+"baseline sourced from the same series as the target" principle
+(`b10_b13_climatology_gf_baseline.py`) -- then scored it against `y_gapfilled` truth (the genuinely
+fair combination neither prior script computed: D-71's `Climatology_gf` was scored against
+`y_observed` truth; F-10's gapfilled-target rows used persistence, not climatology, as the
+baseline). Recomputed `MASE_climatology_gf = MAE_model / MAE_climatology_gf` from already-saved
+per-bin MAE columns across the full 11-model roster (foundation + trees/SARIMAX/ensembles + DL),
+all 3 towers, all 5 anchors, all 7 F-10 feature configs.
+
+**Result: the qualitative conclusion survives, the numbers move.**
+
+| Model (own best-known config) | Old (persistence, mismatched) | New (Climatology_gf, fair) |
+|---|---|---|
+| TabPFN+species | 0.944 | **0.906** |
+| TabICLv2+species | -- | **0.938** |
+| Ensemble_unweighted+species | 0.749 | **0.665** |
+
+**Ensemble_unweighted still beats TabPFN+species by a wide margin under the corrected, fair
+metric** (0.665 vs. 0.906) -- the same direction and similar magnitude as before, so F-10's
+original "ranking flips under the gapfilled target" finding was directionally right even though
+its own number was computed on a mismatched baseline. Full 11-model best-config table (fair
+metric): Ensemble_MASEweighted (0.665) and Ensemble_unweighted (0.665) top, then XGB (0.670),
+LightGBM (0.684), RF (0.702), SARIMAX (0.831), TabPFN (0.903, best config `BASE+bodyweight` not
+`BASE+species`), TabICLv2 (0.922), TFT (1.013), LSTM (1.122), DLinear (1.502, worst). R2 columns
+are unaffected by this fix (unchanged from the original table) since R2 doesn't depend on the MASE
+baseline at all -- confirms the fix touched only what it should have.
+
+**No change to any standing recommendation** -- `TabPFN+species` (observed target, climatology
+MASE=0.715) remains the champion per D-36/D-37's authoritative-target convention; this fix only
+corrects the secondary/diagnostic gapfilled-target comparison column, which was already flagged as
+non-authoritative and carries the same circularity caveat as before (trees/ensembles train
+directly on `y_gapfilled`, so they retain a structural advantage on this metric regardless of
+baseline choice). **Standing lesson, same shape as D-83's addendum earlier this session**: when a
+project convention changes (D-80's persistence->climatology switch), every script that computes
+that metric needs to be checked, not just the one script that motivated the change -- secondary/
+diagnostic tables are exactly where a stale convention hides longest. Files:
+`notebooks/05_benchmarking/b16_gapfilled_climatology_fix.py`,
+`results/b16_climatology_gf_baseline_v3.csv`, `results/b16_gapfilled_climatology_fix_all_configs.csv`,
+`results/b16_gapfilled_climatology_fix_best_config.csv`.
+
+### D-97 -- 2026-08-13 -- Supervisor feedback (3 items): livestock scenario plausibility, fertilizer
+units clarity, annual CH4 generation for visualization
+
+**Context:** three items of feedback from a supervisor meeting on S-05's scenario analysis: (1) is
+3x livestock plausible given real catchment area -- research actual maximum livestock capacity and
+redesign around max-capacity/baseline/half-baseline; (2) elaborate fertilizer practices -- what are
+the units, what's the difference between rate and frequency; (3) generate annual methane generation
+for visualization once the above are resolved.
+
+**Item 1 -- livestock ladder redesigned, plausibility concern confirmed quantitatively.** The old
+1x/2x/3x multiplier scales the smoothed day-of-year climatology curve, not raw data. Checked
+directly against each catchment's own real historical instantaneous max (T2=4.51, T4=4.99,
+T9=5.65 LSU/ha, `forecast_daily_v3.csv`): at T4/T9 the old 3x (7.44/7.74 LSU/ha) exceeded the
+highest single day this catchment has EVER recorded by 30-50%, sustained for a full smoothed year
+-- while at T2, 3x (2.13) undershot both that catchment's own historical spike and external
+literature benchmarks. Same flat multiplier was simultaneously too extreme for T4/T9, too mild for
+T2. Pulled external grounding (UK grassland stocking literature: typical conventional 1.5-2.5
+GLU/ha, >3 GLU/ha only under "very best conditions"; NVZ 170 kg N/ha/yr manure cap, ~2 GLU/ha by
+common convention; AHDB rotational-grazing case study reaching 2.4 LSU/ha). **User-confirmed
+redesign** (AskUserQuestion): 4 absolute-anchored levels -- `half` (0.5x), `baseline` (1x,
+unmodified), `lit_ceil` (uniform 3.0 LSU/ha literature ceiling), `own_max` (each tower's own real
+historical peak) -- x 2 families (`all_species`, `cattle_alone`, mirroring D-84's cattle-dominance
+axis) = 7 combos, multipliers solved by bisection so each level's climatology peak hits its target
+exactly (not assumed). Full 3-tower x 2-SSP x 5-GCM x 10-realization sweep (2,100 calls, 6,901s).
+**Result: monotonic, sensible response, cattle-dominance reconfirmed** (`all_species` vs.
+`cattle_alone` within a few points of each other at every level, e.g. T4 own_max +128.9% vs.
++132.4%) -- no change to any standing conclusion, this redesign fixes scenario-level plausibility,
+not the species-dominance finding. Fully additive: new module
+(`build_transient_scenario_drivers_livestock_v2.py`) and new output
+(`s05_practices_livestock_v2.csv`) alongside the untouched original 27-combo sweep.
+
+**Item 2 -- fertilizer units fix, found a real data-labeling issue.** `Application_rate_per_ha` is
+kg PRODUCT/ha, not kg NITROGEN/ha, and the `fertN` channel (`build_management_features.py`'s
+`classify()`, used project-wide) tags any inorganic fertiliser event regardless of nitrogen
+content -- 31% of "fertN"-tagged events site-wide are 0%-N products (P/K/S/Mg-only, e.g. Triple
+Superphosphate). The original S-05 fertilizer template (D-86) inherited this: `mean_rate` was
+kg-product/ha averaged over ALL events including non-nitrogen ones. **Fix, scenario-scope only**
+(user-confirmed, `build_management_features.py` itself left untouched given the Sept 1 deadline and
+~15 prior experiments depending on it): recomputed the template as true kg N/ha
+(`Application_rate_per_ha x N-content-%/100`, parsed from `Application_Info`), restricted to N%>0
+events. Corrected template: T2 3.3 true-N events/yr @ 51.9 kg N/ha (was 5 @ 137 kg product/ha), T4
+7.4 @ 43.6 (was 8 @ 127), T9 1.55 @ 26.1 (was 4 @ 90) -- T9's frequency drops the most, since most
+of its "fertiliser" events turn out not to be nitrogen at all. **Units now stated plainly: rate =
+kg true N/ha per application; frequency = applications/year** -- directly answers the supervisor's
+question, and the two were already independently-scalable axes in the existing `FERT_LEVELS`
+design, just never clearly labeled. **Rerun result: unchanged conclusion, corrected numbers** --
+still <5% effect, still sign-inconsistent (T2 −4.1%/−0.5%, T4 +1.1%/+0.8%, T9 0.0%/−0.1% for
+frequency/rate) -- the original "redundant on the rich base" finding holds. Original
+(pre-correction) files backed up as `*_PRE_D97_UNITS_FIX.csv`, not deleted, since this rerun
+overwrites the fixed-filename originals rather than sitting alongside them the way the livestock
+redesign does.
+
+**Item 3 -- annual CH4 generation, standard unit conversion, applied to all 3 finalized axes.**
+`annual_mean` (mean daily FCH4 flux, nmol CH4 m⁻² s⁻¹) converted to kg CH4 ha⁻¹ yr⁻¹ via
+`flux x 1e-9 (mol) x 16.04 (g/mol CH4) x 1e-3 (kg/g) x 10,000 (m²/ha) x 31,536,000 (s/yr) =
+flux x 5.0584` (verified arithmetically), plus total catchment mass via each tower's real fenced
+area (T2=6.65, T4=7.75, T9=7.75 ha). Exact (no approximation) since `annual_mean` is already the
+equally-weighted mean of 365 daily chain values. Applied to livestock_v2, grazing, and
+(corrected-units) fertilizer axes -- e.g. T4 baseline livestock = 72.2 kg CH4/ha/yr (559 kg/yr
+total catchment), rising to 165-168 kg CH4/ha/yr (1,280-1,300 kg/yr total) at `own_max`.
+
+**Operational note, not a methods issue:** two of the three background sweeps this session
+appeared to hang (zero output for 10-20+ minutes) and were killed/restarted unnecessarily twice
+before the real causes were found: (a) genuine GPU contention from launching two local-inference
+jobs concurrently once, and (b) monitoring the wrong file after redirecting a script's stdout to a
+separate log rather than letting the task tool capture it, and (c) grep-piped live-tail buffering
+delaying visible output despite the process being healthy (confirmed via CPU-time/GPU-utilization
+checks, not just waiting). No science was affected -- all final results came from clean, verified
+runs -- but ~30-40 minutes of wall-clock time were lost to false-alarm troubleshooting. Lesson: when
+backgrounding a script, let the task tool capture stdout directly (don't redirect to a separate
+file) and verify a "stuck" job via CPU time / GPU utilization before killing it, not just elapsed
+time with no visible output.
+
+**Files:** `src/features/build_transient_scenario_drivers_livestock_v2.py`,
+`notebooks/07_scenario_analysis/s05_livestock_v2_trajectory.py`,
+`s05_livestock_v2_daily_chains_subset.py`, `s05_livestock_v2_daily_chains_plots.py`,
+`s05_annual_ch4_generation.py`; `src/features/build_transient_scenario_drivers_practices.py`
+(edited in place, D-97 units fix); `results/s05_practices_livestock_v2.csv`,
+`s05_livestock_v2_summary.csv`, `s05_fertilizer_corrected_summary.csv`,
+`s05_annual_ch4_{livestock_v2,grazing,fertilizer}.csv` + `_summary.csv`; figures in
+`results/figures/s05_summary/s05_livestock_v2_*.png` and `results/figures/s05_annual_ch4/`.
+Full detail: `notebooks/07_scenario_analysis/s05_results.md`.
+
+### D-98 -- 2026-08-13 -- Additive test: corrected fertN amount + a genuinely new frequency
+feature, added to each of the 3 processes' own best-performing model
+
+**Context:** direct user follow-up to D-97's units fix and the earlier "is fertN actually used"
+discussion. Question: does the CORRECTED fertN feature (true kg N/ha, not the old product-mass
+figure) plus a real frequency signal (which never existed as a real-data feature anywhere in this
+project -- only as an S-05 scenario-template parameter) help, if added to each process's own
+champion? Explicitly scoped **additive-only**: new feature file, new test scripts, zero edits to
+any production pipeline (`gapfill_rfm.py`, `build_management_features.py`, the F-10 forecasting
+configs, or S-05's driver scripts).
+
+**New feature, built once, shared across all 3 tests** (`src/features/
+build_fertN_amount_freq_features.py` -> `data/Hourly/fertN_amount_freq_features.csv`):
+- `fertN_amount_t{N}` -- same recency-decay mechanism as the existing `mgmt_fertN_rate`
+  (`exp(-days_since_event/14) x magnitude`), but magnitude is now true kg N/ha (D-97's
+  N-content-%-adjusted correction, applied here to the REAL-DATA pipeline, not just the S-05
+  scenario template) and restricted to true-nitrogen events only.
+- `fertN_freq_t{N}` -- **new**, no precedent: trailing-365-day count of true-N application events,
+  computed per real timestamp from real event history.
+Verified against D-97's known per-tower event counts (T2=24, T4=54, T9=11 true-N events site-wide
+in-catchment) before use.
+
+**Process 1 -- gap-filling.** User redirected mid-run: test TabICL-solo only (D-79's
+benchmark-best model), not RF -- RF's own run (kept on disk for reference, not deleted) already
+showed a consistent degradation at all 3 towers; TabICL was run to check whether that's an
+RF-specific overfitting artifact or holds across a structurally different model family
+(foundation/in-context, not a fitted tree ensemble).
+
+| Tower | RF champion | RF+fertN | RF delta | TabICL champion | TabICL+fertN | TabICL delta |
+|---|---|---|---|---|---|---|
+| T2 | 0.576 | 0.556 | -0.020 | 0.676 | 0.539 | **-0.137** |
+| T4 | 0.404 | 0.373 | -0.031 | 0.428 | 0.376 | -0.052 |
+| T9 | 0.426 | 0.382 | -0.044 | 0.423 | 0.308 | **-0.115** |
+
+**Result: degrades gap-filling at every tower, for BOTH models -- TabICL degrades even more than
+RF.** This is not an RF-specific overfitting quirk (F-01's original explanation for excluding raw
+fertN) -- the corrected, richer feature (true N amount + genuine frequency) still hurts, and hurts
+a completely different model family more. **Reinforces F-01's exclusion decision with new
+evidence, on the corrected feature, across two structurally different models** -- fertN
+(amount+frequency) should stay excluded from gap-filling, full stop, not just "the old broken
+version of it should be excluded."
+
+**Process 2 -- forecasting (`TabPFN+species` champion).** MASE_climatology 0.7150 -> 0.7142
+(observed target) -- a 0.08% improvement, noise-level. By tower: T2/T9 marginally better, T4
+marginally worse. **No meaningful effect** -- consistent with `BASE+mgmt`'s own small-but-real
+gain over plain `BASE` (0.724->0.719, checked directly this session) being diminishing-to-zero
+once species density is already in the model, not additive on top of it.
+
+**Process 3 -- S-05 scenario architecture (`TabICLv2` + `FX_A_SPECIES`).** MASE_climatology 0.7588
+-> 0.7591 -- essentially flat, a tiny regression. T2/T4 marginally worse, T9 marginally better.
+**No meaningful effect**, same direction/magnitude as Process 2.
+
+**Overall reading:** the "redundant on the rich base" pattern this project has now found
+repeatedly (F-01/F-04/F-05 on real historical importance, D-86/D-97 on scenario response) extends
+a further two ways here: (a) to real forecast accuracy specifically, not just feature-importance
+diagnostics or scenario-response magnitude, and (b) with a twist for gap-filling specifically --
+there it's not neutral/redundant, it's actively harmful, confirmed now on the corrected feature
+and across two model families rather than resting on F-01's original (product-mass, RF-only)
+finding. **No change to any standing recommendation** -- neither production pipeline gains
+anything from adding this feature; gap-filling's existing exclusion is reinforced, not
+reconsidered.
+
+**Files:** `src/features/build_fertN_amount_freq_features.py`,
+`data/Hourly/fertN_amount_freq_features.csv`;
+`notebooks/04_feature_engineering/d98_fertN_amount_freq_gapfill_test.py` (RF, superseded per
+user direction, kept for reference), `d98_fertN_amount_freq_gapfill_tabicl_test.py` (TabICL,
+headline); `notebooks/05_benchmarking/d98_fertN_amount_freq_forecast_test.py`;
+`notebooks/07_scenario_analysis/d98_fertN_amount_freq_s05_test.py`; `results/
+d98_gapfill_fertN_amount_freq_final_summary.csv` (RF vs. TabICL comparison table),
+`d98_forecast_fertN_amount_freq_summary.csv`, `d98_s05_fertN_amount_freq_summary.csv`.
+
+---
+
+### D-99 -- 2026-08-17 -- D9: confidence-gated self-training second pass for TabICL, a
+"prompting strategy for TFMs" experiment -- negative
+
+**Context:** the user's own idea, given directly as feedback: once TabICL's uncertainty bounds are
+available, do a second pass -- set a confidence-interval-width threshold, treat held-out points
+predicted within that bound as "successfully predicted," move them into the training set with
+their own prediction as a pseudo-label, and re-run prediction for the remaining points to see if
+they improve. Explicitly requested additive-only. Three design questions were resolved with the
+user before building (`AskUserQuestion`): (1) the width gates *promotion into training data only*,
+never exposed to the model as an input column -- keeps this mechanistically distinct from D6's
+already-negative "uncertainty as a feature" result, not a repeat of it; (2) a single second pass,
+not iterated to convergence; (3) the width threshold swept as percentile bands (narrowest 25% / 50%
+/ 75% of each fold's own width distribution) rather than one fixed nmol cutoff.
+
+**Location and mechanism:** new cells (§19, `temp_gap_filling_pipeline.ipynb`, cells 314-317,
+inserted before the notebook's final model-cache-maintenance cell, which was renumbered §19 -> §20
+as the only non-additive edit -- a heading-text change, not a logic change). TabICL-solo only (per
+D5.5's pooling-hurts-TabICL finding), champion `FEATURES` (unchanged since D1), all 3 towers x 5
+scenarios x `N_REPS`, reusing `TabICLRegressor`'s native `output_type="quantiles"` call (D6.2) for
+the interval width. Per fold: pass-1 fit -> point prediction + 90% interval width -> promote the
+narrowest-width points into the training pool using their OWN pass-1 prediction as pseudo-label
+(never the true target, so the method is legitimate for real production gap-filling, not just this
+benchmark) -> pass-2 refit on real+pseudo rows -> predict only the remaining (non-promoted) points
+-> hybrid output = pass-1 for promoted points, pass-2 for the rest.
+
+**Execution note, stated plainly:** a first attempt ran the full notebook top-to-bottom via
+`nbconvert --execute --inplace` in the background: after ~50 minutes with no cell-level progress it
+became clear this was going to take 2-4+ hours, because -- unlike D1-D8's `_model_cache/`-backed RF
+fits -- HyperImpute (~83 min historically, invoked twice) and every TabICL fit in D1-D8 (`fit_tabicl`
+explicitly never caches, "every call fits fresh") recompute from scratch on every full run, none of
+which D9 actually depends on. Killed that run and instead extracted the exact, verbatim source of
+only the cells D9's dependency chain needs (data loading through `d_all`/`FEATURES`/`fit_tabicl`/
+`FCH4_EXTREME_THRESHOLDS`/`D6_ALPHAS`, cells 0-45 + 115 + 266 + 282, plus D9's own 3 cells) into a
+standalone script, executed that (~15 min total), and used the **`baseline` arm's exact reproduction
+of D5.5's champion numbers (0.676/0.428/0.423) as the safety check** that this shortcut didn't
+silently diverge from the real notebook's state. It didn't -- verified bit-for-bit. The real
+production checkpoint files (`_data/d9_checkpoints/`, `_data/d9_*.csv`) were written to their real
+locations by this run, and the notebook's own D9 cell outputs were populated with the real captured
+stdout -- so a future genuine top-to-bottom `nbconvert` execution will hit these checkpoints and
+reproduce the identical numbers near-instantly, closing the loop honestly without requiring the
+multi-hour full rerun to *validate* this specific addition.
+
+**Result -- negative-to-neutral, and the pre-registered risk confirmed empirically, not just
+theorized.** Full-set hybrid vs. pass-1-only (operational headline): T2 degrades monotonically as
+the promoted band widens (-0.006 / -0.011 / **-0.017** at p25/p50/p75); T4 has a small genuine edge
+at p25/p50 (+0.002 / **+0.005**) that flips negative by p75 (-0.005); T9 is noise throughout (0.000
+/ -0.002 / +0.002). The cleaner remaining-points-only comparison (pass-2 vs. what pass-1 alone
+would have scored on the identical non-promoted points) shows the same pattern.
+
+**Spike-stratum breakdown is the sharpest finding**, and it's exactly what was flagged *before*
+running, not an after-the-fact rationalization: narrow-interval (promoted) points should skew
+toward non-spike/near-mean values (temp_mds.ipynb section 17's regression-to-the-mean finding), so
+pass 2's enriched training pool could end up MORE mean-biased, not less. Confirmed at T2 (-0.002 /
+-0.003 / -0.007) and **clearly at T9** (-0.016 / -0.039 / **-0.053**, worsening with band width) --
+T4 is the one exception, improving at p25/p50 (+0.010) before the same reversal hits at p75.
+Promotion rates landed exactly on 25.0/50.0/75.0% at every tower, confirming the percentile-gating
+mechanism worked as designed.
+
+**Outcome: not adopted, no change to the standing gap-filling champion (D-79's TabICL-solo,
+0.676/0.428/0.423) or the production RFm champion (D-77, 0.576/0.404/0.426).** Joins D5-D8's own
+mostly-flat/negative pattern in this notebook's TabICL-refinement arc (D8's row-cap bagging remains
+the one adoptable positive finding from that whole line) rather than breaking it. See D-77, D-78,
+D-79, `notebooks/03c_gap_filling_revisited/summary.md` section 19,
+`notebooks/03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb` (section 19, cells 314-317),
+`results/` n/a (all D9 outputs live under the notebook's own `_data/` per this notebook's
+established convention) -- `_data/d9_raw_predictions.csv`, `_data/d9_summary.csv`,
+`_data/d9_promoted_pct.csv`.
+
+### D-100 -- 2026-08-17 -- Delta-method bias correction for Phase 07 scenario outputs (S-01/S-04/S-05),
+anchoring model predictions to real historical means
+
+**Context:** S-01's own baseline-reconstruction sanity check (`s01_results.md` Finding 1) already
+documented that the 1.0x (no-perturbation) scenario doesn't reconstruct each tower's real historical
+mean exactly (T2 +20.2%, T4 -2.0%, T9 +9.2%) and judged this small enough to trust the perturbed-
+scenario comparison as-is -- **this task does not treat that as a newly-discovered bug**; it applies
+a more rigorous, standard climate-impact-modelling correction on top of that same known, previously-
+accepted gap: trust the model for the SHAPE of the change, anchor the LEVEL to the real observed
+mean (`corrected = real_mean + (predicted_scenario - predicted_baseline_1x)`). Explicitly additive-
+only, both raw and corrected numbers reported side by side, nothing overwritten or hidden.
+
+**S-01/S-04 (same frozen model, same bias, one offset transfers directly):** per-tower bias offset
+re-derived from `s01_scenario_summary.csv` (T2 +3.91, T4 -0.60, T9 +3.39), applied identically to
+S-04 (reuses S-01's exact joblib artifacts, no retraining, so the same bias mechanism applies
+unchanged). S-04's % change recomputed as a PAIRED comparison within each (tower, ssp, gcm,
+realization, year) group against that same group's corrected 1x value, not against the single S-01
+snapshot, since S-04's own realization/year structure is a more statistically sound denominator.
+
+| Tower | Raw 3x % (S-01 snapshot) | Corrected | Raw 3x % (S-04 pooled, both SSPs) | Corrected |
+|---|---|---|---|---|
+| T2 | +33.8% | **+40.7%** | +38.5-38.7% | **+48.1-48.5%** |
+| T4 | +138.2% | **+135.4%** | +156.0-156.8% | **+152.4-153.2%** |
+| T9 | +104.7% | **+114.4%** | +120.1-120.5% | **+133.1-133.7%** |
+
+A modest, expected-magnitude correction (single-digit-to-low-teens percentage points) -- consistent
+with S-01's own already-documented, already-accepted gap being real but small.
+
+**S-05 (TabICLv2 + `FX_A_SPECIES`, S-03's Variant A + species split -- S-05's current, latest
+architecture, never checked before this task per direct user instruction to scope the check to
+this specific config): a much larger, structurally different finding.** S-05 is a genuinely
+different model family (zero-shot foundation model, not a fitted Ridge+tree hybrid), so S-01's
+small gap was explicitly not assumed to transfer -- checked fresh, from source. **Result: the
+1x baseline underpredicts the real historical mean by 40-80% at every tower, in the same direction
+throughout** (checked against both `y_gapfilled`, matching S-01/S-04's own convention, and
+`y_observed`, this project's authoritative target -- consistent under both): T2 -69.9%(gf)/-81.1%
+(obs), T4 -52.4%/-51.6%, T9 -40.8%/-39.8%. This is not the same modest gap recurring in a new
+model -- it is 2-4x larger in magnitude and always in the undershoot direction, never overshoot.
+
+**Applying the same delta-method correction to S-05 roughly HALVES several of this project's most
+prominently reported headline percentages:**
+
+| Result | Raw | Corrected |
+|---|---|---|
+| Cattle-3x-alone, T4 (main species table) | +213.9% | **+101.8%** |
+| Cattle-3x-alone, T9 | +187.3% | **+110.4%** |
+| `own_max` all-species (D-97 redesigned ladder), T4 | +128.8% | **+61.2%** |
+| `own_max` all-species, T9 | +142.8% | **+84.2%** |
+| `own_max` all-species, T2 | +57.9% | **+16.8%** |
+
+**Explicit caution, stated plainly, not glossed over**: this correction should be trusted less than
+S-01/S-04's. Delta-method's core assumption is that the model's own SHAPE of response is reliable
+even when its LEVEL isn't -- that assumption gets progressively less defensible the larger the
+absolute bias is relative to the signal, and a 40-80% underprediction is a large bias by any
+standard. The qualitative finding (cattle dominates far beyond its LSU-weight share) is unaffected
+in direction -- it still clearly holds under either raw or corrected numbers -- but the exact
+MAGNITUDE quoted for it should now be read as genuinely uncertain between the raw and corrected
+figures, not settled at either one. **This affects prior headline citations directly** (e.g. the
+"+214.5%" cattle-dominance figure already cited in `BEST_RESULTS.md`, `DECISIONS.md` D-85, and the
+just-rewritten report Chapter 7) -- flagged for follow-up, not silently left inconsistent.
+
+**No retraining anywhere** -- purely a post-hoc arithmetic correction on already-computed
+predictions, fully additive (new `_bias_corrected` files, originals untouched).
+
+**Files:** `notebooks/07_scenario_analysis/d100_bias_correction_s01_s04.py`,
+`d100_bias_check_s05.py`; `results/s01_scenario_summary_bias_corrected.csv`,
+`s04_trajectory_realizations_bias_corrected.csv`, `s04_trajectory_summary_bias_corrected.csv`,
+`s05_trajectory_realizations_2050_bias_corrected.csv`,
+`s05_practices_livestock_v2_bias_corrected.csv`.
+
+### D-101 -- 2026-08-18 -- S-06: bias-correcting the CMIP6/LARS-WG driver data itself (not just the
+model's output, D-100) -- full rerun of every S-05 process against corrected drivers
+
+**Context:** direct follow-up to the S-05 AOA discussion (baseline scenario flagged 63-68% of days
+as outside the training envelope even with no livestock perturbation at all). User's own hypothesis,
+checked rather than assumed: does the simulated climate driver data itself need preprocessing
+before AOA looks this bad?
+
+**Diagnosis, same-calendar-year comparison (2020-2024 real vs. simulated, ruling out a
+baseline-period-mismatch explanation before concluding anything):**
+- **Precipitation: simulated ~4.3x wetter than real** (real mean 0.74mm/day vs. sim 3.16mm/day;
+  median 12x higher; max 6x higher). Traced two contributing causes: (a) a genuine, confirmed
+  construction bug in `fx_PRECIP_sum` (`.resample("D").sum()` silently treats missing hours as 0mm
+  rather than excluding them -- 23% of hourly readings are missing -- but correcting this only
+  explains ~20% of the gap, not the bulk of it); (b) the larger remainder is a real property of the
+  CMIP6/LARS-WG driver data itself, most likely coarse-grid (~1.25x1.9 degree) site-representativity
+  rather than a fixable data-quality issue on the real side -- confirmed by holding calendar years
+  identical on both sides, which rules out "different multi-decade baseline period" as the
+  explanation.
+- **Temperature: simulated 2-3.5C COOLER than real** (TA_min: real 9.78 vs. sim 7.65; TA_max: real
+  18.04 vs. sim 14.63) -- the opposite direction from precipitation, and the opposite of what an
+  earlier, methodologically weaker (mismatched-years) comparison had suggested.
+- **Radiation: smaller mismatch** (~8% low on the mean), real's own max (689 W/m^2 as a 24h mean) is
+  itself a likely sensor-artifact outlier, flagged but not pursued further this pass.
+
+**Decision: rescale the driver, not just flag it as a limitation.** User's own reasoning, endorsed:
+un-bias-corrected raw GCM/downscaled output fed directly into an impact model is the methodologically
+*weaker* choice in climate-impact practice, not the safer one -- local bias-correction to the site's
+own observed climatology is the standard expected step. Convention (standard practice, not
+improvised): **additive** correction for temperature (interval-scale -- multiplying temperature
+isn't physically meaningful; `corrected = simulated + (real_mean - sim_mean)`), **multiplicative**
+correction for precipitation/radiation (non-negative, ratio-scale, skewed -- an additive shift risks
+negative rainfall on dry days; `corrected = simulated * (real_mean / sim_mean)`).
+
+**Implementation, fully additive.** Correction factors computed **per-GCM** (pooling realizations
+1-10 and a 2020-2030 near-term window -- deliberately early, so the correction targets each GCM's
+own near-term bias without absorbing the genuine future-warming signal it's supposed to preserve),
+against NWFP's own full real historical record (Tower 4, best coverage of the 3 towers -- one
+site-level reference used since all 3 towers share one CMIP6 file and real inter-tower climate
+differences at a single farm don't plausibly explain anything at this magnitude). All 5 GCMs show
+consistent bias direction/magnitude (TA_min offset +1.8 to +2.7C, TA_max +2.6 to +3.6C, RAIN ratio
+0.225-0.240, SWIN ratio 1.03-1.08) -- reassuring, not GCM-specific noise.
+
+**Bias-corrected `.dat` files** (identical format to the originals) written to a new directory,
+`data/Simulated Climate Data Bias Corrected/` (100 files: 5 GCMs x 2 SSPs x 10 realizations,
+matching S-05's own `stratified_realizations(10)` scope) -- `src/features/
+build_bias_corrected_cmip6.py`. A drop-in-compatible `load_transient_years()` reads from the new
+directory (`build_transient_scenario_drivers_s06.py`), and every S-05 runner script is reused
+**completely unmodified** via a single monkey-patch of the module-level `load_transient_years`
+name on the already-imported `s05_practices_trajectory` module (Python resolves global names from
+the defining module's own namespace at call time, not import time -- the same technique already
+validated for D-98's `TOWERS`/`SSPS` override) -- zero duplication of `run_axis()`/
+`build_livestock_frame()`/etc.
+
+**Smoke-tested before the full run** (1 tower, 1 SSP, 1 realization, all 3 axes): confirmed the
+pipeline runs correctly end-to-end and AOA flagged-% moves in the expected direction, by a modest
+amount -- baseline ~63%->60%, `own_max__cattle_alone` ~51%->47%. **Expected to be partial, not a
+full fix, and it is**: AOA is computed across all 13 `FX_A_SPECIES` dimensions, and only the 4
+climate drivers were corrected -- the livestock-density dimensions (which the elevated scenario
+levels deliberately push into unusual territory) are untouched by this correction and still
+contribute real, legitimate extrapolation flags.
+
+**Full sweep launched** (3 towers x 2 SSPs x 5 GCMs x 10 realizations, all 7 livestock-ladder
+combos + 3 grazing + 3 fertilizer levels -- matching S-05's exact coverage, ~3.5h total) --
+results/full write-up pending completion, to follow as an addendum. **No change to S-05's own
+files or conclusions** -- this is a parallel, fully additive companion body of work (S-06), not a
+replacement.
+
+**Files:** `src/features/build_bias_corrected_cmip6.py`,
+`build_transient_scenario_drivers_s06.py`; `notebooks/07_scenario_analysis/s06_master_runner.py`;
+`data/Simulated Climate Data Bias Corrected/` (100 files); `results/s06_bias_correction_factors.csv`.
+
+### D-102 -- 2026-08-18 -- I-03: interpretability recalibrated for the current forecasting champion
+(TabPFN+species) -- closes the same "predates the champion" gap U-04 already closed for UQ
+
+**Context:** user concern, checked and confirmed rather than assumed: I-02 (D-61, 2026-07-06), this
+project's only comprehensive rollout-forecasting interpretability pass, predates TabICLv2 joining
+the roster (D-66, 2026-07-09) and F-10's species-disaggregated features (D-67, 2026-07-10) by 3-4
+days -- both of which produced the standing champion, TabPFN+species (MASE=0.715 climatology-scored,
+D-80). I-02's SHAP/permutation numbers, the ones currently written into Chapter 6, were computed on
+the OLD 8-model roster and OLD (BASE-only) feature set. Confirmed via direct grep that no I-03/I-04
+equivalent existed anywhere in this project prior to this entry -- unlike UQ, which got U-04 as an
+explicit champion-recalibration pass, interpretability had never received the same treatment.
+
+**Scope (champion-focused, mirrors U-04's precedent, user-directed):** TabPFN only -- "the best
+forecasting model... the model that was ingested for S-03" -- confirmed via S-03's own 11-model
+table (TabPFN MASE=0.855, the lowest/best of all models tested there, including TabICLv2 at 0.930).
+TabICLv2 not covered this pass -- flagged as a cheap, natural follow-up (same zero-shot cost
+profile), not executed.
+
+**Method: unchanged from I-02's own TabPFN treatment** (`i02_multi_anchor_tower.py` lines ~277-304)
+-- permutation importance (TabPFN's only available substitute for a native signal; architecturally
+mismatched with SHAP's row-wise framework per I-02's own reasoning, not revisited). One baseline
+zero-shot rollout + one single-shuffle permutation per feature column (seeded by anchor year,
+matching I-02 exactly -- not upgraded to n_repeats>1, keeping old-vs-new numbers comparable) per
+(anchor, tower). Only the feature set changed: BASE+species, 52 `fx_` columns from
+`forecast_daily_v3.csv` (F-10's actual champion config, construction identical to
+`u04_champion_uq.py`'s `fit_stage_champion`). Same 3-tower x 5-anchor sweep as I-02/U-02/U-04.
+Smoke-tested (1 tower, 1 anchor, 3 features) before the full 795-call run. **Actual runtime: ~22
+minutes**, zero training.
+
+**Headline: `fx_lsu_dens` still dominates, and the new species split's real driver is isolated for
+the first time.** Overall ranking (mean importance, pooled): `fx_lsu_dens` 1.1456 (#1),
+`fx_cattle_dens` 0.8043 (#2), `fx_grazing_active` 0.3750 (#3), `fx_total_liveweight_dens` 0.2807
+(#4) -- confirms I-02's original livestock-dominance finding survives on the actual champion
+config. **New finding I-02 could not have made** (it predates species features entirely):
+`fx_sheep_dens` (0.0143) and `fx_lamb_dens` (0.0320) rank near the bottom of all 52 features, an
+order of magnitude below `fx_cattle_dens` -- F-10/D-67's species-disaggregation gain is
+concentrated entirely in the cattle component, not a generic benefit of splitting by species. This
+independently corroborates S-05's scenario-projection cattle-dominance finding (cattle tripling
+~triples FCH4 at T4/T9; sheep/lamb stay under 25% even at 3x) via a completely different method
+(real-anchor permutation importance vs. scenario dose-response) -- convergent evidence, not
+circular.
+
+**Tower 2 confirms its livestock-blindness a fourth independent time.** T2's top-10 importance list
+contains zero livestock features at all -- top-ranked are `fx_TA_max`/`fx_TA_mean`/`fx_TS_lag28`/
+`fx_SWIN_mean` (meteorological/soil-temperature only). Consistent with U-03 (rollout stress test),
+S-01 (AOA/climatology-max check), and S05-T2/D-95 (pooling test) -- now a settled, cross-method
+characteristic of that catchment, not a single-method artifact. T4/T9 both show the identical
+top-3 ordering (`fx_lsu_dens` > `fx_cattle_dens` > `fx_grazing_active`).
+
+**Practical implications:** (1) the interpretability gap this project carried since D-66/D-67 is
+closed for the model that actually needs it; TabICLv2 remains open. (2) I-02's headline finding is
+confirmed, not overturned, and sharpened with a mechanism I-02 structurally could not see. (3)
+Chapter 6's current SHAP/permutation write-up (based on I-02) should be read as accurate in
+direction but built on a superseded feature configuration -- worth a note or a light update citing
+I-03 for the champion-specific claim. See D-102,
+`notebooks/06_interpretability_uq/i03_champion_interpretability.py`, `I03_results.md`,
+`results/i03_tabpfn_species_importance*.csv`.
+
+---
+
+### D-103 -- 2026-08-19 -- Recalculating R2_OLS (scipy/Zhu-style) for D-78's five non-TabPFN
+challenger models -- ranking unchanged, TabPFN itself skipped by explicit user scope
+
+**Context:** direct user follow-up to the earlier scipy-vs-sklearn R² discussion (`temp_mds.ipynb`
+section 13.4/13.5, ported into `BEST_RESULTS.md` -- `R2_OLS`, the squared-Pearson-r/Zhu et al.
+(2023a) convention, bounded [0,1], vs. this project's standing `sklearn.metrics.r2_score`,
+unbounded below). Section 13.5 had already extended that comparison to Mean/MDS/MICE/RFm-family/
+D1-D4, but never to D-78's six-model challenger comparison (LightGBM/XGBoost/TabPFN/TabICL/SAITS/
+BI-LSTM, `temp_gap_filing_exploration copy.ipynb`). Checked before building anything (user's own
+explicit request): confirmed no raw (actual, predicted) pairs exist anywhere on disk for these six
+models -- `run_model()`'s per-fold `mets()` call only ever fed an aggregate `med_metrics()`
+reduction into `model_comparison.csv` (`R2`/`RMSE`/`MAE`/`MBE` only), and this notebook's own
+`mets()` predates the `R2_OLS` addition entirely (a genuinely different, older 4-value function than
+`temp_gap_filling_pipeline.ipynb`'s). No free recompute was possible -- a real refit was required.
+**Scope, per explicit user direction:** skip TabPFN (already documented ~3.7h for its 60-fold
+sweep, and a clear, unambiguous loser on sklearn R² already) -- recalculate for the other five.
+
+**Method: additive-only**, zero edits to `model_comparison.csv` or any existing notebook cell. A
+standalone script (verbatim-extracted setup chain -- data loading through `FEATURES`/`frame()`/
+`fit_lgbm`/`fit_xgb`/`fit_tabicl`/the SAITS+BI-LSTM helper functions, cells 0-52/56/103/107/110/113
+of `temp_gap_filing_exploration copy.ipynb` -- plus new capture wrappers around each model's exact
+original fitting logic) computes `R2_OLS` via the same `scipy.stats.linregress`-based formula as
+`temp_gap_filling_pipeline.ipynb`'s `mets()`, alongside a **built-in verification checkpoint**: each
+model's recomputed sklearn R² must reproduce `model_comparison.csv`'s original number, or the run
+flags MISMATCH rather than silently trusting a possibly-diverged harness. Champion R² hardcoded
+(0.576/0.404/0.426) rather than recomputed, since it's informational-only in this context and
+recomputing it would mean rerunning the full RF gap-CV harness for no reason.
+
+**Two real operational failures hit and fixed along the way, not just a straightforward run:**
+1. The first full-notebook-style attempt used `jupyter nbconvert --execute --inplace` on the whole
+   notebook, on the (wrong) assumption that D1-D8/HyperImpute/MICE would mostly hit existing
+   checkpoints/caches the way `temp_gap_filling_pipeline.ipynb`'s D5-D9 sections do. They don't --
+   HyperImpute alone is ~83min per the project's own D-78 notes, invoked twice, and every TabICL/
+   LightGBM/XGBoost fit in that notebook's D1-D8 equivalent sections also refits from scratch on
+   every run, none of which D-103 depends on. Killed after confirming (via `Get-Process` CPU
+   accounting) it would cost 2-4+ hours for work this experiment doesn't need; replaced with the
+   verbatim-extracted-dependency-chain approach described above (~15 min for setup).
+2. The extracted script itself silently hung twice, for two unrelated reasons, both diagnosed via
+   direct OS-level inspection (`Get-Process`/`nvidia-smi`) rather than assumption: **(a)** a
+   `plt.show()` call inside the extracted EDA cells opened a real interactive matplotlib GUI window
+   (confirmed via `MainWindowTitle` = "Figure 1") that blocked the headless script indefinitely with
+   near-zero CPU use -- fixed with `matplotlib.use("Agg")` forced before any other import. **(b)**
+   after that fix, SAITS's repeated per-scenario/per-tower model creation on GPU was never
+   explicitly freed between fits (`del model`, `gc.collect()`, `torch.cuda.empty_cache()` all
+   missing) -- confirmed via `nvidia-smi` climbing to 11.6/12.2GB VRAM by the 6th-7th SAITS fit,
+   causing severe thrashing (a single fit's wall-clock time went from ~70-90s to effectively stalled
+   for hours while CPU accounting showed almost no active computation). Fixed by adding explicit
+   GPU-memory cleanup after every SAITS/BI-LSTM fit, plus per-(model,tower) checkpointing
+   (`_data/d100_checkpoints/`, matching this project's own established checkpoint-and-resume
+   convention) so a third interruption would not repay already-finished work. Total real compute
+   once both fixes were in place: ~50 minutes.
+
+**Result -- verification passed for 4 of 5 models exactly; SAITS showed small, expected
+neural-net-training non-determinism, not a bug:**
+
+| Model | Tower | R2_sklearn | vs. original | R2_OLS | Champion R2 |
+|---|---|---|---|---|---|
+| LightGBM | 2 / 4 / 9 | 0.522 / 0.410 / 0.422 | OK / OK / OK | 0.583 / 0.418 / 0.425 | 0.576 / 0.404 / 0.426 |
+| XGBoost | 2 / 4 / 9 | 0.551 / 0.349 / 0.369 | OK / OK / OK | 0.619 / 0.380 / 0.375 | " |
+| TabICL | 2 / 4 / 9 | 0.558 / 0.423 / 0.364 | OK / OK / OK | 0.587 / 0.425 / 0.368 | " |
+| SAITS | 2 / 4 / 9 | 0.341 / 0.275 / 0.263 | MISMATCH (orig 0.358/0.293/0.285) | 0.562 / 0.289 / 0.304 | " |
+| BI-LSTM | 2 / 4 / 9 | 0.237 / 0.155 / 0.146 | OK / OK / OK | 0.280 / 0.204 / 0.189 | " |
+
+SAITS's ~0.017-0.023 R2 gap from the original is attributable to `pygrinder.mcar()`'s validation-set
+masking depending on NumPy's *global* RNG state (not fully pinned by `torch.manual_seed()` alone),
+which differs between this standalone script's execution history and the original notebook's --
+expected for a re-trained deep model in a different harness, not a capture-logic bug. All other four
+models verified bit-exact.
+
+**Outcome: ranking unchanged, consistent with the sklearn-R2 story.** Every model's R2_OLS sits
+meaningfully above its sklearn R2 (same direction section 13.5 already found for the RF/TabICL/MDS/
+MICE family), but LightGBM and TabICL remain the only two that edge the champion, and only at Tower
+4 (0.418/0.425 vs. champion's 0.404 under OLS too) -- SAITS/BI-LSTM stay clearly behind at every
+tower under either metric. This extends section 13.5's own "R2-definition sensitivity is essentially
+an MDS-specific phenomenon" finding to two more model families (SAITS/BI-LSTM) without changing its
+conclusion. **No `BEST_RESULTS.md` champion change** -- purely a metric-completeness fill for D-78's
+own table. See D-78, D-79,
+`notebooks/03c_gap_filling_revisited/_d100_ols_runner_setup.py`,
+`notebooks/03c_gap_filling_revisited/_d100_ols_runner_capture.py`,
+`notebooks/03c_gap_filling_revisited/_data/d100_ols_recalc_summary.csv`,
+`notebooks/03c_gap_filling_revisited/_data/d100_ols_recalc_raw_predictions.csv` (446,400 rows),
+`notebooks/03c_gap_filling_revisited/_data/d100_checkpoints/`.
+
+### D-104 -- 2026-08-19 -- S-06 only: `lit_ceil` corrected to 2.5 LSU/ha (UK regulatory ceiling),
+replacing D-97's 3.0 synthesized estimate -- S-05 untouched
+
+**Context:** D-97's `lit_ceil` level (3.0 LSU/ha) was the author's own synthesized round number,
+set just above several converging but indirect sources (a ScienceDirect Topics tertiary aggregator,
+an AHDB case study, NVZ regulation) -- already flagged as not a single paper's literal figure when
+first questioned. User found a stronger, directly-citable primary source: **UK Countryside
+Stewardship regulation, Annex 8** (non-SDA land) states a hard ceiling of **2.5 livestock units/ha**
+("do not stock more than... 2.5 livestock units (LU) per hectare on non-SDA land... on average over
+the year"). North Wyke (lowland Devon) is non-SDA, so 2.5 is the applicable figure.
+
+**Scoped to S-06 only, per direct user instruction** -- D-97's original `lit_ceil` (target=3.0,
+S-05's already-documented result) is left untouched, not retroactively invalidated. New multipliers
+solved by the same bisection method (`build_transient_scenario_drivers_livestock_v2_s06.py`, a
+thin S-06-only override -- `half`/`baseline`/`own_max` unaffected, reused unchanged): T2 all-species
+m=3.5062/cattle-alone m=3.8016, T4 m=1.0097/1.0102, T9 m=0.9690/0.9593.
+
+**Genuine finding, not smoothed over: Tower 9's own real baseline climatology peak (2.58 LSU/ha)
+already exceeds 2.5** -- its solved multiplier is <1.0, meaning `lit_ceil` now sits BELOW
+`baseline` for T9 specifically (confirmed in the rerun: baseline=19.21 vs. lit_ceil=18.76-18.77),
+not above it as originally intended. T9 is, on real historical evidence, already operating above
+the UK non-SDA regulatory stocking ceiling -- a real result about this specific catchment, not a
+construction artifact (T2/T4 still show `lit_ceil` > `baseline` as originally intended, T4 only
+marginally so under the tighter ceiling: 15.09->15.21/15.22).
+
+**Rerun scope**: only the 2 affected combos (`lit_ceil__all_species`, `lit_ceil__cattle_alone`),
+full coverage (3 towers x 2 SSPs x 5 GCMs x 10 realizations, 600 calls, ~34 min) plus the daily-
+chains subset (12 calls) -- `half`/`baseline`/`own_max` unaffected, not rerun. Corrected rows
+merged into the existing S-06 output files (row counts confirmed unchanged: 59,500 annual /
+434,350 daily), superseding the 3.0-based S-06 `lit_ceil` rows in place. Affected figures
+regenerated (`s06_livestock_v2_*` daily-chain set, `s06_annual_ch4_livestock_v2`).
+
+**Files:** `src/features/build_transient_scenario_drivers_livestock_v2_s06.py`,
+`notebooks/07_scenario_analysis/s06_lit_ceil_fix.py`; `results/
+s05_practices_s06_livestock_v2.csv` (updated in place), `s06_livestock_v2_daily_chains_subset.csv`
+(updated in place), `s06_annual_ch4_livestock_v2*.csv` (regenerated).
+
+### D-105 -- 2026-08-19 -- New fertiliser scenario level `reg_cap`, regulatory-grounding check found
+and fixed a real double-counting bug in the interim (never reached production, S-05/S-06 model
+outputs unaffected)
+
+**Context:** user asked whether the fertiliser scenario's amounts (T2/T4/T9's `+50% rate`/`+50%
+frequency` levels) are grounded in real nitrogen regulation, mirroring the livestock ceiling's
+gov.uk grounding (D-104). Checked directly against gov.uk ("Using nitrogen fertilisers in nitrate
+vulnerable zones"): **NVZ N-max for grassland = 300 kg N/ha/yr, +40kg (340 total) for grassland cut
+>=3 times/yr.**
+
+**Investigation surfaced a real bug, but it was in chat-only arithmetic, not in any pipeline code.**
+Naively multiplying `FERTN_TEMPLATE`'s pooled n_events x mean_rate (T4: 7.4 x 43.6 = 323 kg N/ha/yr)
+and comparing it to the 300 cap made it look like T4 already exceeded NVZ regulation -- surprising
+for a UKRI research platform, and the user pushed back. Root cause, confirmed directly against
+`Field_Event_Data_Format_1.csv`: **Catchment 4 (and 9) are each TWO independently-fertilised
+sub-fields** (T4: NW005 Bottom Burrows 1.26ha + NW006 Burrows 6.49ha; T9: NW013 Dairy South 6.45ha +
+NW039 Dairy Corner 1.30ha), and `FERTN_TEMPLATE` pools both fields' events into one catchment-level
+frequency/rate with no area-weighting -- overstating the true catchment-average annual N loading by
+roughly 2x at T4/T9 (T2 is a single field, NW002, unaffected). Correctly area-weighted (total N mass
+/ true catchment area): T2=155.8, T4=145.5, T9=27.5 kg N/ha/yr (typical year) -- and **no real field,
+in any real year 2017-2024, ever exceeds ~245 kg N/ha/yr**, comfortably under the 300 cap. NWFP does
+not, and never has, breached NVZ regulation; the "exceeds 300" claim was wrong.
+
+**Important scope note: this double-counting was never inside `synthetic_fertN_events()` or any
+scenario/pipeline code** -- `FERT_LEVELS`'s existing `historical`/`plus50pct_rate`/`plus50pct_freq`
+levels generate individual per-event synthetic entries (matching real per-event magnitudes, which
+themselves aren't inflated), not an aggregated annual total; the pooled-catchment convention itself
+mirrors `build_management_features.py`'s project-wide `CATCHMENT_FIELDS` design (an EC tower's
+footprint integrates signal across its whole catchment, not one sub-field) and is not itself a bug.
+The flawed "n_events x mean_rate = annual total" step existed only in the chat's ad hoc regulatory-
+comparison arithmetic. **No rerun was needed to fix that bug** -- only the write-up claim.
+
+**New level added anyway, per direct user request**: `reg_cap` -- rate scaled (frequency held at
+historical, matching `plus50pct_rate`'s axis-isolation convention) so the TRUE area-weighted typical-
+year N loading hits exactly 300 kg N/ha/yr per tower. Needed its own module
+(`build_transient_scenario_drivers_fertN_regcap.py`) rather than a plain new `FERT_LEVELS` entry,
+because every existing level is one multiplier applied uniformly across all 3 towers, whereas 300 is
+an absolute target each tower sits a very different distance from (same reasoning as D-97/D-104's
+`lit_ceil`/`own_max`). Solved directly (linear in rate_mult, no bisection needed): **T2 x1.926, T4
+x2.062, T9 x10.897** -- T9's real fertiliser use is so low it needs ~11x to reach the same absolute
+ceiling that T2/T4 reach at ~2x, a genuinely interesting contrast on its own. Monkey-patch pattern
+(same technique as D-104): `synthetic_fertN_events_regcap()` delegates to the ORIGINAL function
+(captured at import time, before patching, to avoid self-recursion) for every level except `reg_cap`.
+
+**Result: negligible effect, consistent with D-97/D-98's standing "redundant on the rich base"
+finding** -- even scaled all the way to the regulatory ceiling: T2 -0.9%/-0.7% (S-05/S-06), T4
++1.5%/+1.7%, T9 +0.1%/+0.1%. Notably, T9's effect stays negligible even though its per-event rate is
+scaled to ~284 kg N/ha per single application (a large, likely out-of-AOA magnitude) -- reinforces
+that fertiliser schedule is not a meaningful CH4 lever in this model, now anchored at a real
+regulatory ceiling rather than an arbitrary +50%, not just a narrower conclusion.
+
+**Full coverage**: added to BOTH S-05 (real drivers) and S-06 (bias-corrected drivers), all 3
+towers, both SSPs, full 5-GCM x 10-realization sweep (300 calls each, ~1075s) plus daily-chains
+subset (12 calls). Additive only -- existing `historical`/`plus50pct_rate`/`plus50pct_freq` rows
+untouched, row counts confirmed (34,000 annual S-06 total, 248,200 daily-chains total each). Fixed
+the same mixed-timestamp-format bug as D-104 in both `s0{5,6}_practices_daily_chains_plots.py`
+(`pd.to_datetime(..., format="mixed")`) after merging old and newly-rerun rows.
+
+**Files:** `src/features/build_transient_scenario_drivers_fertN_regcap.py` (new),
+`notebooks/07_scenario_analysis/s05_s06_fertN_regcap_fix.py` (new); `results/
+s05_practices_fertilizer.csv`, `s05_practices_s06_fertilizer.csv`,
+`s05_practices_fertilizer_daily_chains_subset.csv`, `s06_practices_fertilizer_daily_chains_subset.csv`
+(all updated in place, additive); `s05_practices_daily_chains_plots.py`,
+`s06_practices_daily_chains_plots.py` (edited: `reg_cap` added to the fertilizer AXES entry, mixed-
+format timestamp fix); all 12 `s0{5,6}_practices_fertilizer_daily_*` figures regenerated.
+
+### D-106 -- 2026-08-19 -- B17/B18: direct pooled, recency-aware, event-corrected TabPFN
+supersedes the B16-style long-horizon numerical benchmark; final equal-weight gain is exploratory
+
+**Scope and comparison rule:** user requested a precise B16→B18 improvement account for TabPFN
+only. All numbers below use the same primary observed-target, day-of-year-climatology-scaled MASE
+convention (D-80/CLAUDE.md), all 3 towers and all 5 16-December anchors. There are 2,127 observed
+evaluation points across 9 tower-anchor blocks; empty target blocks remain in the raw 15-chain
+coverage but do not invent evaluation values. Strict candidates see `y_observed` only on or before
+the anchor and known-future `fx_*` drivers; post-anchor observed/gap-filled methane and methane AR
+features are not supplied. R² values here are global across the evaluated points, not averages of
+per-bin R². TabICL is deliberately outside this decision's scope.
+
+**Naming clarification:** B16's `BASE+ALL` means all available covariate families, not “all
+species.” The genuine species split is `BASE_species_37` (`fx_cattle_dens`, `fx_sheep_dens`,
+`fx_lamb_dens`). On the reconstructed same-protocol comparison, the strongest B16-style checkpoint
+is TabPFN-TS v2 `BASE+ALL` (MASE=0.7123); genuine-species TabPFN-TS v3 is 0.7154. The latter was the
+previously documented `TabPFN+species` champion within the original B16 configuration framing.
+
+**Main architectural improvement (B16→B17):** replace the one-shot `TabPFN-TS` wrapper with the
+generic `TabPFNRegressor` fitted directly to pooled observed daily rows at each anchor. The direct
+model uses all 52 `fx_*` predictors plus three tower indicators, calendar year, and days since
+2010-01-01, returns the predictive median, and uses the best screened seed (137). This lowers MASE
+from 0.7123 to 0.6958 (−0.0165, −2.31%), MAE 30.669→30.073, RMSE 61.704→60.708, and raises global
+R² 0.146→0.173. This wrapper→direct-regression change supplies roughly three quarters of the total
+B16→B18 MASE reduction; it is the substantive improvement, not a feature-name relabelling.
+
+**B18 refinements:** (1) moderate forgetting of stale history -- the latest 1,095 days gives
+MASE=0.6930, while a 1,460-day tower-robust variant gives 0.6934; 730 days discards too much and
+1,825 days trends back toward all-history. (2) A leakage-safe, tower-specific pre-anchor p95 event
+classifier plus base/normal/spike TabPFN regressors. Hard gates and full probability mixtures are
+negative; the useful form is deliberately conservative, adding only 25% of the predicted
+spike-minus-base excess. This is the **best single/gated B18 forecast**: MASE=0.6924, MAE=29.857,
+RMSE=59.530, R²=0.205, bias=−9.402. (3) A fixed equal mean of that p95 correction, the 1,095-day
+raw forecast, and the 1,460-day tower-robust forecast is the **exploratory numerical champion**:
+MASE=0.6908, MAE=29.821, RMSE=60.019, R²=0.192, bias=−10.452.
+
+**Total measured change:** B16-style v2 `BASE+ALL` 0.7123→B18 equal mean 0.6908: −0.0215 MASE
+(−3.01%), MAE −0.848 (−2.76%), RMSE −1.684 (−2.73%), and R² +0.046. B17 direct all-history→B18
+contributes only −0.0050 MASE (−0.72%). Component gains overlap and are not additive: the recency,
+event, and ensemble rows are alternative forecasts evaluated on the same observations.
+
+**What was tested and rejected rather than silently omitted:** 42 antecedent/interaction features
+(all-feature TabPFN MASE=0.7040), seasonal experts (~0.738-0.742), recency replication (~0.697),
+tower-month target normalization (completed safe fallback 0.7673), hard spike gating, and
+tower-adaptive model switching. A same-data tower oracle looks attractive (0.6892), but
+leave-one-block-out/forward tower selection degrades to ~0.698-0.699 and is not adopted. The added
+antecedent variables improve event-ranking AUROC in one p90 comparison but not flux regression.
+
+**Spike limitation remains decisive:** the p95 classifier has AUROC=0.876, average precision=0.302,
+and Brier=0.0537, but calibrated hard-gate recall is only 4.5%. Using pre-anchor tower-specific p95
+labels, the conservative forecast scores MASE=3.285/MAE=176.5 on 130 spikes versus MASE=0.524/
+MAE=20.3 on 1,997 non-spikes; nearly all spike error is underprediction. B18 improves ordinary and
+some large-error behaviour but does not solve spike magnitude or approach the requested MASE<0.25.
+
+**Uncertainty/claim strength:** block bootstrap (10,000 resamples of the 9 evaluable blocks) for
+the p95 single/gated forecast versus B17 gives ΔMASE=−0.0034, 95% interval [−0.0129, 0.0043],
+P(B18 better)=0.784 -- directionally favourable but not independently conclusive. Comparisons with
+B16-style v2 and genuine-species v3 are clearer (intervals wholly below zero; P=0.998/0.985). The
+fixed three-forecast mean is retained as the lowest exploratory score, but LOBO-estimated pair/
+triple weights score 0.6925-0.6936; do not claim the final ~0.0016 ensemble increment as a validated
+breakthrough. Use the p95 result when one interpretable single/gated model is required.
+
+**Decision and integration boundary:** update the long-horizon forecasting benchmark to the B18
+equal three-TabPFN mean (explicitly labelled exploratory) and record the p95-corrected forecast as
+the best single/gated result. This does **not** silently replace the model inside I-03, U-04, S-03,
+or Phase-07 scenario pipelines; those outputs remain analyses of the prior B16-style architecture
+until separately recalibrated. No `.tex` file was changed.
+
+**Files:** `notebooks/05_benchmarking/B18_direct_structure.py`, `B18_spike_models.py`,
+`B18_monthly_normalization_fallback.py`, `B18_evaluate_and_plot.py`, `B18_blend_validation.py`,
+`B18_final_triple_chain.py`; `results/b18_direct_structure_chains.csv`,
+`b18_spike_model_chains.csv`, `b18_final_triple_blend_chains.csv`,
+`b18_candidate_registry.csv`, `b18_champion_block_bootstrap.csv`,
+`b18_champion_spike_metrics.csv`; `results/figures/b18_chains_final/` (15 B15-style figures);
+`report/Outlines/B17_forecasting_experiment_results.md`,
+`report/Outlines/B18_forecasting_experiment_results.md`.
+
+### D-107 -- 2026-08-20 -- Latest TabICL-solo gap-filling figures use native hourly,
+per-tower six-month windows and raw native UQ
+
+The report-facing TabICL gap-filling chain must represent the actual D5.5 benchmark architecture,
+not reuse or relabel the earlier pooled TabICL UQ artifact. Section 19.2 of
+`notebooks/03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb` therefore refits
+`TabICLRegressor(random_state=42)` separately for Towers 2/4/9 on the champion `FEATURES`, using
+mean imputation and the same fixed random sample capped at 10,000 real observations. It exports
+each tower's latest six calendar months at native hourly resolution. Solid black is observed
+FCH4; blue dotted model means and pale-blue bands are drawn only at genuinely missing target
+hours. Tower 2 consequently shows Dec 2018-Jun 2019, while Towers 4/9 show Jun-Dec 2023.
+
+The band is the model's own q05-q95 output and is explicitly **raw/uncalibrated**: no empirical
+coverage claim is made and the older calibrated/pool-based endpoints are not borrowed. Exact
+hourly point and q05/q50/q95 outputs are persisted in
+`_data/latest_tabicl_uq_6month_chains.csv`; provenance and row/coverage counts are in
+`_figures/latest_tabicl_uq_hourly_manifest.json`. The three canonical figures live in `_figures/`
+with identical report copies at `report/Figures/ch4_latest_tabicl_uq_hourly_T{2,4,9}.png`.
+This is figure/raw-output tooling only: no benchmark score changed, TabICL is not silently
+production-adopted, and no `.tex` file was changed.
+
+### D-108 -- 2026-08-20 -- B18 integration into Phase 07 (I-03b/U-08/S-03b-d/U-05b-07b/S-06b):
+the direct-regression architecture genuinely carries over, once correctly adapted
+
+D-106 (B18) explicitly did NOT propagate into I-03/U-04/S-03/Phase-07 scenario work -- those stayed
+on the prior B16-style architecture pending separate recalibration. This closes that gap via a
+6-phase additive plan, user-directed ("plan this thoroughly... ensure it is all additive"),
+executed in full.
+
+**Phase 1 (I-03b) / Phase 2 (U-08):** interpretability/UQ recalibrated for B18's actual champion
+(direct TabPFN regression + p95 spike-gate, `BASE_ALL_52`, full point-forecast feature space --
+no restriction needed here). Both reconfirm the standing thesis under the new architecture:
+`fx_lsu_dens` still #1 (1.746, up from I-03's 1.1456), Tower 2 livestock-blind a 5th time; UQ
+converges to ~0.89-0.90 PICP a 5th/6th time, T2 still uncalibratable. No surprises -- see
+`I03b_results.md`, `U08_results.md`.
+
+**Phase 3 (S-03b/c/d) -- the gate, and where the real work was.** B18's `BASE_ALL_52` cannot run in
+scenario mode (flow/antecedent-driver columns have no constructible value for a synthetic 2050
+future) -- S-05/S-06 use `FX_A_SPECIES` (13 cols, S-03/D-70's scenario-safe set) instead. Three
+rounds of real-anchor backtesting (5 anchors x 3 towers, climatology MASE) were needed to find the
+config that's BOTH validated AND actually deployable in S-05/S-06's real pipeline:
+- S-03b: pooled-across-towers `Direct_TabICLv2_raw` (tower-dummy statics + trend) beat the current
+  production `tabicl_forecast()` TS-wrapper by **4.4% MASE** (0.726 vs 0.760) -- but pooling
+  assumes one shared training cutoff across towers, which doesn't exist in S-05/S-06 (each tower
+  has its own `tower_anchor()`, the last real-data date for that tower specifically).
+- S-03c: the faithful adaptation -- solo per-tower fits, no trend feature -- barely beat control
+  (0.755 vs 0.760, +0.6%, noise-level). Most of S-03b's margin came from pooling and/or trend, not
+  the architecture change alone.
+- S-03d: isolated the cause -- solo per-tower **+ trend feature** recovers most of the margin
+  (0.738 vs 0.760, **+2.79%**). Trend (`b17_days_since_2010`) was the real driver. Its training
+  range (2,557-5,480 days, ~2017-2025) is 2.7x short of the 2050 horizon (~14,600) -- a genuine
+  extrapolation risk, checked DIRECTLY (not assumed): a sanity fit queried 27-47 years past its
+  training max **saturates to a bounded, plausible value (~8.3 nmol)** rather than exploding, unlike
+  SARIMAX's known explosive extrapolation (D-63/U-03). Confirmed safe to use.
+- **Locked-in config: solo per-tower `Direct_TabICLv2` regression on `FX_A_SPECIES + b17_days_
+  since_2010`, no pooling, no spike-gate** (single point-config, user-directed, to bound Phase 6's
+  compute). See `S03b_results.md`.
+
+**Phase 4 (U-05b) / Phase 5 (U-06b/U-07b):** scenario UQ rebuilt for the FINAL locked config (the
+file was initially built against S-03b's pooled config, then corrected to match S-03d before Phase
+6 ran). AOA-residual correlation replicates almost exactly (r=0.128-0.139 vs U-05's 0.146;
+out-of-AOA residuals 48-54% larger vs U-05's ~48%). CQR spike-fix triples coverage again (U08:
+0.266->0.775; U05b: 0.266->**0.901**, close to the full-feature champion). LSU-stratified
+margins replicate the width-ratio pattern (27.9%/40.7% low-as-%-of-high, within U-07's 26-59%
+range). See `U08_results.md` (already updated to the corrected architecture), `U06b_U07b_results.md`.
+
+**Phase 6 -- production replication of S-06's core grid (livestock ladder + grazing + fertilizer,
+bias-corrected drivers), new architecture.** `s06b_direct_regression_engine.run_axis_b18()`: same
+signature/behaviour as `s05_practices_trajectory.run_axis()`, but the model is fit ONCE per tower
+(not once per call, unlike the TS-wrapper which has no separate fit/predict) and reused across
+every (ssp, gcm, realization, level) combo -- 3 fits total for the whole livestock grid, not 2,100.
+Actual runtime **~2.2h for the full 3-axis grid** (livestock 2,100 calls/80min, grazing 900/45min,
+fertilizer 900/36min), vs. S-05/S-06's original ~6-9h.
+
+**Bug caught by direct user question ("do the scenarios follow gov.uk regulations?"):** the first
+production run reused `s05_livestock_v2_trajectory.build_livestock_frame` unchanged, which imports
+`multiplier_for` directly from the base module (D-97's original, uncorrected 3.0 LSU/ha) -- it
+never had D-104's correction (2.5 LSU/ha, UK Countryside Stewardship Annex 8) applied, unlike the
+original `s06_lit_ceil_fix.py`'s targeted patch for the OLD architecture. Fixed via the identical
+scoped-rerun-and-merge pattern (`s06b_lit_ceil_fix.py`): reran only the 2 `lit_ceil` combos with
+`multiplier_for_s06`, merged into `s06b_practices_s06b_livestock_v2.csv` in place (59,500 -> 59,500
+rows, clean). `reg_cap` (D-105, NVZ N-max) intentionally excluded from this pass, matching D-105's
+own single-realization-addendum precedent -- not run for S-06b yet, flagged as a follow-up.
+
+**Result: every S-06 headline finding replicates cleanly under the new architecture** (T9/T4/T2
+pooled annual-mean `nmol m-2 s-1` by level, ssp245):
+
+| Tower | baseline | lit_ceil (all/cattle) | own_max (all/cattle) |
+|---|---:|---:|---:|
+| T2 | 5.48 | 5.73 / 5.37 | 10.89 / 8.64 |
+| T4 | 14.31 | 14.44 / 14.43 | 34.02 / 33.27 |
+| T9 | 18.22 | 17.74 / 17.75 | 51.54 / 52.40 |
+
+- T9 `lit_ceil` still sits BELOW baseline (-2.6%, matches old -2.3%) -- T9's real historical
+  stocking density still exceeds the UK regulatory ceiling, independent of architecture.
+- T4 `lit_ceil` margin still thin-positive (+0.8-0.9%, matches old +0.8-0.9% almost exactly).
+- Grazing +4wk: T4 +19.8% (S-06 old, bias-corrected: +18.5%), T9 +19.9% (S-06 old: +18.6%) --
+  same real, management-actionable lever, same magnitude. (Correction, post-hoc audit: the
+  figures first quoted here, +18.9%/+17.2%, were S-05's ORIGINAL raw-driver numbers, not S-06's
+  bias-corrected ones -- comparing S-06b against S-05 conflated the architecture change with the
+  driver-correction change. The correct apples-to-apples S-06-vs-S-06b comparison, re-derived
+  directly from `results/s05_practices_s06_grazing.csv` vs `s06b_practices_s06b_grazing.csv`, is
+  actually a slightly closer match: +18.5%->+19.8% (T4), +18.6%->+19.9% (T9).)
+- Fertilizer: still a null result (<8%, sign-inconsistent across towers, same as old <5%).
+- Cattle dominance: `own_max__cattle_alone` remains ~as high as `own_max__all_species` at T4/T9
+  (T9 cattle-alone actually edges ahead, 187.6% vs 182.9% gain) -- reconfirmed a new way.
+
+**Not yet done (explicit follow-ups, not gaps in this pass's own scope):** `reg_cap` fertiliser
+level for S-06b; U-05b's Step 4 (attach calibration to the NEW S-06b outputs specifically, mirroring
+D-92 -- the file currently only has Steps 1-3); report text in `report/TODO.tex`'s Ch4-6 still
+describes the OLD TabICLv2/`tabicl_forecast()` architecture and has not been updated to reference
+S-06b.
+
+**Files:** `notebooks/06_interpretability_uq/i03b_champion_interpretability_b18.py`,
+`i03b_plots.py`, `u08_champion_uq_b18.py`, `u08_fanchart_plots.py`,
+`u05b_scenario_uq_b18.py`, `u05b_fanchart_plots.py`, `u06b_u07b_cqr_b18.py`, `u06b_u07b_plots.py`;
+`notebooks/07_scenario_analysis/s03b_driver_availability_b18.py`, `s03c_solo_notrend_check.py`,
+`s03d_solo_trend_check.py`, `s06b_direct_regression_engine.py`, `s06b_master_runner.py`,
+`s06b_lit_ceil_fix.py`, `s06b_livestock_v2_daily_chains_subset.py`,
+`s06b_practices_daily_chains_subset.py`, `s06b_livestock_v2_daily_chains_plots.py`,
+`s06b_practices_daily_chains_plots.py`, `s06b_annual_ch4_generation.py`;
+`results/s06b_practices_s06b_{livestock_v2,grazing,fertilizer}.csv`,
+`results/s06b_annual_ch4_*.csv`; 66 new figures across
+`results/figures/{i03b_*,u08_fancharts,u05b_fancharts,u06_cqr,u07_lsu_cqr,s06b_summary,
+s06b_annual_ch4}/`.

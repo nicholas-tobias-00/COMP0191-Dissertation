@@ -1,0 +1,124 @@
+\chapter{Introduction} \label{Chap1}
+\pagenumbering{arabic}
+
+\section{Motivation}
+
+Methane (CH\textsubscript{4}) is a powerful greenhouse gas, with a global warming potential
+roughly 28 times that of CO\textsubscript{2} over a 100-year horizon and around 80 times that of
+CO\textsubscript{2} over a 20-year horizon \cite{ipcc2021}. Agriculture is the leading sectoral
+source of anthropogenic methane, accounting for approximately 49\% of agricultural greenhouse gas
+emissions through enteric fermentation alone in the UK and a comparably large share globally
+\cite{fao2023, eea2024}, and global livestock emissions are projected to keep rising alongside
+demand for animal products \cite{fao2023}. Predicting CH\textsubscript{4} flux at the ecosystem
+scale is genuinely difficult: emissions are driven by the continuous interaction of multiple,
+non-stationary biophysical factors -- soil moisture, temperature, rainfall -- together with
+discrete livestock management interventions that dominate the signal in UK managed grassland
+specifically.
+
+The North Wyke Farm Platform (NWFP) offers a rare and underutilised resource to address this
+difficulty: continuous half-hourly Eddy Covariance (EC) flux measurements from managed beef
+cattle grassland spanning over seven years. To the author's knowledge, no prior study has applied
+ML-based forecasting to EC CH\textsubscript{4} flux at a managed temperate grassland -- existing
+work in this space addresses gap-filling (within-distribution interpolation) rather than
+forecasting (sequential extrapolation), a structurally different modelling problem
+(Chapter~\ref{Chap2}). Closing this gap matters beyond academic interest: accurate prediction and
+scenario projection can support farm-level management decisions -- grazing timing, stocking
+density -- and inform scenario and policy planning toward national emissions-reduction targets.
+
+This dissertation addresses the gap through a three-stage pipeline: gap-filling a continuous
+CH\textsubscript{4} series from NWFP's EC record (Chapter~\ref{Chap4}), forecasting that series
+using a benchmarked, uncertainty-quantified model roster (Chapter~\ref{Chap5}), and using the
+resulting models to project CH\textsubscript{4} response under contrasting management and climate
+scenarios (Chapter~\ref{Chap6}).
+
+\section{Research Questions}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{cp{11cm}}
+\toprule
+ID & Question \\
+\midrule
+RQ1 & What ML approaches exist for CH\textsubscript{4} flux prediction in agricultural/grassland
+contexts; do any address ecosystem-scale EC data; how does gap-filling differ from multi-step
+forecasting as a modelling constraint? \\
+RQ2 & How do statistical baselines, tree-based ensembles, and deep learning compare for
+half-hourly EC CH\textsubscript{4} forecasting under temporal variability and non-stationarity? \\
+RQ3 & How transferable are findings from adjacent domains (wetland gap-filling, animal-scale
+prediction) to managed grassland EC forecasting? \\
+RQ4 & How can XAI (SHAP) and UQ (quantile ML / conformal prediction) decode interactions between
+continuous environmental variables and discrete management interventions? \\
+RQ5 & What structural requirements are needed to integrate forecasting models into a digital
+shadow with ``what-if'' scenario analysis at farm scale? \\
+\bottomrule
+\end{tabular}
+\caption{Research questions guiding this dissertation.}
+\end{table}
+
+\section{Aims and Objectives}
+
+The overall aim of this dissertation is the development and evaluation of multiple machine
+learning approaches for CH\textsubscript{4} forecasting at NWFP, and to demonstrate their
+integration with scenario projection under contrasting management and climate conditions. This
+aim is pursued through five objectives:
+
+\begin{enumerate}
+    \item Conduct a systematic literature review on time-series forecasting, quantile machine
+    learning, eddy covariance sensor methodology, and agricultural digital twin frameworks.
+    \item Acquire, pre-process, and document NWFP EC CH\textsubscript{4} data (2018--present),
+    including gap imputation, quality control, and feature engineering.
+    \item Design and implement a benchmarking pipeline comparing statistical baselines, tree
+    ensembles, and deep learning architectures, using temporal cross-validation to prevent data
+    leakage.
+    \item Apply interpretability methods (SHAP) and uncertainty quantification (conformal
+    prediction / quantile machine learning) to characterise model behaviour.
+    \item Generate synthetic management and climate scenarios and evaluate model behaviour under
+    them.
+\end{enumerate}
+
+\section{Contributions}
+
+This dissertation contributes three benchmarked results to the field:
+
+\begin{enumerate}
+    \item \textbf{A gap-filling benchmark for EC CH\textsubscript{4} flux at a managed
+    grassland} (Chapter~\ref{Chap4}), comparing established methods (MDS, Random Forest),
+    published baseline replications, and newer tabular/foundation model families, with
+    uncertainty quantification and interpretability attached. The best configuration reaches an
+    hourly-resolution $R^2_{OLS}$ of 0.41--0.60 across all three towers (Zhu et al.'s own reporting
+    convention, matched directly for comparability), against a published ceiling of $R^2<0.1$ at
+    hourly resolution for the same ecosystem type \cite{zhu2023a}.
+
+    \item \textbf{A recursive multi-step forecasting benchmark for EC CH\textsubscript{4} flux}
+    (Chapter~\ref{Chap5}), the first, to the author's knowledge, applied to this ecosystem-scale
+    signal at a managed temperate grassland, comparing statistical baselines, tree ensembles, and
+    tabular foundation models under identical conditions, with calibrated uncertainty
+    quantification. The best configuration -- an equal-weight blend of three TabPFN variants,
+    including a conservative spike-excess correction -- beats a day-of-year climatology baseline by
+    a wide margin ($\text{MASE}=0.691$), though a dedicated spike-vs-non-spike evaluation shows this
+    advantage is concentrated on ordinary days and essentially disappears on the high-magnitude
+    events that dominate the CH\textsubscript{4} budget (Chapter~\ref{Chap5}). Interpretability
+    work across both gap-filling and forecasting
+    converges on a single, repeatedly-confirmed finding: livestock density is the dominant driver
+    of CH\textsubscript{4} flux at NWFP, consistent across SHAP attribution, native feature
+    importance, SARIMAX coefficients, and TabPFN permutation importance.
+
+    \item \textbf{Scenario projection under contrasting management and climate conditions}
+    (Chapter~\ref{Chap6}): the forecasting architecture developed in this dissertation is
+    extended to produce distinguishable, interpretable CH\textsubscript{4} projections under
+    synthetic livestock and climate scenarios, grounded in CMIP6-based climate data and
+    externally-anchored, literature-plausible stocking levels.
+\end{enumerate}
+
+\section{Report Overview}
+
+Chapter~\ref{Chap2} reviews the literature on EC flux gap-filling, forecasting, agricultural
+digital twins, and recent developments in tabular modelling, establishing the gap this
+dissertation addresses. Chapter~\ref{Chap3} describes the NWFP dataset and the preprocessing
+pipeline built on top of it. Chapter~\ref{Chap4} presents the gap-filling benchmark that produces
+a continuous CH\textsubscript{4} series for training and evaluation, including its uncertainty
+quantification. Chapter~\ref{Chap5} presents the recursive forecasting benchmark and its
+uncertainty quantification, this dissertation's primary modelling contribution. Chapter~\ref{Chap6}
+presents scenario projection under contrasting management and climate conditions.
+Chapter~\ref{Chap7} discusses the findings and their limitations, and Chapter~\ref{Chap8}
+concludes.

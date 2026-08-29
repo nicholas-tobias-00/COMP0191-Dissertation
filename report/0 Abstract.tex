@@ -1,7 +1,56 @@
-\lipsum[5]
-%1.Talks about general application or general field of research
-%2. Explains the challenge that is not answered yet
-%3. Describe idea for tackling that challenge e.g. overall idea
-%4 Methodology undertaken in research  e.g. tools, methods, steps taken.
-%5. Main achievement of research supported by numerical results
-%6. comparison with similar research in literature (qualitatively or quantitatively), and/or explain possible future applications of outcomes
+% % Methane (CH\textsubscript{4}) is a potent greenhouse gas with approximately
+% % 28 times the global warming potential of CO\textsubscript{2} over 100 years,
+% % and agriculture is a major anthropogenic source. Eddy Covariance measurements
+% % capture ecosystem-scale emissions from managed grasslands, but these records
+% % are often incomplete and dominated by episodic emission peaks, making methane
+% % flux difficult to reconstruct and predict.
+
+% Methane (CH\textsubscript{4}) is a potent greenhouse gas, with approximately 28
+% times the global warming potential of CO\textsubscript{2} over 100 years. UK
+% agriculture accounts for almost half (49\%) of national methane emissions 
+% approximately 27 MtCO\textsubscript{2}e in 2024 with ruminant enteric fermentation
+% forming the principal agricultural source. Eddy Covariance measurements provide
+% ecosystem-scale observations from managed grasslands, but the resulting records are
+% often incomplete and dominated by episodic emission peaks. Gap-filling supports the
+% construction of continuous historical flux records, while forecasting provides a
+% basis for anticipating future emissions and informing management decisions.
+
+Methane (CH\textsubscript{4}) has approximately 28 times the 100-year global warming
+potential of CO\textsubscript{2}. UK agriculture contributes almost half (49\%) of 
+national methane emissions. Eddy 
+Covariance (EC) provides ecosystem-scale observations of methane exchange over managed 
+grasslands. 
+% enabling data-driven modelling of environmental and management influences. 
+However, EC records are often incomplete and characterised by episodic emission peaks. 
+Gap-filling can reconstruct continuous historical flux records, while forecasting can 
+anticipate future emissions and inform agricultural management.
+
+This dissertation develops a three-stage machine-learning pipeline for
+gap-filling, forecasting, and scenario projection using data from three
+catchments at the North Wyke Farm Platform. Statistical, tree-based, neural,
+and tabular pretrained foundation models were benchmarked using held-out and temporal
+validation, supported by uncertainty quantification and permutation
+importance. Future climate trajectories and emission scenarios were then combined with  
+alternative farm management conditions to explore possible changes in methane flux.
+
+% TabICLv2 achieved the strongest gap-filling performance, increasing combined 
+% hourly $R^2$ from 0.055 for marginal distribution sampling to 0.515. TabPFN 
+% led forecasting with MASE$=0.6908$, although performance deteriorated from 
+% 0.524 on ordinary days to 3.285 during methane spikes. 
+
+% The pretrained tabular models provided the strongest overall performance for 
+% both gap-filling and forecasting. Among the models tested, traditional tree-based 
+% models generally outperformed neural networks with the exception of tabular pretrained models. 
+
+Overall performance follows a consistent pattern of tabular pretrained models performing best,
+followed by tree-based models, and locally trained neural networks generally underperforming.
+Nevertheless, sudden methane peaks remained difficult to anticipate for all models. 
+Among the tested scenarios, livestock density produced the largest change in predicted annual 
+CH\textsubscript{4} flux, followed by grazing duration, whereas varying fertiliser 
+application rates produced little to no change in the modelled response.
+
+Overall, pretrained foundation models for tabular data performed best across the predictive tasks,
+while livestock-associated variables formed the strongest recurring influence
+at the livestock-dominated catchments. However, severe target missingness,
+emission spikes, and the absence of future ground truth limit 
+the operational utility of these models.

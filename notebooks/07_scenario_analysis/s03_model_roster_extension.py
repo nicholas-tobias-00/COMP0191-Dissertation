@@ -71,7 +71,7 @@ load_dotenv(os.path.join(ROOT, ".env"))
 import models.recursive_rollout as rr
 import models.forecasting_dl as fdl
 from s03_driver_availability_ablation import (
-    DEFAULT_DEGRADED_COLS, climatology_substitute, TOWERS, N_DAYS, VARIANTS,
+    DEFAULT_DEGRADED_COLS, climatology_substitute, climatology_baseline, TOWERS, N_DAYS, VARIANTS,
 )
 
 HOURLY = rf"{ROOT}\data\Hourly"
@@ -119,12 +119,22 @@ def bm_rows(y_true, y_gf, yp, target_dates, anchor, persist, model, variant, yr,
 
 
 # ============================================================ Part 1: TabPFN + TabICLv2 (daily)
-def run_foundation_models(anchor_years):
-    dv = pd.read_csv(f"{HOURLY}/forecast_daily_v2.csv", low_memory=False)
+def run_foundation_models(anchor_years, daily_csv="forecast_daily_v2.csv", degraded_cols=None):
+    """daily_csv: "forecast_daily_v2.csv" (RF-sourced, default) or "forecast_daily_v2_tabicl.csv"
+    (TabICL-sourced, D-79/D-80) -- schema-identical, only y_gapfilled/ar_ch4_* differ, and neither
+    is used here (TabPFN/TabICLv2 context is y_observed, per tabpfn_forecast()/tabicl_forecast()'s
+    own deliberate design) except for the secondary gap-filled-target metric and the (now-unused-
+    for-MASE, kept for reference) persistence column. degraded_cols: columns removed/resampled for
+    Variant A/B; defaults to DEFAULT_DEGRADED_COLS. Passing [] collapses A/B to the identical full-
+    feature/no-substitution config -- used to build a "Model 1 equivalent" on `daily_csv` through
+    this same code path (mirrors s03_driver_availability_ablation.main()'s own remove_cols=[]/
+    resample_cols=[] trick)."""
+    degraded_cols = list(DEFAULT_DEGRADED_COLS) if degraded_cols is None else list(degraded_cols)
+    dv = pd.read_csv(f"{HOURLY}/{daily_csv}", low_memory=False)
     dv["Datetime"] = pd.to_datetime(dv["Datetime"], format="mixed")
     FX_B = [c for c in dv.columns if c.startswith("fx")]
     assert len(FX_B) == 34, f"expected 34 fx_ columns, got {len(FX_B)}"
-    FX_A = [c for c in FX_B if c not in DEFAULT_DEGRADED_COLS]
+    FX_A = [c for c in FX_B if c not in degraded_cols]
     T = {t: dv[dv.tower == t].set_index("Datetime").sort_index() for t in TOWERS}
 
     tabpfn_ok = bool(os.environ.get("TABPFN_TOKEN"))
@@ -145,7 +155,8 @@ def run_foundation_models(anchor_years):
             y_true = dft["y_observed"].reindex(target_dates).values
             y_gf = dft["y_gapfilled"].reindex(target_dates).values
             anchor_val = dft.loc[anchor, "y_gapfilled"]
-            persist = rr.chain_persistence(anchor_val, N_DAYS)
+            persist = rr.chain_persistence(anchor_val, N_DAYS)  # kept for reference only (D-80: no longer the MASE baseline)
+            clim_base = climatology_baseline(dft, anchor, target_dates)
             bin_labels = rr.lead_time_bin(target_dates, anchor)
             real_frac_by_bin = real_frac_map(y_true, bin_labels)
 
@@ -157,15 +168,15 @@ def run_foundation_models(anchor_years):
                 else:
                     hist_cov = hist[FX_B]
                     fut_cov = dft.loc[target_dates, FX_B].copy()
-                    clim = climatology_substitute(dft, DEFAULT_DEGRADED_COLS, anchor, target_dates)
-                    fut_cov[DEFAULT_DEGRADED_COLS] = clim[DEFAULT_DEGRADED_COLS]
+                    clim_sub = climatology_substitute(dft, degraded_cols, anchor, target_dates)
+                    fut_cov[degraded_cols] = clim_sub[degraded_cols]
 
                 chain_cols = {}
                 if tabpfn_ok:
                     try:
                         chain = rr.tabpfn_forecast(hist_target, hist_cov, fut_cov, mode="local")
                         yp = chain.reindex(target_dates).values
-                        bm, bm_gf = bm_rows(y_true, y_gf, yp, target_dates, anchor, persist,
+                        bm, bm_gf = bm_rows(y_true, y_gf, yp, target_dates, anchor, clim_base,
                                              "TabPFN", variant, yr, tower, real_frac_by_bin)
                         all_rows.append(bm); all_rows_gf.append(bm_gf)
                         chain_cols["TabPFN"] = chain.reindex(target_dates)
@@ -175,7 +186,7 @@ def run_foundation_models(anchor_years):
                 try:
                     chain = rr.tabicl_forecast(hist_target, hist_cov, fut_cov)
                     yp = chain.reindex(target_dates).values
-                    bm, bm_gf = bm_rows(y_true, y_gf, yp, target_dates, anchor, persist,
+                    bm, bm_gf = bm_rows(y_true, y_gf, yp, target_dates, anchor, clim_base,
                                          "TabICLv2", variant, yr, tower, real_frac_by_bin)
                     all_rows.append(bm); all_rows_gf.append(bm_gf)
                     chain_cols["TabICLv2"] = chain.reindex(target_dates)
@@ -190,6 +201,7 @@ def run_foundation_models(anchor_years):
                 cdf["y_true"] = y_true
                 cdf["y_gapfilled"] = y_gf
                 cdf["persistence"] = persist
+                cdf["climatology"] = clim_base if clim_base is not None else np.nan
                 cdf["tower"] = tower
                 cdf["anchor_year"] = yr
                 cdf["variant"] = variant

@@ -1,11 +1,70 @@
 \babel@toc {english}{}\relax 
-\contentsline {chapter}{List of Figures}{vii}{chapter*.4}%
-\contentsline {chapter}{List of Tables}{viii}{chapter*.5}%
-\contentsline {chapter}{\numberline {1}Project Plan}{xi}{chapter.1}%
-\contentsline {chapter}{\numberline {2}Introduction and Background}{1}{chapter.2}%
-\contentsline {chapter}{\numberline {3}Methodology}{2}{chapter.3}%
-\contentsline {chapter}{\numberline {4}Results and Analysis}{3}{chapter.4}%
-\contentsline {chapter}{\numberline {5}Discussion}{4}{chapter.5}%
-\contentsline {chapter}{\numberline {6}Conclusion}{5}{chapter.6}%
-\contentsline {chapter}{Appendix \numberline {A}Source Code}{6}{appendix.1.A}%
-\contentsline {chapter}{Appendix \numberline {B}Project Introduction Video}{7}{appendix.1.B}%
+\contentsline {chapter}{List of Figures}{v}{chapter*.3}%
+\contentsline {chapter}{List of Tables}{xi}{chapter*.4}%
+\contentsline {chapter}{\numberline {1}Introduction}{1}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Research Objective}{1}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Project Aims and Goals}{2}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Project Overview and Contributions}{3}{section.1.3}%
+\contentsline {section}{\numberline {1.4}Report Overview}{4}{section.1.4}%
+\contentsline {chapter}{\numberline {2}Background and Related Work}{5}{chapter.2}%
+\contentsline {section}{\numberline {2.1}North Wyke Farm Platform and Eddy Covariance Measurement}{5}{section.2.1}%
+\contentsline {subsection}{\numberline {2.1.1}Experimental Design and Management Regimes}{5}{subsection.2.1.1}%
+\contentsline {subsection}{\numberline {2.1.2}Eddy Covariance Measurement and Flux Processing}{8}{subsection.2.1.2}%
+\contentsline {subsection}{\numberline {2.1.3}EC Methane Gap-Filling and the Forecasting Gap}{9}{subsection.2.1.3}%
+\contentsline {section}{\numberline {2.2}Advances in Tabular Machine Learning}{11}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Tabular Foundation Models}{11}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Deep Learning versus Traditional Machine Learning}{12}{subsection.2.2.2}%
+\contentsline {section}{\numberline {2.3}Synthesis and Gap Statement}{13}{section.2.3}%
+\contentsline {chapter}{\numberline {3}Data}{14}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Dataset Overview}{14}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Exploratory Data Analysis and Data Preparation}{15}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}Methane Target Availability}{15}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}Quality Control and Environmental Variable Gap-Filling}{17}{subsection.3.2.2}%
+\contentsline {subsection}{\numberline {3.2.3}Temporal Analysis and Dimensionality Reduction}{19}{subsection.3.2.3}%
+\contentsline {chapter}{\numberline {4}Models and Methods}{23}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Evaluation Methods and Metrics}{23}{section.4.1}%
+\contentsline {subsection}{\numberline {4.1.1}Gap-Filling Cross-Validation}{23}{subsection.4.1.1}%
+\contentsline {subsection}{\numberline {4.1.2}Forecasting Cross-Validation}{25}{subsection.4.1.2}%
+\contentsline {subsection}{\numberline {4.1.3}Scenario-Projection Evaluation}{26}{subsection.4.1.3}%
+\contentsline {subsection}{\numberline {4.1.4}Prediction Metrics}{26}{subsection.4.1.4}%
+\contentsline {section}{\numberline {4.2}Models Used}{28}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Uncertainty Quantification}{31}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Interpretability}{34}{section.4.4}%
+\contentsline {chapter}{\numberline {5}Gap-Filling}{36}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Overview}{36}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Results}{37}{section.5.2}%
+\contentsline {subsection}{\numberline {5.2.1}Full Model Comparison}{38}{subsection.5.2.1}%
+\contentsline {subsection}{\numberline {5.2.2}Uncertainty Quantification}{39}{subsection.5.2.2}%
+\contentsline {chapter}{\numberline {6}Forecasting}{42}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Overview}{42}{section.6.1}%
+\contentsline {section}{\numberline {6.2}Results}{44}{section.6.2}%
+\contentsline {subsection}{\numberline {6.2.1}Spike vs.\ Non-Spike Performance}{46}{subsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.2.2}Interpretability}{46}{subsection.6.2.2}%
+\contentsline {subsection}{\numberline {6.2.3}Uncertainty Quantification}{47}{subsection.6.2.3}%
+\contentsline {chapter}{\numberline {7}Scenario Projection}{49}{chapter.7}%
+\contentsline {section}{\numberline {7.1}CMIP6-Derived Climate Scenarios}{49}{section.7.1}%
+\contentsline {section}{\numberline {7.2}Results}{50}{section.7.2}%
+\contentsline {subsection}{\numberline {7.2.1}Less Informed Model Creation}{50}{subsection.7.2.1}%
+\contentsline {subsection}{\numberline {7.2.2}Livestock Density Sensitivity}{51}{subsection.7.2.2}%
+\contentsline {subsection}{\numberline {7.2.3}Grazing and Fertiliser Sensitivity}{52}{subsection.7.2.3}%
+\contentsline {chapter}{\numberline {8}Discussion and Conclusion}{53}{chapter.8}%
+\contentsline {section}{\numberline {8.1}Main Findings}{53}{section.8.1}%
+\contentsline {subsection}{\numberline {8.1.1}Overview of Model Performance}{53}{subsection.8.1.1}%
+\contentsline {subsection}{\numberline {8.1.2}Difficulty in Methane Flux Gap-Filling and Forecasting}{54}{subsection.8.1.2}%
+\contentsline {subsection}{\numberline {8.1.3}Scenario Sensitivity}{54}{subsection.8.1.3}%
+\contentsline {section}{\numberline {8.2}Limitations}{55}{section.8.2}%
+\contentsline {section}{\numberline {8.3}Future Work}{56}{section.8.3}%
+\contentsline {section}{\numberline {8.4}Concluding Remarks}{56}{section.8.4}%
+\contentsline {chapter}{References}{58}{chapter*.30}%
+\contentsline {chapter}{Appendix \numberline {A}Data}{64}{appendix.1.A}%
+\contentsline {chapter}{Appendix \numberline {B}Models}{73}{appendix.1.B}%
+\contentsline {section}{\numberline {B.1}Multivariate Imputation}{73}{section.1.B.1}%
+\contentsline {section}{\numberline {B.2}Tree-Based Models}{74}{section.1.B.2}%
+\contentsline {section}{\numberline {B.3}Neural Models}{76}{section.1.B.3}%
+\contentsline {section}{\numberline {B.4}Statistical and Kernel Models}{79}{section.1.B.4}%
+\contentsline {section}{\numberline {B.5}Pretrained Tabular Models}{80}{section.1.B.5}%
+\contentsline {subsection}{\numberline {B.5.1}Pretraining and in-context adaptation}{80}{subsection.1.B.5.1}%
+\contentsline {chapter}{Appendix \numberline {C}Gap-Filling}{86}{appendix.1.C}%
+\contentsline {chapter}{Appendix \numberline {D}Forecasting}{90}{appendix.1.D}%
+\contentsline {chapter}{Appendix \numberline {E}Scenario Projection}{93}{appendix.1.E}%
+\contentsline {chapter}{Appendix \numberline {F}Source Code}{99}{appendix.1.F}%

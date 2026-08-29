@@ -120,19 +120,43 @@ def climatology_substitute(dft, cols, anchor, target_dates):
     return pd.DataFrame(out, index=target_dates)
 
 
-def main(remove_cols=None, resample_cols=None, run_label=""):
+def climatology_baseline(dft, anchor, target_dates, window=7):
+    """MASE/RMSSE baseline (D-80 convention, supersedes D-37's chain-persistence): day-of-year
+    climatology computed from strictly PRE-ANCHOR real y_observed history (dft.loc[:anchor -
+    1 day, 'y_observed']), same recipe as b10_b13_climatology_baseline.py's build_climatology_chains()
+    and S-03's own climatology_substitute() above. y_observed is identical between the RF-sourced
+    and TabICL-sourced daily files (only y_gapfilled/ar_ch4_* differ, confirmed by direct diff), so
+    this baseline is invariant to which `daily_csv` variant is loaded -- computed once, reused for
+    both. Returns None if there is zero pre-anchor real history (T9's 2018/2019 anchors -- doy_
+    climatology's own global_mean fallback is itself undefined there), matching
+    b10_b13_climatology_baseline.py's same guard, so bin_metrics() gets y_persist=None (NaN MASE)
+    instead of an all-NaN array silently propagating."""
+    hist_obs = dft.loc[:anchor - pd.Timedelta(days=1), "y_observed"].dropna()
+    if len(hist_obs) == 0:
+        return None
+    clim = rr.doy_climatology(hist_obs, target_dates, window=window)
+    return None if np.isnan(clim).all() else clim
+
+
+def main(remove_cols=None, resample_cols=None, run_label="", daily_csv="forecast_daily_v2.csv"):
     """remove_cols: columns dropped entirely in Variant A. resample_cols: columns
     climatology-substituted (test-window only) in Variant B. Both default to
     DEFAULT_DEGRADED_COLS (S-01's own RESAMPLED_COLS+DROPPED_COLS) if not given -- pass a
     narrower/different list to either independently, e.g. resample_cols=["fx_SWC_mean",
     "fx_TS_mean"] to test resampling only soil moisture/temperature while Variant A still drops
-    the full default set. run_label: suffix appended to every output filename (e.g. "_soilonly")
-    so a customized run doesn't overwrite the default sweep's outputs."""
+    the full default set. Passing remove_cols=[] and resample_cols=[] collapses both variants to
+    the identical full-feature/no-substitution config -- used to build a "Model 1 equivalent" on a
+    different `daily_csv` (e.g. TabICL-sourced) through this exact same code path, rather than a
+    separate script. run_label: suffix appended to every output filename (e.g. "_soilonly") so a
+    customized run doesn't overwrite the default sweep's outputs. daily_csv: which
+    data/Hourly/forecast_daily_v2*.csv to load -- "forecast_daily_v2.csv" (RF-sourced gap-fill,
+    default, D-36/D-65) or "forecast_daily_v2_tabicl.csv" (TabICL-sourced gap-fill, D-79/D-80;
+    schema-identical, only y_gapfilled/ar_ch4_* differ)."""
     remove_cols = list(DEFAULT_DEGRADED_COLS) if remove_cols is None else list(remove_cols)
     resample_cols = list(DEFAULT_DEGRADED_COLS) if resample_cols is None else list(resample_cols)
     suffix = f"_{run_label}" if run_label else ""
 
-    dv = pd.read_csv(f"{HOURLY}/forecast_daily_v2.csv", low_memory=False)
+    dv = pd.read_csv(f"{HOURLY}/{daily_csv}", low_memory=False)
     dv["Datetime"] = pd.to_datetime(dv["Datetime"], format="mixed")
     FX_B = [c for c in dv.columns if c.startswith("fx")]
     assert len(FX_B) == 34, f"expected 34 fx_ columns, got {len(FX_B)}"
@@ -187,7 +211,8 @@ def main(remove_cols=None, resample_cols=None, run_label=""):
 
             y_true = dft["y_observed"].reindex(target_dates).values
             anchor_val = dft.loc[anchor, "y_gapfilled"]
-            persist = rr.chain_persistence(anchor_val, N_DAYS)
+            persist = rr.chain_persistence(anchor_val, N_DAYS)  # kept for reference only (D-80: no longer the MASE baseline)
+            clim = climatology_baseline(dft, anchor, target_dates)
 
             y_gf = dft["y_gapfilled"].reindex(target_dates).values
             bin_labels = rr.lead_time_bin(target_dates, anchor)
@@ -266,6 +291,7 @@ def main(remove_cols=None, resample_cols=None, run_label=""):
                 chain_df["y_true"] = y_true
                 chain_df["y_gapfilled"] = y_gf
                 chain_df["persistence"] = persist
+                chain_df["climatology"] = clim if clim is not None else np.nan
                 chain_df["tower"] = tower
                 chain_df["anchor_year"] = yr
                 chain_df["variant"] = variant
@@ -273,14 +299,14 @@ def main(remove_cols=None, resample_cols=None, run_label=""):
 
                 for name, chain in chains_this.items():
                     yp = chain.reindex(target_dates).values
-                    bm = rr.bin_metrics(y_true, yp, target_dates, anchor, y_persist=persist)
+                    bm = rr.bin_metrics(y_true, yp, target_dates, anchor, y_persist=clim)
                     bm["model"] = name
                     bm["anchor_year"] = yr
                     bm["tower"] = tower
                     bm["variant"] = variant
                     all_rows.append(bm)
 
-                    bm_gf = rr.bin_metrics(y_gf, yp, target_dates, anchor, y_persist=persist)
+                    bm_gf = rr.bin_metrics(y_gf, yp, target_dates, anchor, y_persist=clim)
                     bm_gf["model"] = name
                     bm_gf["anchor_year"] = yr
                     bm_gf["tower"] = tower

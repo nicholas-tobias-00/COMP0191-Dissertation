@@ -387,3 +387,205 @@ improvement pattern under this secondary metric — full numbers in `results/s03
 - `results/s03_table_all_towers.csv`, `s03_table_by_tower.csv`,
   `s03_table_vs_gapfilled_all_towers.csv`, `s03_table_vs_gapfilled_by_tower.csv` — regenerated with
   the full 11-model roster (previously overwritten these files still exist, now superseded).
+
+---
+
+## Second addendum (D-83, 2026-08-08): climatology MASE + TabICL-sourced data, full roster wired
+## into this notebook
+
+Three changes: (1) MASE baseline switched from chain-persistence to day-of-year climatology,
+matching D-80's project-wide convention change (2026-08-02, postdates this experiment's original
+run by three weeks); (2) Variant A/B rerun on `forecast_daily_v2_tabicl.csv` (D-79's TabICL-sourced
+gap-filling — schema-identical to the original file, confirmed by direct diff: only
+`y_gapfilled`/`ar_ch4_*` differ, every `fx_` driver and `y_observed` are byte-identical); (3) the
+full 11-model roster (the addendum above) wired directly into `S03_driver_availability_ablation.ipynb`
+for the first time — it had only ever run as a standalone script.
+
+**A design tension resolved along the way.** Model 1 was originally read from an existing,
+never-rerun table (D-65, RF-sourced, persistence-scored). Swapping only Variant A/B to
+TabICL-sourced data while leaving Model 1 untouched would reintroduce exactly the data-source/
+feature-availability conflation this experiment exists to avoid. Fixed by recomputing Model 1 too,
+wherever a TabICL-sourced daily file makes that possible — via the *same* code path as the real
+ablation (`remove_cols=[]`/`resample_cols=[]`/`degraded_cols=[]` collapses both variants to an
+identical, fully real, undegraded feature set), so Model 1 and Variant A/B stay guaranteed
+comparable. TFT/DLinear/LSTM have no TabICL-sourced hourly data anywhere in this project
+(`build_forecasting_matrix_v2_tabicl.py`'s own docstring: "hourly does not depend on the
+gap-filled CH4 series at all") — these 3 stay RF-sourced throughout (Model 1 *and* Variant A/B),
+an unavoidable limit, not a gap introduced here; their existing chains were rescored with the new
+climatology baseline rather than retrained for a metric-only change.
+
+New committed script: `s03_climatology_tabicl_update.py` (~21 min, both halves smoke-tested
+first). Output: `results/s03_table_all_towers_climatology_tabicl.csv` /
+`s03_table_by_tower_climatology_tabicl.csv`.
+
+### Result 1: the original finding replicates, qualitatively unchanged
+
+For every one of the 11 models, Variant B (resample) still beats or is within noise of Model 1 on
+MASE, and the removal/resample ordering matches the original persistence-scored, RF-sourced run
+(TFT remains the one genuine reversal; TabICLv2 remains a close wash). Driver degradation itself
+still does not cost material accuracy under either the climatology-baseline switch or the TabICL
+data swap.
+
+### Result 2 (unplanned, and the more consequential one): TabICL is a bad *training target* for the tree/SARIMAX/ensemble family
+
+D-80 found TabICL-sourced *context* makes TabPFN/TabICLv2 forecasting modestly worse (MASE +0.05
+to +0.10). Here, RF/XGB/LightGBM/SARIMAX/the 2 ensembles — which train directly ON `y_gapfilled`
+as their fitting target, not just condition on it — show a much larger absolute MASE increase
+(roughly 1.3–2.5x) at **all 3 towers**, not just the sparse ones (Tower 4, the best-covered tower,
+shows the single largest jump: climatology-MASE 2.487 vs. an apples-to-apples ~0.96–1.06 range
+checked directly on RF-sourced data this session).
+
+**Full table (all-tower pooled, climatology MASE, TabICL-sourced where possible) — MASE first
+per this project's standing convention, R² rightmost. Both target choices shown side by side:
+`Observed` is this project's primary, authoritative evaluation convention (train on gap-filled,
+evaluate on observed, D-36/D-37); `GapFilled` is a secondary/exploratory metric only — several of
+these models (RF/XGB/LightGBM/SARIMAX/both ensembles) train directly ON `y_gapfilled`, so scoring
+against that same series is partially circular and inflates their apparent accuracy rather than
+testing real generalization (D-65's standing caveat). Read `Observed` as the number that matters;
+`GapFilled` for context only.**
+
+| Model | Model1 MASE (obs) | VarA MASE (obs) | VarB MASE (obs) | Model1 MASE (gf) | VarA MASE (gf) | VarB MASE (gf) | Model1 R² (obs) | VarA R² (obs) | VarB R² (obs) |
+|---|---|---|---|---|---|---|---|---|---|
+| RF | 2.270 | 2.037 | 1.814 | 1.990 | 1.779 | 1.564 | −7.051 | −4.530 | −3.400 |
+| XGB | 1.297 | 1.259 | 1.159 | 1.139 | 1.136 | 1.109 | −1.611 | −1.632 | −1.322 |
+| LightGBM | 1.593 | 1.376 | 1.316 | 1.274 | 1.149 | 1.166 | −2.682 | −2.327 | −1.933 |
+| SARIMAX | 1.108 | 1.056 | 1.046 | 1.038 | 0.976 | 0.991 | −1.416 | −1.153 | −1.164 |
+| Ensemble_unweighted | 1.454 | 1.346 | 1.250 | 1.133 | 1.111 | 1.054 | −2.104 | −1.728 | −1.394 |
+| Ensemble_MASEweighted | 1.455 | 1.346 | 1.250 | 1.133 | 1.111 | 1.055 | −2.101 | −1.733 | −1.398 |
+| TFT | 0.841 | 0.822 | 0.840 | 0.878 | 0.766 | 0.790 | −0.363 | −0.276 | −0.492 |
+| TabPFN | 0.733 | 0.725 | 0.742 | 1.017 | 1.005 | 1.006 | −0.122 | −0.091 | −0.138 |
+| DLinear | 1.265 | 1.003 | 1.055 | 1.308 | 0.937 | 0.998 | −2.068 | −0.573 | −0.972 |
+| LSTM | 0.956 | 0.958 | 0.906 | 1.018 | 1.016 | 0.861 | −1.357 | −0.824 | −0.638 |
+| TabICLv2 | 0.782 | 0.803 | 0.783 | 1.046 | 1.019 | 1.031 | −0.330 | −0.334 | −0.277 |
+
+(`gf` = GapFilled-target MASE. GapFilled R² also computed, omitted here for width — see
+`results/s03_table_all_towers_climatology_tabicl.csv` for the full Observed+GapFilled × MASE+R²
+matrix. Note the direction reverses for RF/XGB/LightGBM/SARIMAX/both ensembles — `gf` MASE is
+*lower* than `obs` MASE for all six, the circularity effect D-65 flagged, biggest for RF (2.270→
+1.990) since RF's own predictions sit closest to what it was fit to reproduce. TabPFN/TabICLv2/TFT/
+DLinear/LSTM show the opposite or a much smaller gap, since their targets are less/not directly
+`y_gapfilled` — TabPFN/TabICLv2's context is always real `y_observed`, so scoring them against
+`GapFilled` instead is scoring them against a series they were never fit to predict, and `gf` MASE
+is correspondingly *worse*, not better, for those two specifically.)
+
+**Per-tower breakdown is Observed-target only** — the per-tower CSV
+(`results/s03_table_by_tower_climatology_tabicl.csv`) does not carry a GapFilled block, only the
+all-tower-pooled table above does.
+
+**Per-tower breakdown (Observed target, MASE):**
+
+| Tower | Model | Model1 | VarA (removal) | VarB (resample) |
+|---|---|---|---|---|
+| T2 | RF | 1.770 | 1.562 | 1.263 |
+| T2 | XGB | 0.629 | 0.598 | 0.587 |
+| T2 | LightGBM | 1.368 | 1.427 | 1.319 |
+| T2 | SARIMAX | 1.357 | 0.988 | 1.351 |
+| T2 | Ensemble_unweighted | 1.247 | 1.103 | 1.098 |
+| T2 | Ensemble_MASEweighted | 1.238 | 1.099 | 1.091 |
+| T2 | TFT | 0.801 | 0.522 | 0.790 |
+| T2 | TabPFN | 0.444 | 0.444 | 0.483 |
+| T2 | DLinear | 1.125 | 0.652 | 0.668 |
+| T2 | LSTM | 0.952 | 0.572 | 0.750 |
+| T2 | TabICLv2 | 0.419 | 0.417 | 0.471 |
+| T4 | RF | 2.487 | 2.223 | 1.887 |
+| T4 | XGB | 1.335 | 1.255 | 1.135 |
+| T4 | LightGBM | 1.597 | 1.330 | 1.272 |
+| T4 | SARIMAX | 0.956 | 0.922 | 0.899 |
+| T4 | Ensemble_unweighted | 1.515 | 1.369 | 1.235 |
+| T4 | Ensemble_MASEweighted | 1.515 | 1.368 | 1.234 |
+| T4 | TFT | 0.874 | 0.883 | 0.895 |
+| T4 | TabPFN | 0.760 | 0.762 | 0.766 |
+| T4 | DLinear | 1.364 | 1.081 | 1.156 |
+| T4 | LSTM | 0.947 | 1.016 | 0.943 |
+| T4 | TabICLv2 | 0.829 | 0.847 | 0.823 |
+| T9 | RF | 1.792 | 1.579 | 1.568 |
+| T9 | XGB | 1.243 | 1.333 | 1.273 |
+| T9 | LightGBM | 1.563 | 1.380 | 1.337 |
+| T9 | SARIMAX | 1.427 | 1.385 | 1.317 |
+| T9 | Ensemble_unweighted | 1.259 | 1.263 | 1.225 |
+| T9 | Ensemble_MASEweighted | 1.263 | 1.264 | 1.227 |
+| T9 | TFT | 0.761 | 0.743 | 0.703 |
+| T9 | TabPFN | 0.709 | 0.675 | 0.721 |
+| T9 | DLinear | 0.995 | 0.846 | 0.914 |
+| T9 | LSTM | 1.003 | 0.907 | 0.858 |
+| T9 | TabICLv2 | 0.720 | 0.752 | 0.725 |
+
+Tower 4 (best-covered, most reliable) shows the tree/SARIMAX/ensemble degradation most starkly —
+RF alone jumps from 2.487 (Model1) to still 1.887 even after Variant B's resample mitigation, far
+above every foundation/DL model at the same tower. Tower 2's RF/LightGBM numbers are noisier
+(shorter real-data domain) but the same qualitative pattern holds.
+
+**Isolating the two changes (climatology-vs-persistence, RF-sourced-vs-TabICL-sourced), so the
+1.3–2.5x jump above isn't misread as an ensemble/tree degradation.** This table's numbers should
+NOT be compared directly against B16's own real headline (`Ensemble_unweighted` = **0.809** MASE,
+climatology-scored, `BASE+ALL`/F-10's v3 feature set, `results/b09_b16_climatology_mase_full_table.csv`)
+— that number is unaffected by anything in this addendum and remains the production-relevant
+result, but it runs on a *different feature set* (v2 here vs. v3/`BASE+ALL` there), so it isn't a
+valid same-experiment isolation point for what changed in *this* table. Derived instead, purely
+arithmetically (no new model calls — climatology depends only on real `y_observed`, confirmed
+byte-identical between the RF-sourced and TabICL-sourced daily files, so its own MAE can be backed
+out of the already-computed TabICL table and reapplied to the RF-sourced file's own saved MAE,
+mirroring D-80's own rescoring technique) — holding S03's own v2 feature set fixed on both sides:
+
+| | Persistence-scored | Climatology-scored |
+|---|---|---|
+| **RF-sourced** | 0.936 (VarA) / 0.900 (VarB) | **0.736 (VarA) / 0.717 (VarB)** |
+| **TabICL-sourced** | *(not computed — out of scope)* | 1.346 (VarA) / 1.250 (VarB) |
+
+(Ensemble_unweighted, all-tower pooled; same pattern holds for RF/XGB/LightGBM/SARIMAX/
+Ensemble_MASEweighted — see `results/s03_rf_sourced_climatology_isolation.csv`.) Switching metric
+convention alone (top-left → top-right, RF-sourced held fixed) genuinely *improves* MASE, as
+D-80's own finding predicts. RF-sourced+climatology (0.717–0.736) lands in the same healthy
+ballpark as B16's own 0.809 — different feature set, same order of magnitude, both good — **the
+ensemble mechanism itself is fine on S03's feature set too, under normal (RF-sourced) conditions.**
+The real effect is entirely the TabICL-sourced swap (climatology held fixed, right column):
+MASE nearly doubles (0.717–0.736 → 1.250–1.346). The 1.3–2.5x figures reported above for the full
+Model1/VarA/VarB table are this same TabICL-sourced-data effect, confirmed isolated and not an
+artifact of the metric-convention switch or a contradiction of any standing production number.
+
+**Mechanism, confirmed directly, not inferred**: TabICL's gap-filled CH4 series sits at a
+substantially different mean level than RF's at every tower:
+
+| Tower | y_observed (real) | y_gapfilled (RF-sourced) | y_gapfilled (TabICL-sourced) |
+|---|---|---|---|
+| T2 | 30.8 | 19.4 | 54.2 |
+| T4 | 29.5 | 30.0 | 33.7 |
+| T9 | 36.1 | 36.7 | 72.2 |
+
+Training a regression target directly on a differently-calibrated series propagates that
+miscalibration into every prediction — a much larger effect than merely using it as historical
+*context* for a zero-shot foundation model. TabPFN/TabICLv2 are far less affected because their
+context is always real `y_observed`, never `y_gapfilled` (`y_gapfilled` only touches their `fx_`
+driver columns and the secondary gap-filled-target metric here); TFT/DLinear/LSTM are entirely
+unaffected since no TabICL hourly data exists to swap to.
+
+### Practical implication
+
+Independently confirms and extends D-80's own conclusion ("the standing forecasting champion is
+unchanged — D-79's better gap-filling is a real, useful result for gap-filling itself, but does
+not transfer to forecasting"). It now also does not transfer to the tree/SARIMAX/ensemble family,
+and the failure mode there is considerably more severe than the foundation-model-context case D-80
+already flagged. **RF-sourced gap-filling remains the right choice for every model family this
+project forecasts with** — no change to the standing recommendation, but a sharper, independently
+derived reason why for the tree/SARIMAX/ensemble family specifically.
+
+### Files added/modified this addendum
+
+- `notebooks/07_scenario_analysis/s03_driver_availability_ablation.py` — added `climatology_baseline()`
+  and a `daily_csv` parameter; MASE/RMSSE now score against climatology, not persistence.
+- `notebooks/07_scenario_analysis/s03_model_roster_extension.py` — same climatology swap for
+  TabPFN/TabICLv2; `run_foundation_models()` gained `daily_csv`/`degraded_cols` parameters.
+- `notebooks/07_scenario_analysis/s03_climatology_tabicl_update.py` — new orchestrator script (6
+  steps: tree/SARIMAX/ensemble + TabPFN/TabICLv2 reruns on TabICL data for both Variant A/B and a
+  Model-1-equivalent, DL chain rescoring, final table assembly).
+- `S03_driver_availability_ablation.ipynb` — new cells documenting this update, loading the
+  combined tables, a direct y_gapfilled mean-level sanity check, and an updated verdict.
+  Re-executed clean end to end via `nbconvert`.
+- `results/s03_foundation_tabicl_summary*.csv`, `s03_foundation_model1_tabicl_summary*.csv`,
+  `s03_dl_climatology_summary*.csv`, `s03_summary_tabicl.csv`, `s03_summary_model1_tabicl.csv`
+  (+ `_vs_gapfilled` siblings) — new raw per-bin outputs.
+- `results/s03_table_all_towers_climatology_tabicl.csv`, `s03_table_by_tower_climatology_tabicl.csv`
+  — new combined 11-model headline tables (kept alongside, not overwriting, the original
+  persistence-scored/RF-sourced tables — this is a genuine methodology version, not a bug fix).
+- No existing file overwritten: `results/s03_table_all_towers.csv` and siblings (the original,
+  persistence-scored/RF-sourced tables) are untouched.

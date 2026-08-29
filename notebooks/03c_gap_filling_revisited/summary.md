@@ -328,11 +328,30 @@ untouched).
 `fch4_gapfilled_with_intervals_calibrated.csv` (§7) · `gapdist_feature_{r2,interval}_check.csv`
 (§8) · `fch4_uq_consolidated.csv` (§9) · `daily_conformal_calibration_summary.csv`,
 `fch4_daily_gapfilled_with_intervals.csv` (§10) · `daily_r2_full_scope.csv` (§11b) ·
-`daily_r2_coverage_sensitivity.csv` (§11c).
+`daily_r2_coverage_sensitivity.csv` (§11c) · `latest_tabicl_uq_6month_chains.csv` (§19.2).
 
 **`_figures/`**: `fanchart_T{2,4,9}.png`, `calibration_reliability.png` (§5) ·
 `production_interval_T{2,4,9}.png` (§6, final version reflects §7's raw+calibrated overlay) ·
-`daily_calibration_reliability.png`, `daily_production_intervals.png` (§10).
+`daily_calibration_reliability.png`, `daily_production_intervals.png` (§10) ·
+`latest_tabicl_uq_hourly_T{2,4,9}.png` (§19.2).
+
+**Figure provenance update (2026-08-20):** the six report-facing calibration/production figures
+(`calibration_reliability.png`, three `production_interval_T*.png` files, and the two daily
+figures) are now reproducibly re-exported by §19.1 of the latest notebook,
+`temp_gap_filling_pipeline.ipynb`, via `export_gapfilling_uq_figures.py`. The exporter reads the
+persisted validation/production tables, performs no model refit, and records its inputs and scope
+in `_figures/gapfilling_uq_figure_manifest.json`. The older held-out fan charts remain historical
+validation artifacts because their saved detail table lacks timestamps needed for a no-refit
+time-axis reconstruction.
+
+The same latest notebook now also owns the exact TabICL-solo report export in §19.2 via
+`export_latest_tabicl_uq_chains.py`. It refits D5.5's per-tower champion `FEATURES` configuration
+and writes one native-hourly, latest-six-month observed/gap-filled/UQ chain for every tower, plus
+the raw point and q05/q50/q95 values. These are TabICL's native raw intervals, not the older pooled
+TabICL interval artifact and not calibrated coverage claims. Report-ready copies are written to
+`report/Figures/ch4_latest_tabicl_uq_hourly_T{2,4,9}.png`.
+For report legibility, `ch4_latest_tabicl_uq_hourly_T{2,4,9}_3month_example.png` are additional
+three-month crops of the same per-tower chains, not different fits or intervals.
 
 **Project-level docs updated**: `DECISIONS.md` (D-77, D-78), `BEST_RESULTS.md` §1,
 `CONTEXT.md` current-status — cover the champion fix and §2/§3 model/lag-lead work only; the UQ
@@ -1149,3 +1168,84 @@ TICA-replace, prediction-ensembling, native-hyperparameter tuning) was flat or n
 Source: `_data/d8_hp_results.csv`, `_data/d8_hp_raw_predictions.csv`, `_data/d8_bagging_results.csv`
 (k=3/5/8, appended incrementally), `_data/d8_bagging_raw_predictions.csv`,
 `_data/d8_checkpoints/*.csv` (per-tower/variant checkpoints, 8 HP variants + 3 bag sizes × 3 towers).
+
+## 19. D9 — confidence-gated self-training second pass for TabICL ("prompting strategy for TFMs")
+
+New, additive experiment (cells 314-317, `temp_gap_filling_pipeline.ipynb`), directly testing the
+user's own idea rather than another variant of D6's already-negative "uncertainty as an input
+feature" result — mechanistically different: `TabICLRegressor`'s native quantile output
+(`output_type="quantiles"`, confirmed working since D6.2, `D6_ALPHAS=(0.05, 0.95)`) gates which
+held-out points get **promoted into the training pool** (with their own pass-1 point prediction as
+a pseudo-label, never the true target), rather than being exposed to the model as a column.
+TabICL-solo only (per D5.5), champion `FEATURES` (unchanged since D1), all 3 towers × 5 scenarios ×
+`N_REPS`.
+
+**Mechanism per fold** (`insert_calendar_gaps(seed=0)`, identical fold structure to every other
+experiment in this notebook): (1) **pass 1** — fit TabICL on the fold's real training rows only;
+predict every held-out point (point estimate) + a 90% interval width; (2) **promotion** — for 3
+candidate bands (narrowest 25% / 50% / 75% of *that fold's own* width distribution, self-
+calibrating, no fixed nmol threshold, no true-target lookup), promoted points are added to the
+training pool as `(features, pass-1 point prediction)`; (3) **pass 2** — refit TabICL on real ∪
+promoted-pseudo-labeled rows; predict only the REMAINING (non-promoted) held-out points; (4)
+**hybrid operational output** = pass-1 prediction for promoted points (never re-predicted by
+design), pass-2 prediction for remaining points.
+
+**Verification checkpoint (passed exactly, run via an equivalent-state fast runner that executes
+only D9's real dependency chain — data loading through `fit_tabicl`/`FEATURES` — skipping the
+notebook's other, uncached, multi-hour sections it doesn't need; identical cell source, same
+checkpoint files a real full run would produce):** the `baseline` arm (plain pass-1, no promotion)
+reproduces D5.5's exact TabICL-solo numbers bit-for-bit — T2/T4/T9 = 0.676/0.428/0.423.
+
+### 19.1 Full-set hybrid vs. pass-1-only (operational headline)
+
+| Tower | p25 Δ | p50 Δ | p75 Δ |
+|---|---|---|---|
+| T2 | -0.006 | -0.011 | **-0.017** |
+| T4 | +0.002 | **+0.005** | -0.005 |
+| T9 | 0.000 | -0.002 | +0.002 |
+
+T2 degrades monotonically as the promoted band widens. T4 has a small genuine edge at p25/p50
+that flips negative by p75. T9 is noise throughout.
+
+### 19.2 Remaining-points-only (isolates whether self-training helps the harder residual points,
+not just inflated by the easy promoted ones)
+
+Same fold's non-promoted points, pass-2 prediction vs. what pass-1 alone would have scored on
+those identical points — same pattern as 19.1: T2 consistently worse (and worsening with band
+width), T9 noise, T4's edge real only at p25/p50.
+
+### 19.3 Normal vs. spike stratum — the pre-registered risk confirmed, not just theorized
+
+Flagged *before* running: narrow-interval (promoted) points are likely to skew toward
+non-spike/near-mean values (temp_mds.ipynb §17's regression-to-the-mean finding), so pass 2's
+enriched training pool could end up *more* mean-biased, not less. Spike-stratum (`FCH4_EXTREME_
+THRESHOLDS`, D5's q90 definition) pass-1-vs-pass-2 delta on the remaining points:
+
+| Tower | p25 Δ | p50 Δ | p75 Δ |
+|---|---|---|---|
+| T2 | -0.002 | -0.003 | -0.007 |
+| T4 | **+0.010** | **+0.010** | -0.022 |
+| T9 | -0.016 | -0.039 | **-0.053** |
+
+**Confirmed at T2 and T9, growing worse as the promoted band widens — exactly the predicted
+mechanism.** T4 is the one exception (spike accuracy improves at p25/p50) before the same
+reversal hits at p75. Normal-stratum R² (-1.3 to -11.3 across every cell) is dominated by this
+notebook's own restriction-of-range instability (§17) — the huge magnitudes aren't informative on
+their own, only the pass-1-vs-pass-2 *direction* within each cell is, and that direction is small
+and inconsistent there, unlike the spike stratum's clear signal.
+
+Promotion rates landed exactly on 25.0/50.0/75.0% at every tower — the percentile-gating mechanism
+worked as designed.
+
+### 19.4 Net verdict
+
+**Negative-to-neutral.** Self-training does not beat the plain TabICL-solo champion by a margin
+that clears noise at any tower, and the specific mechanism flagged in advance (promoted points
+bias the enriched pool toward the mean, hurting spike accuracy) is empirically real at 2 of 3
+towers, growing worse with wider promotion bands. Tower 4 shows a small, inconsistent (sign-
+flipping across bands) near-noise positive effect that doesn't reach adoption threshold on its
+own. Joins D5-D8's own mostly-flat/negative pattern rather than breaking it — **not adopted**, no
+change to the standing champion.
+
+Source: `_data/d9_raw_predictions.csv` (357,120 rows), `_data/d9_summary.csv`,
+`_data/d9_promoted_pct.csv`, `_data/d9_checkpoints/tower_{2,4,9}.csv`.

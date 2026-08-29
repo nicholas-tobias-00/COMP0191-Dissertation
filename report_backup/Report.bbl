@@ -1,0 +1,120 @@
+\begin{thebibliography}{10}
+
+\bibitem{ipcc2021}
+V.~Masson-Delmotte {\em et~al.}, eds., {\em Climate Change 2021: The Physical
+  Science Basis. Contribution of Working Group I to the Sixth Assessment Report
+  of the Intergovernmental Panel on Climate Change}.
+\newblock Cambridge, UK: Cambridge University Press, 2021.
+
+\bibitem{fao2023}
+{FAO}, ``Methane emissions in livestock and rice systems -- sources,
+  quantification, mitigation and metrics,'' tech. rep., Food and Agriculture
+  Organization of the United Nations, Rome, Italy, 2023.
+
+\bibitem{eea2024}
+{EEA}, ``Greenhouse gas emissions from agriculture in europe,'' tech. rep.,
+  European Environment Agency, 2024.
+
+\bibitem{zhu2023a}
+S.~Zhu {\em et~al.}, ``Gap-filling carbon dioxide, water, energy, and methane
+  fluxes in challenging ecosystems: Comparing between methods, drivers, and
+  gap-lengths,'' {\em Agricultural and Forest Meteorology}, vol.~332,
+  p.~109365, 2023.
+
+\bibitem{cardenas2022}
+L.~M. Cardenas {\em et~al.}, ``Co2 fluxes from three different temperate grazed
+  pastures using eddy covariance measurements,'' {\em Science of the Total
+  Environment}, vol.~831, p.~154819, 2022.
+
+\bibitem{charteris2021spatial}
+A.~F. Charteris, P.~Harris, K.~A. Marsden, I.~M. Harris, Z.~Guo, D.~A.
+  Beaumont, H.~Taylor, G.~Sanfratello, D.~L. Jones, S.~C.~M. Johnson, M.~J.
+  Whelan, N.~Howden, H.~Sint, D.~R. Chadwick, and L.~M. C{\'a}rdenas,
+  ``Within-field spatial variability of greenhouse gas fluxes from an extensive
+  and intensive sheep-grazed pasture,'' {\em Agriculture, Ecosystems and
+  Environment}, vol.~312, 2021.
+
+\bibitem{oulaid2025}
+B.~Oulaid {\em et~al.}, ``Geographically weighted quantile machine learning for
+  probabilistic soil moisture prediction from spatially resolved remote
+  sensing,'' {\em Remote Sensing}, vol.~17, no.~16, p.~2907, 2025.
+
+\bibitem{partridge2024}
+T.~Partridge, B.~Li, B.~Alhnaity, and Q.~Meng, ``Utilizing machine learning to
+  understand and predict methane emissions in cattle farming with farm-scale
+  environmental and biological variables,'' in {\em Proc. ICCA 2024}, 2024.
+
+\bibitem{fakeye2024}
+I.~Fakeye {\em et~al.}, ``Towards a framework for farm-scale digital twins,''
+  in {\em Proc. MODELS 2024 -- ACM/IEEE 27th Int. Conf. on Model Driven
+  Engineering Languages and Systems}, pp.~486--491, 2024.
+
+\bibitem{irvin2021}
+J.~Irvin {\em et~al.}, ``Gap-filling eddy covariance methane fluxes: Comparison
+  of machine learning model predictions and uncertainties at fluxnet-ch4
+  wetlands,'' {\em Agricultural and Forest Meteorology}, vol.~308--309,
+  p.~108528, 2021.
+
+\bibitem{kim2020}
+Y.~Kim {\em et~al.}, ``Gap-filling approaches for eddy covariance methane
+  fluxes: A comparison of three machine learning algorithms and a traditional
+  method with principal component analysis,'' {\em Global Change Biology},
+  vol.~26, no.~3, pp.~1499--1518, 2020.
+
+\bibitem{kheradmand2023}
+S.~Kheradmand, N.~Heidarzadeh, and S.~H. Kia, ``Prediction of the co2 emission
+  across grassland and cropland using tower-based eddy covariance flux
+  measurements: a machine learning approach,'' {\em Environment, Development
+  and Sustainability}, vol.~25, no.~6, pp.~5495--5509, 2023.
+
+\bibitem{purcell2023state}
+W.~Purcell and T.~Neubauer, ``Digital twins in agriculture: A state-of-the-art
+  review,'' {\em Smart Agricultural Technology}, vol.~3, 2023.
+
+\bibitem{buzacott2024}
+A.~J.~V. Buzacott {\em et~al.}, ``Drivers and annual totals of methane
+  emissions from dutch peatlands,'' {\em Global Change Biology}, vol.~30,
+  no.~12, 2024.
+
+\bibitem{sharma2026}
+P.~Sharma {\em et~al.}, ``Coupled machine learning--ecosystem ensemble models
+  substantially improve predictions of nitrous oxide (n2o) fluxes from us
+  croplands,'' {\em Proceedings of the National Academy of Sciences (PNAS)},
+  vol.~123, no.~10, 2026.
+
+\bibitem{fuchs2020}
+K.~Fuchs {\em et~al.}, ``Multimodel evaluation of nitrous oxide emissions from
+  an intensively managed grassland,'' {\em Journal of Geophysical Research:
+  Biogeosciences}, vol.~125, no.~1, 2020.
+
+\bibitem{qu2025tabicl}
+J.~Qu, D.~Holzm{\"u}ller, G.~Varoquaux, and M.~Le~Morvan, ``Tabicl: A tabular
+  foundation model for in-context learning on large data,'' {\em arXiv preprint
+  arXiv:2502.05564}, 2025.
+
+\bibitem{qu2026tabiclv2}
+J.~Qu, D.~Holzm{\"u}ller, G.~Varoquaux, and M.~Le~Morvan, ``Tabiclv2: A better,
+  faster, scalable, and open tabular foundation model,'' {\em arXiv preprint
+  arXiv:2602.11139}, 2026.
+
+\bibitem{hoo2026tabpfnts}
+S.~B. Hoo, S.~M{\"u}ller, D.~Salinas, and F.~Hutter, ``From tables to time:
+  Extending tabpfn-v2 to time series forecasting,'' {\em arXiv preprint
+  arXiv:2501.02945}, 2026.
+
+\bibitem{zeng2023}
+A.~Zeng, M.~Chen, L.~Zhang, and Q.~Xu, ``Are transformers effective for time
+  series forecasting?,'' in {\em AAAI Conference on Artificial Intelligence},
+  2023.
+
+\bibitem{montero2021global}
+P.~Montero-Manso and R.~J. Hyndman, ``Principles and algorithms for forecasting
+  groups of time series: Locality and globality,'' {\em International Journal
+  of Forecasting}, vol.~37, no.~4, pp.~1632--1653, 2021.
+
+\bibitem{semenov2025transient}
+M.~A. Semenov, N.~Senapati, K.~Coleman, and A.~L. Collins, ``A dataset of large
+  ensemble of cmip6-based transient climate scenarios for impact assessment in
+  great britain,'' {\em Data in Brief}, vol.~61, 2025.
+
+\end{thebibliography}

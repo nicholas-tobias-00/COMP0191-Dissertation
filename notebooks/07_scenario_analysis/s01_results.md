@@ -104,7 +104,8 @@ plausibly reflecting Tower 2's well-documented data sparsity throughout this pro
 `y_observed` in only 1/5 anchor windows per U-02/U-03) making its climatology-resampled drivers less
 reliable than T4/T9's. All three pass the sanity check well enough to trust the perturbed-scenario
 comparison, with Tower 2's result carrying extra caution, consistent with every other Tower-2 caveat
-in this project.
+in this project. **D-100 (2026-08-17) applies a delta-method correction anchored to this exact gap
+— see the note under Finding 2 below for the corrected headline percentages.**
 
 **2. The hybrid design measurably fixes the flattening U-03 found, at the two well-covered towers.**
 U-03's raw tree-only extrapolation test found RF/XGB/LightGBM plateau at only +21–23% mean change
@@ -113,6 +114,16 @@ at Tower 4 (29.35→69.90) and **+104.7%** at Tower 9 (40.04→81.96) — becaus
 component is now allowed to extrapolate properly along the livestock axis instead of the trees
 clipping it to their nearest training-seen leaf. This is the level–residual design working exactly
 as the deep-research literature pass predicted it would.
+
+> **Bias-corrected figures (D-100, 2026-08-17):** the above are reported relative to the model's
+> own (imperfectly reconstructed, Finding 1) 1× baseline. Anchoring instead to the real historical
+> mean via a standard delta-method correction (`corrected = real_mean + (predicted_scenario −
+> predicted_1x)`) gives **T2 +40.7%** (was +33.8%), **T4 +135.4%** (was +138.2%, materially
+> unchanged), **T9 +114.4%** (was +104.7%). A modest correction at every tower, in the direction
+> implied by Finding 1's own gap — not a new finding, a more rigorous version of an already-accepted
+> one. Both figures are legitimate to cite; the corrected one is anchored to observed reality and
+> is the recommended headline going forward. See `results/s01_scenario_summary_bias_corrected.csv`,
+> `notebooks/07_scenario_analysis/d100_bias_correction_s01_s04.py`.
 
 **3. Tower 2 is genuinely different, and this is a real finding, not a data artifact.** Tower 2's
 own historical `fx_lsu_dens` maximum (0.71) is roughly 7× smaller than T4's (4.99) and 8× smaller
