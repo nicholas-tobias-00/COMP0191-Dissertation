@@ -1,0 +1,838 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\chapter{Models and Methods}
+\label{ChapModels}
+
+This chapter defines the common modelling and evaluation methodology used
+throughout the gap-filling, forecasting and scenario-projection experiments.
+Although these tasks use the same underlying NWFP data, they represent
+different prediction settings. Gap-filling reconstructs observations removed
+from within an historical record, forecasting predicts beyond a defined
+forecast origin, and scenario projection evaluates a fitted model under
+prescribed future environmental and management conditions. The corresponding
+validation procedures are therefore described separately before introducing
+the complete model roster, uncertainty-quantification framework and
+interpretability method.
+
+% This chapter collects every machine learning model, statistical baseline, uncertainty-quantification
+% (UQ) method, and interpretability technique used anywhere in this dissertation, regardless of which
+% downstream task (gap-filling, forecasting, or scenario projection) applies it. Chapters~\ref{Chap4}
+% through~\ref{Chap6} assume the descriptions below and report only configuration, results, and
+% task-specific discussion.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Evaluation Methods and Metrics}
+\label{sec:evaluation_protocols}
+
+The benchmark models optimise different internal objectives, including squared
+error, absolute error, likelihood-based objectives and quantile loss.
+Consequently, they were compared using common held-out evaluation metrics
+rather than their model-specific training losses. Table~\ref{tab:task_protocols}
+summarises the principal distinction between the three modelling tasks.
+
+\begin{table}[htbp]
+\centering
+\small
+\caption{Summary of the evaluation settings used in the dissertation.}
+\label{tab:task_protocols}
+\begin{tabular*}{\textwidth}{@{\extracolsep{\fill}}
+>{\raggedright\arraybackslash}p{0.16\textwidth}
+>{\raggedright\arraybackslash}p{0.28\textwidth}
+>{\raggedright\arraybackslash}p{0.34\textwidth}
+>{\raggedright\arraybackslash}p{0.14\textwidth}@{}}
+\toprule
+Task & Evaluation unit & Information available to the model & Primary metric \\
+\midrule
+Gap-filling &
+Synthetic calendar gaps placed within the observed record &
+Remaining observations and supporting variables before and after each gap &
+$R^2$ \\
+\addlinespace[0.5em]
+
+Forecasting &
+365-day prediction from five historical forecast origins &
+Historical training data and realised supporting variables over the evaluation period &
+Seasonal-mean-scaled MASE \\
+\addlinespace[0.5em]
+
+Scenario projection &
+Conditional prediction under prescribed climate and management trajectories &
+Historical training data and externally supplied scenario covariates &
+Relative change from the reference scenario \\
+\bottomrule
+\end{tabular*}
+\end{table}
+
+\subsection{Gap-Filling Cross-Validation}
+
+Gap-filling was evaluated as an interpolation problem over each tower's usable
+measurement period. The evaluation domains were 1 October 2017--30 June 2019
+for T2, 1 October 2017--31 December 2023 for T4, and
+1 February 2020--31 December 2023 for T9. Only QC-valid observed
+FCH\textsubscript{4} values within these domains were eligible for masking.
+
+Five synthetic-gap scenarios were used: very short gaps of one hour, short
+gaps of four hours, medium gaps of 32 hours, long gaps of 288 hours, and a
+mixed scenario in which gap length was sampled from these four durations.
+Non-overlapping calendar gaps were positioned randomly until approximately
+25\% of the available target observations had been masked. Two independently
+seeded repetitions were evaluated for each tower and gap scenario.
+
+For every repetition, the masked FCH\textsubscript{4} observations were removed
+before fitting the model. Supporting environmental and management variables
+remained available, and the model could use historical context from either
+side of a gap. This reflects the intended use of gap-filling, in which later
+observations may be available when an earlier missing interval is
+reconstructed. It is therefore distinct from prospective forecasting and
+should not be interpreted as evidence of future predictive skill.
+
+Metrics were first calculated independently for each repetition. The median
+over repetitions was then calculated within each gap-duration scenario,
+followed by the median across the five scenarios. This prevents a particularly
+large or easy synthetic gap from dominating the headline result. Where a
+combined value is reported across T2, T4 and T9, the tower-level results are
+averaged with equal weight so that the longer T4 record does not automatically dominate
+the comparison.
+
+
+\subsection{Forecasting Cross-Validation}
+
+Forecasting was evaluated through fixed-origin backtesting. Five forecast
+origins were defined on 16 December in 2018, 2019, 2020, 2021 and 2022.
+At each origin, a model was fitted using only data available on or before that
+date and generated a continuous 365-day daily prediction. Tower--origin
+combinations without sufficient historical or observed evaluation data were
+excluded rather than assigned artificial scores.
+
+The resulting forecasts were evaluated against QC-valid observed
+FCH\textsubscript{4}, not against the reconstructed target series. The
+gap-filled historical series could be used to initialise autoregressive
+features, but predictions were scored only where a real observation was
+available. This prevents agreement with the gap-filling model from being
+mistaken for agreement with measured methane flux.
+
+For recursive models, each predicted FCH\textsubscript{4} value was appended
+to the available history and used to construct the autoregressive inputs for
+subsequent days. No later observed methane value was inserted during the
+365-day rollout. Direct tabular foundation-model configurations instead
+predicted from the available covariate representation without requiring the
+same recursive target-update mechanism.
+
+Historical backtests supplied the realised supporting environmental variables
+over each future evaluation window. The resulting experiment is therefore a
+conditional methane-flux forecast: it evaluates the mapping from environmental
+and management conditions to FCH\textsubscript{4}, together with any recursive
+target dependence, rather than simultaneously evaluating a separate weather
+forecast. Future climate variables are supplied by the climate-scenario data
+in the scenario-projection experiment.
+
+Performance was additionally divided into lead-time intervals of 1--7,
+8--30, 31--90, 91--180, 181--270 and 271--365 days. This permits degradation
+with forecast horizon to be distinguished from overall performance. Aggregate
+metrics are weighted by the number of observed target values contributing to
+each tower--origin--horizon cell, ensuring that cells containing very few real
+observations do not receive the same influence as well-observed cells.
+
+\subsection{Scenario-Projection Evaluation}
+
+Scenario projection has no observed future target and is therefore treated as
+a conditional projection rather than a forecast-validation exercise. The
+best-performing forecasting configuration is held fixed across all prescribed
+climate and management trajectories, which are compared with a common
+reference over the same projection period.
+
+For scenario \(s\), the relative change in mean predicted
+FCH\textsubscript{4} is calculated as
+
+\begin{equation}
+\Delta_s
+=
+100
+\left(
+\frac{
+\overline{\hat{y}}_s-\overline{\hat{y}}_{\mathrm{ref}}
+}{
+\overline{\hat{y}}_{\mathrm{ref}}
+}
+\right),
+\end{equation}
+
+where \(\overline{\hat{y}}_s\) and
+\(\overline{\hat{y}}_{\mathrm{ref}}\) denote the mean predictions under the
+scenario and reference trajectories, respectively. These values quantify
+modelled conditional differences and are not interpreted as validated
+forecasts of future methane flux.
+
+\subsection{Prediction Metrics}
+
+Let \(y_i\) denote an observed flux and \(\hat{y}_i\) the corresponding model
+prediction for \(n\) valid evaluation observations. Mean absolute error and
+root mean squared error were calculated as
+
+\begin{equation}
+\mathrm{MAE}
+=
+\frac{1}{n}
+\sum_{i=1}^{n}
+\left|y_i-\hat{y}_i\right|,
+\end{equation}
+
+and
+
+\begin{equation}
+\mathrm{RMSE}
+=
+\sqrt{
+\frac{1}{n}
+\sum_{i=1}^{n}
+\left(y_i-\hat{y}_i\right)^2
+}.
+\end{equation}
+
+MAE represents the typical absolute error in the original flux units, whereas
+RMSE gives greater weight to the comparatively rare large errors associated
+with methane peaks.
+
+Gap-filling primarily follows the OLS \(R^2\) convention used by the published
+NWFP comparator \cite{zhu2023a}. In the implemented evaluation, this is the
+squared Pearson correlation between observations and predictions:
+
+\begin{equation}
+R^2 (OLS)
+=
+\left[
+\frac{
+\sum_{i=1}^{n}
+(y_i-\bar{y})
+(\hat{y}_i-\bar{\hat{y}})
+}{
+\sqrt{
+\sum_{i=1}^{n}(y_i-\bar{y})^2
+\sum_{i=1}^{n}(\hat{y}_i-\bar{\hat{y}})^2
+}
+}
+\right]^2.
+\label{eq:r2_ols}
+\end{equation}
+
+Unlike the residual coefficient of determination
+\(1-\sum(y_i-\hat{y}_i)^2/\sum(y_i-\bar{y})^2\),
+Equation~\ref{eq:r2_ols} is bounded between zero and one. It measures the
+strength of linear agreement but is comparatively insensitive to additive
+bias and scale error. MAE and RMSE are therefore retained as supporting
+metrics so that a model cannot be assessed from correlation alone.
+
+Forecasting uses a seasonal-mean-scaled form of mean absolute scaled error.
+For each forecast origin, the reference prediction for a target date is the
+mean observed FCH\textsubscript{4} for the corresponding day of year within a
+circular \(\pm 7\)-day window, calculated exclusively from observations before
+the forecast origin. The reported metric is
+
+\begin{equation}
+\mathrm{MASE}_{\mathrm{seasonal}}
+=
+\frac{
+\mathrm{MAE}(y,\hat{y})
+}{
+\mathrm{MAE}(y,\hat{y}^{\,\mathrm{seasonal}})
+}.
+\label{eq:mase_seasonal}
+\end{equation}
+
+This applies the scale-free comparison principle of MASE
+\cite{hyndman2006accuracy} using the historical seasonal mean as the explicit
+reference forecast. Values below one indicate that the model improves on the
+seasonal mean, a value of one indicates equal error, and values above one
+indicate inferior performance.
+
+Weighted absolute percentage error was calculated as
+
+\begin{equation}
+\mathrm{WAPE}
+=
+\frac{
+\sum_{i=1}^{n}|y_i-\hat{y}_i|
+}{
+\sum_{i=1}^{n}|y_i|
+}.
+\end{equation}
+
+WAPE is more stable than observation-wise percentage errors for this
+application because FCH\textsubscript{4} is signed and frequently lies near
+zero. Pearson correlation was also reported to describe agreement in temporal
+variation independently of absolute calibration. No single metric is treated
+as sufficient: MASE provides the primary forecasting comparison, while MAE,
+RMSE, WAPE and correlation identify differences in scale, peak sensitivity and
+temporal tracking.
+
+\section{Models Used}
+\label{sec:model_roster}
+
+The benchmark intentionally includes simple baselines, conventional statistical
+models, tree ensembles, locally trained neural architectures and pretrained
+tabular foundation models. This breadth permits the claim that one model
+family outperforms another to be tested empirically under common evaluation
+conditions. Table~\ref{tab:model_roster} summarises how each model operates and
+where it is used. ``GF'' and ``FC'' denote gap-filling and forecasting 
+respectively.
+
+% {
+% \small
+% \setlength{\tabcolsep}{4pt}
+% \renewcommand{\arraystretch}{1.15}
+% \begin{longtable}{
+% @{}
+% >{\raggedright\arraybackslash}p{0.17\textwidth}
+% >{\raggedright\arraybackslash}p{0.60\textwidth}
+% >{\raggedright\arraybackslash}p{0.15\textwidth}
+% @{}
+% }
+% \caption{Model families and their roles in the dissertation.}
+% \label{tab:model_roster}\\
+% \toprule
+% Model & Operating principle & Application \\
+% \midrule
+% \endfirsthead
+
+% \multicolumn{3}{l}{\tablename\ \thetable\ -- continued}\\
+% \toprule
+% Model & Operating principle & Application \\
+% \midrule
+% \endhead
+
+% \midrule
+% \multicolumn{3}{r}{Continued on next page}\\
+% \endfoot
+
+% \bottomrule
+% \endlastfoot
+
+% Training-set mean &
+% Predicts the arithmetic mean of the available training target for every
+% held-out observation. It contains no temporal, environmental or management
+% information and therefore provides a zero-information reference against which
+% all fitted gap-filling models should improve. &
+% GF \\
+
+% Marginal Distribution Sampling &
+% Fills a target from observations recorded under similar meteorological
+% conditions \cite{wutzler2018reddyproc}. The implemented hierarchy first
+% searches for observations with comparable shortwave radiation, air temperature
+% and VPD; then relaxes the search to shortwave radiation; and finally uses an
+% expanding mean-diurnal-course fallback. Unlike a fitted regression model, MDS
+% constructs each estimate by averaging conditionally similar historical
+% observations. &
+% GF \\
+
+% MICE &
+% Uses multivariate imputation by chained equations. Each incomplete variable is
+% treated in turn as a regression target conditional on the remaining variables,
+% and the procedure cycles through the columns iteratively. The implementation
+% uses Bayesian ridge regression as the fixed conditional estimator. Masked
+% FCH\textsubscript{4} values are recovered from the jointly imputed
+% feature--target matrix. &
+% GF \\
+
+% HyperImpute &
+% Retains the chained-equations structure of MICE but replaces its single fixed
+% conditional estimator with an AutoML search. A separate regression or
+% classification algorithm may therefore be selected for each imputed column.
+% This allows nonlinear and variable-specific relationships to be represented,
+% at substantially greater computational cost. &
+% GF \\
+
+% Random Forest &
+% Fits many regression trees to bootstrap samples of the training data while
+% considering a random subset of predictors at each split. Individual trees
+% capture nonlinear thresholds and interactions, while averaging their
+% predictions reduces variance. A meteorology-only configuration reproduces the
+% published baseline, whereas the expanded configuration includes environmental,
+% calendar, livestock and management features. Cross-tower versions use tower
+% indicators to distinguish the three measurement contexts. &
+% GF, FC \\
+
+% XGBoost &
+% Constructs regression trees sequentially. Each new tree is fitted to improve
+% the residual errors of the existing ensemble, while shrinkage, tree-depth
+% constraints and explicit regularisation limit overfitting. Its sequential
+% error-correction mechanism can model nonlinear feature interactions but may
+% remain sensitive to sparse methane peaks. &
+% GF, FC \\
+
+% LightGBM &
+% Also uses gradient-boosted decision trees, but relies on histogram-based split
+% search and leaf-wise tree growth. Histogram binning reduces computational cost,
+% while leaf-wise growth expands the branch offering the greatest loss
+% reduction. Depth and leaf-size restrictions are used to control the resulting
+% model complexity. &
+% GF, FC \\
+
+% Artificial Neural Network &
+% Passes the input features through successive fully connected nonlinear layers
+% and learns their weights through gradient-based optimisation. The ANN appears
+% in the published-baseline replication rather than the final improved
+% gap-filling roster, permitting comparison with earlier methane-flux studies. &
+% GF replication \\
+
+% Support Vector Machine &
+% Uses support-vector regression to estimate a function within an
+% \(\epsilon\)-insensitive error tube. Kernel transformations permit nonlinear
+% relationships to be represented through similarities between observations,
+% while the regularisation parameter controls the balance between a flatter
+% function and errors outside the tube. It is retained only for published
+% baseline replication. &
+% GF replication \\
+
+% SAITS &
+% A self-attention architecture designed specifically for multivariate
+% time-series imputation \cite{du2023saits}. Two diagonally masked
+% self-attention blocks learn relationships between variables and time points
+% without directly copying the value being reconstructed. Their estimates are
+% combined through a learned weighting mechanism and trained using observed-value
+% reconstruction and artificial-masking objectives. &
+% GF \\
+
+% LSTM and Bi-LSTM &
+% Long short-term memory networks maintain a recurrent cell state controlled by
+% input, forget and output gates. These gates regulate which historical
+% information is stored, removed and exposed to the prediction layer. The
+% bidirectional gap-filling model processes a sequence in both temporal
+% directions, which is appropriate when observations after a historical gap are
+% available. The forecasting LSTM is causal at inference and updates its input
+% history using earlier predictions during recursive rollout. &
+% GF, FC \\
+
+% Temporal Fusion Transformer &
+% Combines recurrent local processing with variable-selection networks, gated
+% residual components and attention over the encoded sequence. Variable-selection
+% weights allow the model to emphasise different observed and known-future
+% inputs, while attention represents longer temporal relationships. The
+% forecasting implementation uses a fixed historical lookback and produces a
+% multi-step sequence, of which the next prediction is introduced into the
+% recursive chain. &
+% FC \\
+
+% DLinear &
+% Decomposes each input sequence into a moving-average trend and a residual
+% seasonal component, then applies separate linear projections to the two
+% components \cite{zeng2023}. The final forecast is their sum. It provides a
+% deliberately simple neural forecasting baseline for testing whether elaborate
+% attention or recurrent architectures are necessary. &
+% FC \\
+
+% SARIMAX &
+% Represents the target through autoregressive terms, differencing and
+% moving-average error terms, together with exogenous environmental and
+% management regressors. Candidate autoregressive and moving-average orders are
+% fitted separately at each tower and forecast origin, with the final order
+% selected using AIC. SARIMAX provides a classical statistical comparison with
+% the machine-learning models. &
+% FC \\
+
+% TabPFN &
+% A pretrained tabular foundation model that learns a prediction procedure from
+% large numbers of synthetic tabular tasks
+% \cite{hollmann2023tabpfn,hollmann2025tabpfn}. At inference, labelled historical
+% rows form an in-context training set and unlabelled rows form prediction
+% queries. Transformer attention relates the queries to the supplied context,
+% producing point and quantile predictions without conventional task-specific
+% gradient training. For forecasting, temporal structure is supplied through
+% calendar, lagged, environmental and management features, following the
+% tabularisation principle used by TabPFN-TS \cite{hoo2026tabpfnts}. &
+% GF, FC \\
+
+% TabICLv2 &
+% Extends tabular in-context learning to larger tabular contexts through revised
+% synthetic pretraining and scalable attention
+% \cite{qu2025tabicl,qu2026tabiclv2}. As with TabPFN, labelled context rows and
+% query rows are processed jointly at inference. In gap-filling it is fitted
+% separately by tower because its fixed context budget can be diluted by pooling.
+% The scenario model also uses a per-tower direct-regression configuration with
+% a restricted climate-compatible feature set. &
+% GF, FC, SP \\
+
+% Prediction ensemble &
+% Combines predictions from independently fitted models. The forecasting
+% benchmark evaluates an unweighted mean of Random Forest, XGBoost, LightGBM and
+% SARIMAX, while the final TabPFN combination averages complementary TabPFN
+% configurations. Averaging can reduce model-specific variance, although it can
+% also dilute a stronger constituent with weaker members. &
+% FC \\
+% \end{longtable}
+% }
+
+  {
+  \small
+  \setlength{\tabcolsep}{4pt}
+  \renewcommand{\arraystretch}{1.13}
+  \begin{longtable}{
+  @{}
+  >{\raggedright\arraybackslash}p{0.17\textwidth}
+  >{\raggedright\arraybackslash}p{0.60\textwidth}
+  >{\raggedright\arraybackslash}p{0.15\textwidth}
+  @{}
+  }
+  \caption{Model families and their roles in the dissertation.}
+  \label{tab:model_roster}\\
+  \toprule
+  Model & Operating principle & Application \\
+  \midrule
+  \endfirsthead
+
+  \multicolumn{3}{l}{\tablename\ \thetable\ -- continued}\\
+  \toprule
+  Model & Operating principle & Application \\
+  \midrule
+  \endhead
+
+  \midrule
+  \multicolumn{3}{r}{Continued on next page}\\
+  \endfoot
+
+  \bottomrule
+  \endlastfoot
+
+  Training-set mean &
+  Predicts the mean observed training target for every held-out row, providing a
+  zero-information reference. &
+  GF \\
+
+  MDS &
+  Reconstructs flux from historical observations under similar meteorological
+  conditions, followed by an expanding mean-diurnal-course fallback
+  \cite{reichstein2005mds,wutzler2018reddyproc,zhu2023a}. &
+  GF \\
+
+  MICE &
+  Iteratively predicts each incomplete variable from the remaining variables.
+  The implementation uses Bayesian ridge regression as the conditional estimator
+  \cite{vanbuuren2011mice}. &
+  GF \\
+
+  HyperImpute &
+  Extends chained-equation imputation by using an AutoML search to select a
+  conditional estimator separately for each variable
+  \cite{jarrett2022hyperimpute}. &
+  GF \\
+
+  Random Forest &
+  Averages regression trees fitted to bootstrap samples with random feature
+  selection at each split, capturing nonlinearities while reducing individual-tree
+  variance \cite{breiman2001randomforests,irvin2021,kim2020,zhu2023a}. &
+  GF, FC \\
+
+  XGBoost &
+  Builds regularised regression trees sequentially, with each tree correcting
+  residual errors left by the existing ensemble
+  \cite{chen2016xgboost,irvin2021}. &
+  GF, FC \\
+
+  LightGBM &
+  Uses histogram-based gradient boosting and leaf-wise tree growth to model
+  nonlinear relationships efficiently \cite{ke2017lightgbm}. &
+  GF, FC \\
+
+  ANN &
+  Learns nonlinear feature combinations through successive fully connected
+  layers trained by gradient-based optimisation
+  \cite{rumelhart1986backprop,kim2020}. &
+  GF replication \\
+
+  SVM &
+  Uses support-vector regression to fit a regularised function within an
+  $\epsilon$-insensitive error margin, with kernels permitting nonlinear
+  relationships \cite{drucker1997svr,kim2020}. &
+  GF replication \\
+
+  SAITS &
+  Uses diagonally masked self-attention blocks and learned combination weights
+  to reconstruct multivariate time-series gaps \cite{du2023saits}. &
+  GF \\
+
+  LSTM and Bi-LSTM &
+  Use gated recurrent memory to retain or discard temporal information.
+  Bi-LSTM uses context on both sides of a historical gap, whereas forecasting
+  LSTM operates causally during rollout
+  \cite{hochreiter1997lstm,schuster1997bidirectional}. &
+  GF, FC \\
+
+  TFT &
+  Combines recurrent processing, variable-selection networks, gating and
+  temporal attention to represent local and longer-range forecasting
+  relationships \cite{lim2021tft}. &
+  FC \\
+
+  DLinear &
+  Decomposes a sequence into trend and residual components and forecasts each
+  with a linear projection \cite{zeng2023}. &
+  FC \\
+
+  SARIMAX &
+  Combines autoregressive, differencing and moving-average terms with exogenous
+  environmental and management regressors. Candidate orders are selected using
+  AIC \cite{box2015timeseries}. &
+  FC \\
+
+  TabPFN &
+  Uses a transformer pretrained on synthetic tabular tasks to infer predictions
+  from labelled context rows and unlabelled query rows
+  \cite{hollmann2023tabpfn,hollmann2025tabpfn}. Temporal prediction is represented
+  through engineered time-series features \cite{hoo2026tabpfnts}. &
+  GF, FC \\
+
+  TabICLv2 &
+  Uses scalable tabular in-context learning with synthetic pretraining
+  \cite{qu2025tabicl,qu2026tabiclv2}. &
+  GF, FC \\
+
+  Prediction ensemble &
+  Averages predictions from complementary fitted models to reduce
+  model-specific variance. Both tree--statistical and TabPFN combinations are
+  evaluated \cite{bates1969combination}. &
+  FC \\
+
+  \end{longtable}
+  }
+
+For locally fitted tabular models, missing predictor values were replaced using
+statistics estimated from the corresponding training data. Pooled models used
+tower indicators to share information while retaining tower-specific effects.
+Exact feature configurations, context lengths and hyperparameters are reported
+with the corresponding experiments; Table~\ref{tab:model_roster} defines only 
+the common operating principles used throughout the results chapters.
+
+% For locally fitted tabular models, missing predictor values were replaced using
+% statistics estimated from the corresponding training data. Where models were
+% pooled across towers, tower-indicator variables allowed a common fitted
+% function to retain tower identity. This differs from treating the three towers
+% as interchangeable observations: pooling shares statistical information while
+% still permitting tower-specific offsets and interactions.
+
+% Exact feature configurations, context lengths and hyperparameters are reported
+% with the corresponding gap-filling, forecasting and scenario-projection
+% experiments. The purpose of Table~\ref{tab:model_roster} is to define the
+% operating principles of the models once, avoiding repeated generic
+% descriptions in each results chapter.
+
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\section{Uncertainty Quantification}
+\label{sec:uncertainty_methods}
+
+Point predictions alone do not distinguish confident predictions from periods
+in which multiple methane outcomes are plausible. Uncertainty was therefore
+represented through quantile-based machine learning and conformal calibration.
+For a conditional target distribution \(Y\mid X=x\), the quantile model
+estimates
+
+\begin{equation}
+Q_{\tau}(x)
+=
+\inf\left\{
+y:
+P(Y\leq y\mid X=x)\geq\tau
+\right\},
+\end{equation}
+
+where \(\tau\in(0,1)\) denotes the desired quantile. The experiments use
+\(\tau=0.05\), \(0.50\) and \(0.95\), producing a median point prediction and a
+nominal 90\% interval.
+
+Quantile models are trained or evaluated using pinball loss
+\cite{koenker1978quantiles}:
+
+\begin{equation}
+L_{\tau}(y,\hat{q}_{\tau})
+=
+\begin{cases}
+\tau(y-\hat{q}_{\tau}),
+& y\geq\hat{q}_{\tau},\\
+(1-\tau)(\hat{q}_{\tau}-y),
+& y<\hat{q}_{\tau}.
+\end{cases}
+\label{eq:pinball}
+\end{equation}
+
+The asymmetric weighting means that underprediction is penalised more heavily
+for a high quantile and overprediction more heavily for a low quantile.
+Minimising Equation~\ref{eq:pinball} therefore estimates the corresponding
+conditional quantile rather than the conditional mean.
+
+% Several mechanisms were used to obtain initial intervals. Quantile Regression
+% Forest derives quantiles from the distribution of training outcomes represented
+% within the fitted forest leaves. XGBoost and LightGBM fit separate
+% quantile-objective models for the 0.05, 0.50 and 0.95 levels. SARIMAX obtains
+% intervals from its fitted state-space forecast distribution, while the TFT
+% uses a quantile-output head. TabPFN and TabICLv2 provide native predictive
+% quantiles from their pretrained regression distributions. Where an ensemble
+% was evaluated, corresponding lower, median and upper predictions from its
+% constituent models were combined using the same weights as the point ensemble.
+
+Several mechanisms were used to obtain initial prediction intervals. Quantile
+Regression Forest estimates conditional quantiles from the distribution of
+training outcomes represented within the fitted forest leaves
+\cite{meinshausen2006qrf}. XGBoost and LightGBM fit separate
+quantile-objective models for the 0.05, 0.50 and 0.95 levels, while SARIMAX
+obtains intervals from its fitted state-space forecast distribution. The TFT
+uses a quantile-output head, and TabPFN and TabICLv2 provide predictive
+quantiles from their pretrained regression distributions. For an ensemble,
+corresponding lower, median and upper predictions were combined using the same
+weights as the point predictions.
+
+Raw model quantiles are not guaranteed to achieve their nominal coverage on
+NWFP data. Split-conformal calibration was therefore used to adjust the
+intervals using held-out residual information
+\cite{lei2018distributionfree}.
+For symmetric split-conformal intervals, the calibration score for observation
+\(i\) is
+
+\begin{equation}
+s_i
+=
+\left|
+y_i-\hat{q}_{0.50}(x_i)
+\right|.
+\end{equation}
+
+For a desired miscoverage rate \(\alpha=0.10\), the conformal margin is the
+finite-sample corrected \(1-\alpha\) quantile of the calibration scores. The
+calibrated interval is then
+
+\begin{equation}
+C_{0.90}(x)
+=
+\left[
+\hat{q}_{0.50}(x)-\hat{s},
+\hat{q}_{0.50}(x)+\hat{s}
+\right].
+\end{equation}
+
+Forecasting calibration used a leave-one-anchor-out procedure. When one
+forecast origin was evaluated, residuals from the remaining four origins were
+pooled within the corresponding lead-time interval. The resulting conformal
+margin was then applied to the held-out origin. This preserves separation
+between calibration and evaluation while allowing interval width to vary
+between short and long forecast horizons.
+
+Conformalized Quantile Regression was additionally used where the native
+quantile spread contained information that a symmetric interval around the
+median would discard \cite{romano2019cqr}. Its nonconformity score is
+
+\begin{equation}
+s_i^{\mathrm{CQR}}
+=
+\max\left\{
+\hat{q}_{0.05}(x_i)-y_i,\;
+y_i-\hat{q}_{0.95}(x_i)
+\right\},
+\end{equation}
+
+giving the calibrated interval
+
+\begin{equation}
+C^{\mathrm{CQR}}_{0.90}(x)
+=
+\left[
+\hat{q}_{0.05}(x)-\hat{s}_{\mathrm{CQR}},
+\hat{q}_{0.95}(x)+\hat{s}_{\mathrm{CQR}}
+\right].
+\end{equation}
+
+For gap-filling, QRF and TabICLv2 intervals were evaluated on the synthetic
+held-out gaps. Calibration data were separated from the interval-evaluation
+data within each tower and gap-duration setting. For forecasting, calibration
+was separated by forecast origin and lead-time interval. Scenario intervals
+reuse margins learned from historical backtests; they quantify historically
+calibrated predictive dispersion but cannot guarantee coverage under an
+unobserved future distribution shift.
+
+Let \(\hat{l}_i\) and \(\hat{u}_i\) denote the final lower and upper
+bounds of the interval evaluated for observation \(i\). These may correspond
+to either the raw model quantiles or their conformally calibrated
+counterparts.
+
+Three complementary interval metrics were reported. Prediction Interval
+Coverage Probability is
+
+\begin{equation}
+\mathrm{PICP}
+=
+\frac{1}{n}
+\sum_{i=1}^{n}
+\mathbb{I}
+\left(
+\hat{l}_i
+\leq y_i
+\leq
+\hat{u}_i
+\right).
+\end{equation}
+
+This measures the proportion of observations inside the interval. For a nominal
+90\% interval, values substantially below 0.90 indicate undercoverage and
+overconfidence, whereas values well above 0.90 indicate conservative
+intervals.
+
+Mean Prediction Interval Width is
+
+\begin{equation}
+\mathrm{MPIW}
+=
+\frac{1}{n}
+\sum_{i=1}^{n}
+\left(
+\hat{u}_i-\hat{l}_i
+\right).
+\end{equation}
+
+MPIW measures sharpness. Narrower intervals are preferable only when their
+coverage remains comparable; an arbitrarily narrow interval with poor PICP is
+not useful. Mean pinball loss across the three quantiles measures the accuracy
+of the quantile predictions. PICP, MPIW and pinball loss are
+therefore interpreted jointly as coverage, sharpness and quantile accuracy,
+respectively.
+
+% ============================================================================
+\section{Interpretability}
+\label{sec:interpretability_methods}
+
+Permutation-based prediction sensitivity was used as the common model-agnostic
+interpretability method. For each forecast origin and tower, the fitted model
+first produced an unmodified prediction vector
+\(\hat{\mathbf{y}}\). Predictor \(j\) was then shuffled across the evaluation
+rows and the already fitted model was applied again without retraining.
+
+Sensitivity was calculated as
+
+\begin{equation}
+I_j
+=
+\left|
+\frac{1}{n}
+\sum_{i=1}^{n}
+\hat{y}^{\,\pi(j)}_i
+-
+\frac{1}{n}
+\sum_{i=1}^{n}
+\hat{y}_i
+\right|,
+\label{eq:permutation_importance}
+\end{equation}
+
+where \(\hat{y}^{\,\pi(j)}_i\) is the prediction obtained after permuting
+feature \(j\). The score therefore measures the change in mean predicted
+FCH\textsubscript{4} caused by disrupting the information carried by that
+feature. Unlike conventional error-based permutation importance
+\cite{breiman2001randomforests}, it does not require an observed future target
+and can consequently be applied to conditional scenario projections.
+
+Permutations were performed within each tower so that values were not mixed
+between T2, T4 and T9. Tower indicators were not permuted. Scores were
+calculated across the five forecast origins using deterministic seeds and were
+then summarised overall and by tower.
+
+These scores measure model reliance rather than physical causality. Correlated
+predictors may share importance, while permutation may create combinations of
+variables that are uncommon in the observed data. Interpretation therefore
+focuses on stable feature groups and cross-tower patterns rather than small
+differences between individual rankings.

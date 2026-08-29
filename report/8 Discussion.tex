@@ -1,0 +1,121 @@
+\chapter{Discussion and Conclusion} \label{Chap7}
+
+\section{Main Findings}
+
+\subsection{Overview of Model Performance} \label{sec:model_performance_overview}
+
+\begin{itemize}
+    \item \textbf{Gap-filling:} TabICLv2 is best (combined hourly $R^2=0.515$,
+    Chapter~\ref{Chap4}), leading at T2/T4 and tying RF at T9. The two neural models nevertheless 
+    underperformed compared to the leading tree-based and foundation-model approaches:
+    bidirectional LSTM ($R^2=0.224$) and SAITS ($R^2=0.385$).
+    \item \textbf{Forecasting:} TabPFN is best (MASE$=0.6908$, Chapter~\ref{Chap5}), while TabICLv2
+    ranks second (MASE$=0.7191$). The weakest were again the locally trained deep-learning models:
+    DLinear (MASE$=1.1872$, the only model worse than the seasonal-mean baseline) and LSTM (MASE$=0.9521$).
+    \item \textbf{Tabular foundation models excel.} TabPFN and TabICLv2 are pretrained on
+    millions of synthetic tabular datasets and predict via in-context learning, fitting no
+    dataset-specific parameters \cite{hollmann2023tabpfn,hollmann2025tabpfn,qu2025tabicl,qu2026tabiclv2}.
+    This prior-fitted-network approach is specifically effective on small, incomplete datasets
+    \cite{hollmann2025tabpfn} and may provide an advantage on NWFP's severely incomplete record.
+    \item \textbf{Deep learning does not perform best.} Locally trained neural architectures, 
+    including LSTM, Bi-LSTM, DLinear and TFT train from scratch on NWFP's own incomplete 
+    record, giving a small effective training-sample size. Off-the-shelf recurrent architectures 
+    without dedicated missingness-handling tend only to match classical baselines (RF, SVM) on incomplete
+    time series rather than exceed them \cite{che2018grud}. This is consistent with deep learning's broader
+    failure to reliably beat tree-based methods on tabular data \cite{grinsztajn2022}.
+    \item \textbf{Uncertainty quantification also favours the tabular foundation models.} In
+    gap-filling, TabICLv2 matches QRF's calibrated coverage (PICP$=0.899$) with sharper intervals
+    (MPIW $176.2$ vs.\ $183.5$, Chapter~\ref{Chap4}). In forecasting, TabPFN's raw intervals
+    already sit close to nominal at T4/T9 (PICP$=0.929$/$0.928$) without extensive calibration --
+    though not at Tower 2, where too few observations remain to calibrate at all
+    (Chapter~\ref{Chap5}).
+\end{itemize}
+
+\subsection{Difficulty in Methane Flux Gap-Filling and Forecasting}
+
+\begin{itemize}
+    \item \textbf{Gap-filling fit remains modest despite the improved pipeline.} Even with
+    enriched features and a tabular foundation model, the combined hourly $R^2$ reaches only
+    0.515 (Chapter~\ref{Chap4}), a large improvement over MDS ($R^2=0.055$), but still a modest 
+    absolute fit.
+    \item \textbf{The livestock-dominant catchments are hardest to reconstruct.} T4 and T9, where
+    livestock density dominates the FCH\textsubscript{4} signal, score \emph{below} the combined
+    average ($R^2=0.429$/$0.430$), while T2, driven by a land-use transition, scores highest ($R^2=0.686$). 
+    The catchments most central to this dissertation's finding are the ones it reconstructs least well.
+    \item \textbf{Forecasting error is dominated by spikes.} Section~\ref{fc:spike} shows the
+    champion's strong pooled MASE (0.6908) is earned almost entirely on ordinary days (non-spike
+    MASE$=0.524$); on spike days it rises to 3.285, over six times worse and a clear loss against
+    baseline. No feature in this project reliably predicts spike occurrence.
+\end{itemize}
+
+  \subsection{Scenario Sensitivity}
+
+  Livestock density produced the largest modelled response among the tested
+  scenarios, with historical-maximum stocking levels increasing predicted annual
+  FCH\textsubscript{4} by 100--184\%. Extending grazing increased predictions by
+  approximately 20\% at T4 and T9, whereas fertiliser interventions produced
+  smaller and less consistent responses. These sensitivities were similar under
+  SSP2-4.5 and SSP5-8.5, although they represent conditional model behaviour
+  rather than validated causal effects.
+
+\section{Limitations} \label{sec:limitations}
+
+\begin{itemize}
+    \item \textbf{Tower 2 is the weakest-conditioned data source at every pipeline stage.} Its
+    QC-valid coverage is lowest of the three towers (92.0\% unavailable vs.\ 68.3\%/81.7\% at
+    T4/T9, Chapter~\ref{Chap3}); it cannot support conformal calibration in forecasting
+    (Chapter~\ref{Chap5}) due to data limitations.
+    \item \textbf{Forecasting and scenario projection rely substantially on gap-filled variables.} Both
+    build on Chapter~\ref{Chap4}'s reconstructed FCH\textsubscript{4} series, most of which is
+    model-estimated, not observed (68.3--92.0\% of hours). Downstream results therefore partly
+    reflect the gap-filling model's own behaviour.
+    \item \textbf{UQ and scenario projection were not extended to the full model roster.}
+    Gap-filling UQ covers only its top two models (QRF, TabICLv2, Chapter~\ref{Chap4});
+    forecasting UQ covers only its champion (TabPFN, Chapter~\ref{Chap5}) -- extending further was
+    not attempted given the compute cost. 
+    \item \textbf{CMIP6 climate simulations do not match NWFP's own historical climate.} Raw air
+    temperature runs 1.81--2.71$^\circ$C too cool and precipitation $\sim$4.2--4.4$\times$ too wet
+    before correction (Chapter~\ref{Chap6}); the applied correction reduces but does not eliminate
+    this as a residual uncertainty source.
+    \item \textbf{Scenario projection has no ground truth to validate against.} No real
+    CH\textsubscript{4} measurement exists for conditions that have never occurred at NWFP, and
+    this dissertation makes no comparison against any process-based (mechanistic) methane model; 
+    its results describe conditional model behaviour, not a validated forecast.
+\end{itemize}
+
+\section{Future Work}
+
+\begin{itemize}
+    \item \textbf{Rerun the experiment once extended Tower 2 data is released.} Tower 2's usable
+    record is expected to grow soon: 2025 data has already been collected and is pending release.
+    Rerunning once available would test whether Tower 2's results reflect a resolvable
+    data-scarcity limitation (Section~\ref{sec:limitations}) rather than a persistent structural
+    difference.
+    \item \textbf{Livestock proximity to each tower's footprint as an additional gap-filling
+    feature.} This dissertation's livestock-density feature is catchment-level, but an EC
+    footprint shifts with wind direction, speed, and stability (Chapter~\ref{Chap2}), so
+    catchment-level presence does not guarantee animals were within it. Proximity-weighted,
+    footprint-aware livestock location via GPS or remote sensing could sharpen the single
+    strongest predictor identified throughout this dissertation.
+    \item \textbf{Benchmark tabular models against other eddy-covariance datasets.} This
+    dissertation's finding that pretrained tabular foundation models outperform locally-trained
+    alternatives under severe missingness (Section~\ref{sec:model_performance_overview}) was
+    established at a single site. Testing the same roster against benchmarks such as FLUXNET-CH4
+    \cite{irvin2021} would test whether this generalises. However, FLUXNET-CH4 predominantly
+    covers wetlands and rice paddies rather than managed grasslands, so this would specifically test
+    the pretrained-model and environmental-driver findings.
+\end{itemize}
+
+\section{Concluding Remarks}
+Overall, this dissertation developed and evaluated an integrated framework for
+methane-flux gap-filling, conditional forecasting and exploratory scenario
+analysis at the North Wyke Farm Platform. Pretrained foundation models for
+tabular data provided the strongest overall predictive performance, while
+traditional tree-based methods generally outperformed locally trained neural
+networks. Livestock-associated variables also formed the most consistent
+influence across the forecasting and scenario experiments. These findings
+remain constrained by substantial target missingness, poorly predicted
+emission peaks and the absence of future ground truth, and the scenario
+responses should not be interpreted as causal effects. Nevertheless, the
+resulting benchmark provides a reproducible foundation for further methane
+modelling at North Wyke and other managed grassland sites.

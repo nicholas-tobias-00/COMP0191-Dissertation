@@ -1,0 +1,557 @@
+\chapter{Models}
+\label{app:model-algorithms}
+
+This appendix supplements the operating-principle summary in
+Table~\ref{tab:model_roster} with model-specific pseudocode. The common
+synthetic-gap and fixed-origin forecasting protocols remain defined in
+Chapter~\ref{ChapModels}; they are not repeated here. Likewise,
+Algorithm~\ref{alg:auxiliary-driver-gapfill} already documents auxiliary
+environmental-driver reconstruction. The algorithms below therefore focus on
+how each benchmark model learns or produces predictions. ``GF'' denotes
+gap-filling and ``FC'' denotes forecasting.
+
+\section{Multivariate Imputation}
+
+MICE and HyperImpute treat FCH\textsubscript{4} as an incomplete column in a
+joint feature--target matrix. MICE uses a fixed Bayesian-ridge conditional
+model \cite{vanbuuren2011mice}, whereas HyperImpute selects a conditional
+learner separately for each variable through internal validation
+\cite{jarrett2022hyperimpute}.
+
+\begin{algorithm}[H]
+\caption{MICE reconstruction with Bayesian-ridge conditional models}
+\label{alg:app-mice}
+\small
+\begin{algorithmic}[1]
+\Require Pooled incomplete matrix $Z=[y,X,\text{tower indicators}]$;
+held-out target positions $H$
+\Ensure Reconstructed target $\hat y_H$
+\State Set $Z_{H,y}$ to missing before constructing the imputer input
+\State Initialise each incomplete column from its observed marginal values
+\For{chained iteration $q\gets1$ to $K$}
+    \For{each incomplete column $j$}
+        \State Define observed rows $O_j$ and missing rows $M_j$
+        \State Fit Bayesian ridge $f_j^{(q)}:Z_{O_j,-j}\mapsto Z_{O_j,j}$
+        \State Update $Z_{M_j,j}\gets f_j^{(q)}(Z_{M_j,-j})$
+    \EndFor
+    \If{the iterative-imputer convergence rule is satisfied}
+        \State Break
+    \EndIf
+\EndFor
+\State Extract $\hat y_H\gets Z_{H,y}$ using the held-out rows' absolute positions
+\State \Return $\hat y_H$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{HyperImpute reconstruction with variable-specific AutoML models}
+\label{alg:app-hyperimpute}
+\small
+\begin{algorithmic}[1]
+\Require Pooled incomplete matrix $Z=[y,X,\text{tower indicators}]$;
+held-out positions $H$; candidate learner library $\mathcal L$
+\Ensure Reconstructed target $\hat y_H$
+\State Set $Z_{H,y}$ to missing and initialise incomplete columns
+\For{each chained-imputation round}
+    \For{each incomplete column $j$}
+        \State Determine whether $Z_j$ requires regression or classification
+        \For{each compatible learner $f\in\mathcal L$}
+            \State Estimate internal validation loss $L_j(f)$ on observed rows $O_j$
+        \EndFor
+        \State Select $f_j^*\gets\arg\min_{f\in\mathcal L}L_j(f)$
+        \State Refit $f_j^*$ on $O_j$ and update
+        $Z_{M_j,j}\gets f_j^*(Z_{M_j,-j})$
+    \EndFor
+    \If{the imputation sequence converges or reaches its iteration limit}
+        \State Break
+    \EndIf
+\EndFor
+\State \Return the completed target values $\hat y_H$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Tree-Based Models}
+
+Random Forest, XGBoost and LightGBM were used in both tasks. For gap-filling,
+the query rows are the deliberately masked hours. For forecasting, each model
+is fitted at a forecast origin and its predicted FCH\textsubscript{4} value is
+appended to the available target history before constructing the next day's
+autoregressive features. Preprocessing is always estimated from permitted
+training rows. The algorithms follow Breiman \cite{breiman2001randomforests},
+Chen and Guestrin \cite{chen2016xgboost}, and Ke et al.\ \cite{ke2017lightgbm}.
+The unweighted voting-regression ensemble then averages the three aligned
+forecast chains following the forecast-combination principle of Bates and
+Granger \cite{bates1969combination}.
+
+\begin{algorithm}[H]
+\caption{Random Forest reconstruction or recursive forecasting}
+\label{alg:app-rf}
+\small
+\begin{algorithmic}[1]
+\Require Training rows $(X_O,y_O)$; query rows $X_Q$; number of trees $B$;
+minimum leaf size $m$; task $\tau\in\{\mathrm{GF},\mathrm{FC}\}$
+\Ensure Predictions $\hat y_Q$
+\State Fit mean imputation on $X_O$ and apply it to $X_O$ and $X_Q$
+\State Use $(B,m)=(500,5)$ for GF and $(500,10)$ for FC
+\For{$b\gets1$ to $B$}
+    \State Draw a bootstrap sample of $(X_O,y_O)$
+    \State Grow $T_b$ using squared-error reduction and random candidate features
+    \State Stop a branch when further splitting violates the minimum leaf size
+\EndFor
+\State Define $f(x)\gets B^{-1}\sum_{b=1}^{B}T_b(x)$
+\If{$\tau=\mathrm{GF}$}
+    \State Predict the masked hourly rows directly: $\hat y_Q\gets f(X_Q)$
+\Else
+    \For{forecast day $h\gets1$ to $365$}
+        \State Build day-$h$ features from known covariates and available target history
+        \State Predict $\hat y_h\gets f(x_h)$ and append $\hat y_h$ to that history
+    \EndFor
+\EndIf
+\State \Return $\hat y_Q$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{XGBoost reconstruction or recursive forecasting}
+\label{alg:app-xgboost}
+\small
+\begin{algorithmic}[1]
+\Require Training rows $(X_O,y_O)$; query rows $X_Q$; boosting rounds $B$;
+learning rate $\eta$
+\Ensure Predictions $\hat y_Q$
+\State Fit training-only predictor imputation and initialise $F_0(x)$ with a constant
+\For{$b\gets1$ to $B$}
+    \For{each $i\in O$}
+        \State Compute $g_i=\partial_F\ell(y_i,F_{b-1}(x_i))$ and
+        $h_i=\partial_F^2\ell(y_i,F_{b-1}(x_i))$
+    \EndFor
+    \State Grow $T_b$ by maximising regularised split gain from sums of $g_i$ and $h_i$
+    \State Assign each leaf its regularised optimum weight
+    \State Update $F_b(x)\gets F_{b-1}(x)+\eta T_b(x)$
+\EndFor
+\State Use 500 rounds and minimum child weight 5 for GF
+\State Use 400 rounds, depth 2, $\eta=0.02$ and minimum child weight 10 for FC
+\State Predict GF rows directly or generate the FC chain by appending each prediction
+\State \Return $F_B(X_Q)$ or the resulting recursive chain
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{LightGBM reconstruction or recursive forecasting}
+\label{alg:app-lightgbm}
+\small
+\begin{algorithmic}[1]
+\Require Training rows $(X_O,y_O)$; query rows $X_Q$; boosting rounds $B$;
+learning rate $\eta$
+\Ensure Predictions $\hat y_Q$
+\State Fit training-only predictor imputation and bin continuous predictors
+\State Initialise $F_0(x)$ with a constant
+\For{$b\gets1$ to $B$}
+    \State Calculate loss gradients from $y_O$ and $F_{b-1}(X_O)$
+    \State Accumulate gradient statistics by feature-histogram bin
+    \While{a permissible positive-gain split exists}
+        \State Split the leaf giving the greatest loss reduction
+    \EndWhile
+    \State Update $F_b(x)\gets F_{b-1}(x)+\eta T_b(x)$
+\EndFor
+\State Use 500 rounds and minimum child size 5 for GF
+\State Use 400 rounds, 7 leaves, $\eta=0.02$ and minimum child size 10 for FC
+\State Predict GF rows directly or recursively update the FC target history
+\State \Return $F_B(X_Q)$ or the resulting recursive chain
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Unweighted voting-regression forecast ensemble}
+\label{alg:app-unweighted-voting-regression}
+\small
+\begin{algorithmic}[1]
+\Require Aligned Random Forest, XGBoost and LightGBM forecast chains
+\Ensure Equal-weight ensemble forecast $\hat y^{ens}$
+\For{each tower, origin and forecast day $t$}
+    \State Verify that all component predictions refer to the same target row
+    \State $\hat y_t^{ens}\gets
+    (\hat y_t^{RF}+\hat y_t^{XGB}+\hat y_t^{LGBM})/3$
+\EndFor
+\State Evaluate the ensemble only at QC-valid observed target rows
+\State \Return $\hat y^{ens}$
+\end{algorithmic}
+\end{algorithm}
+
+\section{Neural Models}
+
+The ANN is retained as a published-baseline replication
+\cite{rumelhart1986backprop}. SAITS and the bidirectional LSTM use observations
+on both sides of historical gaps, whereas the forecasting LSTM, TFT and DLinear
+operate causally beyond each forecast origin
+\cite{du2023saits,hochreiter1997lstm,schuster1997bidirectional,lim2021tft,zeng2023}.
+
+\begin{algorithm}[H]
+\caption{Feed-forward ANN gap reconstruction}
+\label{alg:app-ann}
+\small
+\begin{algorithmic}[1]
+\Require Standardised observed pairs $(X_O,y_O)$; masked queries $X_H$;
+network layers $1{:}L$
+\Ensure Reconstructed target $\hat y_H$
+\State Initialise weights $W^{(\ell)}$ and biases $b^{(\ell)}$
+\For{each training epoch}
+    \State Set $a^{(0)}\gets X_O$
+    \For{$\ell\gets1$ to $L-1$}
+        \State $a^{(\ell)}\gets\phi(W^{(\ell)}a^{(\ell-1)}+b^{(\ell)})$
+    \EndFor
+    \State $\hat y\gets W^{(L)}a^{(L-1)}+b^{(L)}$
+    \State Back-propagate prediction loss and update all trainable parameters
+\EndFor
+\State Apply the fitted network to $X_H$ and reverse target scaling
+\State \Return $\hat y_H$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{SAITS diagonally masked attention reconstruction}
+\label{alg:app-saits}
+\small
+\begin{algorithmic}[1]
+\Require Per-tower sequence $Z=[X,y]$ with $y_H$ masked; 336-hour windows;
+24-hour stride
+\Ensure Reconstructed target $\hat y_H$
+\State Remove the eight explicit soil-lag channels and standardise the masked sequence
+\State Create overlapping windows and a chronological training--validation split
+\State Initialise 3 layers, $d_{model}=256$, 4 heads, $d_k=d_v=64$,
+$d_{ff}=512$, dropout 0.1
+\For{epoch $e\gets1$ to $100$}
+    \State Compute diagonally masked attention
+    $A=\operatorname{softmax}(QK^\top/\sqrt{d_k}+D)V$, where $D_{tt}=-\infty$
+    \State Obtain reconstructions $\widetilde Z^{(1)}$ and $\widetilde Z^{(2)}$
+    \State Combine them as
+    $\widetilde Z=\beta\odot\widetilde Z^{(1)}+(1-\beta)\odot\widetilde Z^{(2)}$
+    \State Minimise spike-weighted absolute reconstruction error in batches of 32
+    \State Retain the best validation state; stop after 10 non-improving epochs
+\EndFor
+\State Average overlapping estimates, reverse scaling and \Return values at $H$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Bidirectional LSTM gap reconstruction}
+\label{alg:app-bilstm}
+\small
+\begin{algorithmic}[1]
+\Require Standardised 336-hour windows $[X,y]$; observation mask $m$;
+held-out set $H$
+\Ensure Reconstructed target $\hat y_H$
+\State Replace missing target inputs by zero and append mask $m_t$ as an input channel
+\State Initialise a two-layer Bi-LSTM with 128 hidden units per direction and dropout 0.1
+\For{epoch $e\gets1$ to $50$}
+    \State Randomly mask 20\% of observed targets to form reconstruction mask $\widetilde m$
+    \State $\overrightarrow h_t\gets\operatorname{LSTM}(u_t,\overrightarrow h_{t-1})$
+    \State $\overleftarrow h_t\gets\operatorname{LSTM}(u_t,\overleftarrow h_{t+1})$
+    \State $\hat y_t\gets W[\overrightarrow h_t;\overleftarrow h_t]+b$
+    \State Minimise
+    $\sum_t\widetilde m_t(1+|y_t|)|y_t-\hat y_t|/\sum_t\widetilde m_t$
+    using Adam and learning rate $10^{-3}$
+    \State Retain the best validation state; stop after 8 non-improving epochs
+\EndFor
+\State Average overlapping estimates, reverse scaling and \Return values at $H$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Causal LSTM forecasting}
+\label{alg:app-lstm-forecast}
+\small
+\begin{algorithmic}[1]
+\Require Pre-origin daily target and drivers; 28-day lookback; hidden size 64
+\Ensure Continuous 365-day forecast
+\State Form training windows ending no later than the forecast origin
+\State Standardise using pre-origin training statistics
+\For{each training window and time $t$}
+    \State Compute input, forget and output gates $i_t,f_t,o_t$
+    \State $\widetilde c_t\gets\tanh(W_cu_t+U_ch_{t-1}+b_c)$
+    \State $c_t\gets f_t\odot c_{t-1}+i_t\odot\widetilde c_t$
+    \State $h_t\gets o_t\odot\tanh(c_t)$ and map $h_t$ to the next target
+    \State Update parameters by back-propagation through time
+\EndFor
+\For{forecast day $h\gets1$ to $365$}
+    \State Predict from the latest 28 permitted days and known day-$h$ drivers
+    \State Append the prediction, rather than the later observation, to the history
+\EndFor
+\State Reverse target scaling and \Return the forecast chain
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Temporal Fusion Transformer forecasting}
+\label{alg:app-tft}
+\small
+\begin{algorithmic}[1]
+\Require Pre-origin daily sequences; known-future covariates; 28-day lookback;
+$d_{model}=32$; 4 heads; dropout 0.1
+\Ensure Continuous 365-day forecast and optional quantiles
+\State Encode static, observed-history and known-future variables separately
+\State Apply variable-selection networks to obtain time-varying feature weights
+\State Pass selected inputs through gated residual networks and an LSTM encoder--decoder
+\State Apply causal temporal attention over permitted positions
+\State Produce point or quantile outputs through the gated output head
+\For{forecast day $h\gets1$ to $365$}
+    \State Supply the latest 28-day context and covariates known for day $h$
+    \State Retain the next prediction and append it to the target history
+\EndFor
+\State \Return the continuous chain and any requested quantiles
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{DLinear decomposition forecasting}
+\label{alg:app-dlinear}
+\small
+\begin{algorithmic}[1]
+\Require Pre-origin daily sequence $z_{t-27:t}$; moving-average kernel 25
+\Ensure Continuous 365-day forecast
+\State Estimate trend $\tau\gets\operatorname{MovingAverage}_{25}(z)$
+\State Calculate residual component $s\gets z-\tau$
+\State Learn linear projections $W_\tau,b_\tau$ and $W_s,b_s$ from training windows
+\State Define $\hat z\gets(W_\tau\tau+b_\tau)+(W_ss+b_s)$
+\For{forecast day $h\gets1$ to $365$}
+    \State Predict from the latest 28-day sequence
+    \State Append the prediction and advance the input window by one day
+\EndFor
+\State Reverse target scaling and \Return the continuous chain
+\end{algorithmic}
+\end{algorithm}
+
+\section{Statistical and Kernel Models}
+
+Support-vector regression is retained as a literature-aligned gap-filling
+replication \cite{drucker1997svr}. SARIMAX provides the forecasting benchmark
+with an explicit stochastic time-series structure \cite{box2015timeseries}.
+
+\begin{algorithm}[H]
+\caption{$\epsilon$-support-vector regression gap reconstruction}
+\label{alg:app-svr}
+\small
+\begin{algorithmic}[1]
+\Require Standardised training pairs $(X_O,y_O)$; queries $X_H$; kernel $K$;
+penalty $C$; tube width $\epsilon$
+\Ensure Reconstructed target $\hat y_H$
+\State Solve
+$\min_{w,b,\xi,\xi^*}\frac12\lVert w\rVert^2+C\sum_i(\xi_i+\xi_i^*)$
+subject to $|y_i-(w^\top\phi(x_i)+b)|\le\epsilon+\xi_i$
+\State Retain rows with non-zero dual coefficients as support vectors
+\State Define
+$\hat y(x)\gets\sum_{i\in O}(\alpha_i-\alpha_i^*)K(x_i,x)+b$
+\State Reverse target scaling and \Return $\hat y(X_H)$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{AIC-selected SARIMAX forecasting}
+\label{alg:app-sarimax}
+\small
+\begin{algorithmic}[1]
+\Require Per-tower pre-origin target $y_t$; exogenous vector $x_t$;
+$p\in\{1,2\}$, $d=1$, $q\in\{0,1\}$
+\Ensure Continuous 365-day forecast
+\For{each candidate order $(p,1,q)$}
+    \State Fit
+    $\Phi_p(B)(1-B)y_t=c+\beta^\top x_t+\Theta_q(B)\varepsilon_t$
+    by maximum likelihood on pre-origin observations
+    \State Calculate $\mathrm{AIC}=2k-2\log\widehat L$
+\EndFor
+\State Select the converged candidate with minimum AIC
+\State Forecast 365 steps using its dynamic state update and known future $x_t$
+\State Propagate the state without inserting later observed FCH\textsubscript{4}
+\State \Return predictive means and state-space intervals
+\end{algorithmic}
+\end{algorithm}
+
+\section{Pretrained Tabular Models}
+
+\subsection{Pretraining and in-context adaptation}
+
+TabPFN and TabICLv2 are prior-data fitted networks (PFNs).  Their model
+parameters are learned once, before application to this study, across a large
+distribution of synthetic tabular prediction tasks.  For a synthetic task
+$\mathcal T\sim p_{\mathrm{synth}}$, rows are divided into a labelled context
+$\mathcal D_C=(X_C,y_C)$ and an unlabelled query $X_Q$ with held-out target
+$y_Q$.  Pretraining minimises the query negative log-likelihood,
+\begin{equation}
+\theta^*=\arg\min_\theta
+\mathbb E_{\mathcal T\sim p_{\mathrm{synth}}}
+\left[-\sum_{j\in Q}\log q_\theta
+\left(y_j\mid x_j,\mathcal D_C\right)\right],
+\label{eq:app-pfn-pretraining}
+\end{equation}
+so that one forward pass subsequently approximates the posterior predictive
+rule induced by the synthetic task prior
+\cite{hollmann2023tabpfn,hollmann2025tabpfn,qu2025tabicl,qu2026tabiclv2}.
+This is amortised inference: the expensive learning occurs across synthetic
+tasks during offline pretraining, rather than through gradient optimisation on
+each new dataset.
+
+TabPFN v2 retains a representation for every table cell.  Numerical values are
+combined with feature-specific random embeddings, grouped in pairs, and passed
+through 12 Transformer blocks (192-dimensional embeddings and six attention
+heads).  Each block alternates attention across features within a row and
+across samples within a feature.  Context targets are embedded while query
+targets remain masked, allowing queries to attend to labelled examples without
+target leakage.  For regression, the output head assigns probability to target
+intervals through a full-support bar distribution and is trained by negative
+log-likelihood; means, medians or quantiles are then derived from this
+distribution \cite{hollmann2025tabpfn}.
+
+Its synthetic prior samples table properties and structural causal models:
+random directed acyclic graphs are populated with nonlinear mechanisms,
+transformations, feature types, missingness and noise.  Approximately 100
+million such tasks expose the model to varied tabular relationships.  This
+study used the released generic \texttt{tabpfn-v2-\allowbreak regressor.ckpt}, not a
+time-series-fine-tuned checkpoint.
+
+TabICLv2 instead compresses features before dataset-level inference.  Repeated
+circular feature groups are given target-aware embeddings for labelled rows; a
+column Transformer processes each feature across samples, and a row Transformer
+combines the features into a 512-dimensional representation.  A 12-layer
+dataset Transformer then relates labelled and query rows.  Its query-aware
+scalable softmax (QASSMax) counters attention dilution as the context grows,
+reducing the principal scaling from approximately
+$O(n^2m+nm^2)$ for cell-level TabPFN to $O(n^2+nm^2)$
+\cite{qu2025tabicl,qu2026tabiclv2}.
+
+TabICLv2 is pretrained on approximately 35 million filtered synthetic tasks
+generated by random graphs containing neural, tree, Gaussian-process, linear,
+quadratic, product and discretisation mechanisms.  Its three-stage curriculum
+increases contexts from 1,024 to at most 60,000 rows and 100 features.  The
+regression model uses Muon optimisation and pinball loss over 999 conditional
+quantiles.  Thus, unlike squared-error regressors, neither TabPFN nor TabICLv2
+directly optimises the downstream $R^2$, RMSE, MAE or MASE metrics.
+
+Neither checkpoint was pretrained on North Wyke Farm Platform data, methane
+fluxes or the held-out forecast years.  Here, \texttt{fit()} only preprocesses
+and registers the chronologically permitted labelled context; it does not
+update $\theta^*$.  Temporal information therefore enters through context
+selection and the engineered calendar, environmental and management features.
+The direct forecasting configuration used eight internal estimators (TabPFN
+seed 137; TabICLv2 seed 42) without checkpoint fine-tuning.  Forecast
+combinations follow Bates and Granger's variance-reduction principle
+\cite{bates1969combination}.
+
+\begin{algorithm}[H]
+\caption{Published offline pretraining scheme for TabPFN and TabICLv2}
+\label{alg:app-pfn-pretraining}
+\small
+\begin{algorithmic}[1]
+\Require Model family $M\in\{\mathrm{TabPFN},\mathrm{TabICLv2}\}$;
+synthetic task prior $p_{\mathrm{synth}}^M$; model $q_\theta$
+\Ensure Released pretrained checkpoint $\theta^*$
+\For{each offline pretraining step}
+    \State Sample table dimensions, feature types and task difficulty
+    \If{$M=\mathrm{TabPFN}$}
+        \State Sample an SCM directed acyclic graph, node mechanisms and noise
+    \Else
+        \State Sample a random graph with mixed neural, tree, GP and algebraic mechanisms
+    \EndIf
+    \State Generate a synthetic table $\mathcal T=(X,y)$ and apply model-specific filtering
+    \State Split rows into labelled context $\mathcal D_C$ and query $(X_Q,y_Q)$
+    \State Predict $q_\theta(y_Q\mid X_Q,\mathcal D_C)$ in one forward pass
+    \If{$M=\mathrm{TabPFN}$}
+        \State Compute the discretised regression negative log-likelihood and update with Adam
+    \Else
+        \State Sum pinball losses over 999 quantiles and update with Muon
+        \State Advance the three-stage table-size curriculum
+    \EndIf
+\EndFor
+\State Freeze the final parameters; no study data enter this procedure
+\State \Return $\theta^*$ for subsequent in-context inference
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{TabPFN inference for gap filling or direct daily forecasting}
+\label{alg:app-tabpfn}
+\small
+\begin{algorithmic}[1]
+\Require Labelled context $\mathcal D_C=\{(x_i,y_i)\}$; query features $X_Q$;
+pretrained parameters $\theta$; task $\tau$
+\Ensure Predictive distribution and point predictions
+\If{$\tau=\mathrm{GF}$}
+    \State Construct an hourly tabular task after masking $y_H$ and exclude $H$ from context
+\Else
+    \State Use pre-origin daily rows and the 52-driver plus 5 tower/time-indicator frame
+    \State Optionally restrict context to the most recent 1,095 or 1,460 days
+\EndIf
+\State Fit training-only missing-value preprocessing and configured target scaling
+\State Jointly encode labelled context and unlabelled query rows with the pretrained model
+\State Infer $p_\theta(y_Q\mid\mathcal D_C,X_Q)$ without gradient-based task training
+\State Extract the configured point statistic (median for direct forecasts) and quantiles
+\State Reverse target scaling and \Return predictions
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{TabICLv2 inference for gap filling or direct daily forecasting}
+\label{alg:app-tabicl}
+\small
+\begin{algorithmic}[1]
+\Require Labelled context $\mathcal D_C$; query features $X_Q$;
+pretrained parameters $\theta$; task $\tau$
+\Ensure Point predictions and optional quantiles
+\If{$\tau=\mathrm{GF}$}
+    \State Train separately by tower on the expanded 30-predictor frame
+    \State Exclude $H$ and sample at most 10,000 observed rows using seed 42
+    \State Mean-impute predictors using the sampled context
+\Else
+    \State Use pre-origin daily context and the applicable forecasting frame
+    \State Optionally retain all history, 1,095 days or 1,460 days
+    \State Apply tower-wise target scaling for the configured 1,460-day variant
+\EndIf
+\State Register the labelled context through the model fit interface
+\State Keep the pretrained checkpoint fixed; \texttt{fit()} performs no gradient update
+\State Infer $p_\theta(y_Q\mid\mathcal D_C,X_Q)$ jointly from context and queries
+\State Extract the median point prediction and optional 0.05, 0.50 and 0.95 quantiles
+\State Reverse target scaling and \Return predictions
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Probability-gated spike correction for a foundation-model forecast}
+\label{alg:app-spike-correction}
+\small
+\begin{algorithmic}[1]
+\Require Base regressor $f_b$; spike classifier $c$; spike regressor $f_s$;
+normal regressor $f_n$; pre-origin tower-specific 95th percentile $q_{0.95}$
+\Ensure Corrected forecast $\hat y^{corr}$
+\State Label context row $i$ as a spike if $y_i>q_{0.95}$
+\State Fit or condition $c$, $f_s$, $f_n$ and $f_b$ using permitted context only
+\For{each query day $t$}
+    \State $p_t^{spike}\gets c(x_t)$
+    \State $e_t\gets[f_s(x_t)-f_n(x_t)]_+$
+    \State $\hat y_t^{corr}\gets f_b(x_t)+0.25\,p_t^{spike}e_t$
+\EndFor
+\State \Return $\hat y^{corr}$
+\end{algorithmic}
+\end{algorithm}
+
+\begin{algorithm}[H]
+\caption{Best-performing TabICL forecasting model}
+\label{alg:app-best-tabicl-forecast}
+\small
+\begin{algorithmic}[1]
+\Require TabICLv2 forecaster $F$; pre-origin daily data; 365-day queries
+\Ensure Final blended forecast $\hat y^{\mathrm{best}}$
+\State $\hat y^{(1)}\gets$ all-history forecast from $F$ with
+Algorithm~\ref{alg:app-spike-correction}
+\State $\hat y^{(2)}\gets$ forecast from $F$ using the latest 1,095 context days
+\State $\hat y^{(3)}\gets$ forecast from $F$ using the latest 1,460 context days and
+tower-wise target scaling
+\For{each forecast day $t$}
+    \State $\hat y_t^{\mathrm{best}}\gets
+    (\hat y_t^{(1)}+\hat y_t^{(2)}+\hat y_t^{(3)})/3$
+\EndFor
+\State Retain the three component chains and evaluate the blend on identical observed rows
+\State \Return $\hat y^{\mathrm{best}}$
+\end{algorithmic}
+\end{algorithm}
+
+\FloatBarrier
+

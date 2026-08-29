@@ -1,0 +1,105 @@
+\chapter{Introduction} \label{Chap1}
+
+\section{Research Objective}
+
+Methane (CH\textsubscript{4}) is a powerful greenhouse gas, with a global
+warming potential approximately 28 times that of CO\textsubscript{2} over a
+100-year horizon \cite{ipcc2021}. Agriculture is a major anthropogenic source,
+with enteric fermentation accounting for a substantial proportion of the
+sector's greenhouse gas emissions \cite{fao2023,eea2024}. However, emissions
+from managed grasslands vary through time as livestock activity interacts with
+soil, meteorological, and management conditions. Understanding this variability
+therefore requires prediction of when ecosystem-scale emissions occur and how they 
+respond to changes in farm management.
+
+Eddy Covariance (EC) measurements provide a means of observing this integrated
+ecosystem-scale signal rather than methane emitted by individual animals alone.
+The North Wyke Farm Platform (NWFP) offers a rare record of half-hourly EC
+CH\textsubscript{4} flux from managed beef-cattle grasslands, accompanied by
+meteorological, soil, hydrological, and livestock-management data
+\cite{hawkins2025,cardenas2022}. This creates an opportunity for
+data-driven methane prediction, but also a difficult modelling problem: the
+record contains extensive gaps, its inputs occur at different temporal
+resolutions, and its target is highly variable and dominated by episodic
+emission peaks.
+
+Existing machine-learning research on EC CH\textsubscript{4} in a temperate grassland 
+setting has primarily addressed gap-filling, in which missing observations are reconstructed within an
+observed period \cite{irvin2021,zhu2023a}. Forecasting is a different task:
+predictions must be generated sequentially using only information available at
+the forecast origin. To the author's knowledge, no previous study has
+benchmarked machine-learning forecasting of ecosystem-scale EC
+CH\textsubscript{4} flux at a managed temperate grassland. Moreover, forecasting
+alone cannot answer counterfactual questions about how emissions might change
+under alternative livestock-management or climate conditions. This
+``what-if'' capability is also an underdeveloped area of research in agricultural digital twins \cite{purcell2023state,fakeye2024}.
+
+The objective of this dissertation is therefore to determine how effectively
+machine-learning models can reconstruct, forecast, and project ecosystem-scale
+CH\textsubscript{4} flux at NWFP. It develops a three-stage
+pipeline for gap-filling the observed Eddy Covariance record, forecasting future
+flux, and projecting modelled responses under varying management and
+climate scenarios. Model benchmarking is accompanied by uncertainty
+quantification and interpretability so that predictive performance, confidence,
+and inferred emission drivers can be evaluated together.
+
+\section{Project Aims and Goals}
+
+\subsection*{Aims:}
+Advance research in machine learning for CH\textsubscript{4} flux prediction at 
+managed grassland, with a focus on gap-filling, forecasting, and scenario projection
+under contrasting livestock-management conditions.
+
+\subsection*{Goals:}
+\begin{enumerate}
+    \item Generation of a pipeline for gap-filling, forecasting, and scenario projection of CH\textsubscript{4} flux at NWFP.
+    \item Benchmarking of multiple model families (from classical statistical baselines, tree ensembles, 
+    deep sequence models, to recent tabular foundation models) for gap-filling and forecasting.
+    \item Apply uncertainty quantification (quantile machine learning) and interpretability 
+    methods (permutation importance) across gap-filling, forecasting, and scenario projection.
+    \item Generation of future projection under differing livestock-management practices based on 
+    inference of previously generated model and CMIP6 climate projections.
+\end{enumerate}
+
+\section{Project Overview and Contributions}
+
+This dissertation contributes three benchmarked results to the field:
+
+\begin{enumerate}
+    \item \textbf{A gap-filling benchmark for EC CH\textsubscript{4} flux at a managed
+    grassland} (Chapter~\ref{Chap4}), comparing established methods, published baseline
+    replications, and newer tabular foundation model families, with uncertainty quantification
+    attached. The best configuration reaches an hourly-resolution $R^2$ of 0.429 - 0.686 across all
+    three towers, against a published ceiling of $R^2<0.1$ at hourly resolution for the same
+    ecosystem and data type \cite{zhu2023a}.
+
+    \item \textbf{A forecasting benchmark for EC CH\textsubscript{4} flux at a managed grassland}
+    (Chapter~\ref{Chap5}), the first, to the author's knowledge, applied to this ecosystem--data
+    combination at a managed temperate grassland, comparing statistical baselines, tree ensembles, and
+    tabular foundation models under identical conditions, with calibrated uncertainty quantification and
+    interpretability through permutation importance. The best configuration beats seasonal-mean baseline 
+    by a wide margin (MASE$=$0.691), though a dedicated error evaluation shows that spike events remain 
+    a challenge for all models tested.
+
+    \item \textbf{Scenario projection under contrasting management and climate conditions for EC CH\textsubscript{4} flux}
+    (Chapter~\ref{Chap6}): the forecasting architecture developed in this dissertation is extended
+    to produce varying CH\textsubscript{4} projections under livestock and management practices for 
+    2 distinct climate scenarios (SSP2-4.5 and SSP5-8.5), based on CMIP6 climate projections.
+\end{enumerate}
+
+\section{Report Overview}
+The subsequent chapters are structured as follows:
+\begin{itemize}
+    \item Chapter~\ref{Chap2} (\nameref{Chap2}) reviews the literature establishing the gap that this dissertation 
+    aims to address, as well as the North Wyke Farm Platform (NWFP).
+    \item Chapter~\ref{Chap3} (\nameref{Chap3}) describes the NWFP dataset, exploratory data analysis, and
+    processing required.
+    \item Chapter~\ref{ChapModels} (\nameref{ChapModels}) outlines the methodology used for the project, including the 
+    models, evaluation metrics, cross-validation procedure, uncertainty quantification and 
+    interpretability.
+    \item Chapter~\ref{Chap4} (\nameref{Chap4}) presents the results of the gap-filling benchmark; 
+    \item Chapter~\ref{Chap5} (\nameref{Chap5}) presents the results of the forecasting benchmark; 
+    \item Chapter~\ref{Chap6} (\nameref{Chap6}) presents the results of scenario projection.
+    \item Chapter~\ref{Chap7} (\nameref{Chap7}) discusses the principal findings, their limitations and directions for future work before concluding the dissertation.    
+    % \item Chapter~\ref{Chap8} (\nameref{Chap8}) concludes with an overview of the entire project.
+\end{itemize}

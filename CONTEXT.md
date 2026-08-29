@@ -1724,6 +1724,15 @@ MASE=0.840/R²=−0.084, beating B-10's ensemble outright — see "Current statu
 `BEST_RESULTS.md` §3 for full detail. MASE is now this project's primary forecasting metric,
 CLAUDE.md.)_
 
+_Updated: 2026-08-29 (D-109: repository standardisation. Added an entirely additive
+`workflows/latest/` layer with six ordered stage runbooks, a 44-entry machine-readable manifest,
+and a validator; added a root `README.md`; and exposed only current report sources, outlines,
+appendices, and report-facing figures through narrow `.gitignore` exceptions. Historical
+experiments remain untouched and no best-result metric changed. The validator passes, every new
+Markdown link resolves, and all 39 referenced Python entry points parse. A future Git commit must
+remain scoped to this canonical layer and current report materials because unrelated user-owned
+result changes remain in the working tree.)_
+
 _Previously updated: 2026-07-09 (D-66 second same-day addendum: TFT staleness reconciled across
 `b10_b13_metrics_rerun.md` -- several unrelated reruns of `b10_b13_rerun_multi_anchor.py` (TFT is
 unseeded, D-62) had let TFT's published tables drift from its live CSV values without ever being

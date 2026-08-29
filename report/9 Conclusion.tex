@@ -1,0 +1,38 @@
+\chapter{Conclusion} \label{Chap8}
+
+This project sets out to develop and evaluate
+machine learning approaches for CH\textsubscript{4} gap-filling, forecasting, and scenario
+projection at the North Wyke Farm Platform. All three have been delivered: a benchmarked
+gap-filling pipeline (Chapter~\ref{Chap4}) improves combined hourly $R^2$ from 0.055 (MDS) to
+0.515 (TabICLv2); a forecasting benchmark (Chapter~\ref{Chap5}), the first applied to this
+ecosystem-scale signal at a managed temperate grassland, beats a seasonal-mean baseline by a wide
+margin (MASE$=$0.6908, TabPFN); and a scenario-projection architecture (Chapter~\ref{Chap6})
+produces distinguishable CH\textsubscript{4} responses to livestock, grazing, and climate
+perturbations under CMIP6-derived trajectories to 2050.
+
+Across the forecasting and scenario analyses, livestock-associated variables
+emerged as the strongest recurring influence on predicted
+CH\textsubscript{4} flux. Permutation importance placed livestock units, total
+liveweight, and cattle density among the leading predictors at T4 and T9
+(Chapter~\ref{Chap5}), while increasing livestock density produced the largest
+scenario response: 100--184\% at each tower's historical maximum, compared
+with at most 20\% for extended grazing and 8\% for fertiliser
+(Chapter~\ref{Chap6}). Together, these results demonstrate a consistent
+livestock-related signal, although they do not establish causality.
+
+Tabular foundation models are the second recurring finding: TabICLv2 leads gap-filling and TabPFN
+leads forecasting, both pretrained via in-context learning rather than fitting parameters to
+NWFP's own severely incomplete record, a structural advantage as discussed in
+Chapter~\ref{Chap7}.
+
+It is worth being precise about what has, and has not, been shown. Gap-filling's improvement over
+MDS is real but its absolute fit remains modest ($R^2=0.515$), and weakest specifically at the
+livestock-dominant catchments this dissertation's central finding is about (Chapter~\ref{Chap7}).
+Forecasting reliably beats a seasonal-mean baseline but not during CH\textsubscript{4}'s dominant
+spike events (MASE 3.285 vs.\ 0.524 on ordinary days). Scenario projection produces
+distinguishable, interpretable projections while carrying the limitation that no future scenario
+can be checked against ground truth. 
+
+Taken together, this dissertation delivers a benchmarked,
+uncertainty-quantified foundation for CH\textsubscript{4} forecasting and scenario projection at a
+managed UK grassland site that did not previously exist in the literature.

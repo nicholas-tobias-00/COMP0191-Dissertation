@@ -1,0 +1,91 @@
+{
+  "schema_version": 1,
+  "as_of": "2026-08-29",
+  "authorities": [
+    "BEST_RESULTS.md",
+    "CONTEXT.md",
+    "DECISIONS.md"
+  ],
+  "stages": [
+    {
+      "id": "data_preparation",
+      "runbook": "workflows/latest/01_data_preparation.md",
+      "entrypoints": [
+        {"id": "compile_raw", "path": "notebooks/01_data_compilation/Compile Datasets.ipynb", "role": "supporting"},
+        {"id": "consolidate_hourly", "path": "src/data/consolidate_hourly.py", "role": "supporting"},
+        {"id": "external_sensor_layer", "path": "src/data/build_sms_met_dataset.py", "role": "supporting"},
+        {"id": "reddyproc_drivers", "path": "src/data/reddyproc_pipeline.py", "role": "supporting"},
+        {"id": "management_features", "path": "src/features/build_management_features.py", "role": "supporting"},
+        {"id": "bodyweight_density", "path": "src/features/build_bodyweight_density.py", "role": "supporting"},
+        {"id": "rf_gapfill_series", "path": "src/data/build_fch4_gapfilled.py", "role": "canonical"},
+        {"id": "tabicl_gapfill_series", "path": "src/data/build_fch4_gapfilled_tabicl.py", "role": "canonical"},
+        {"id": "forecast_matrix_v2", "path": "src/features/build_forecasting_matrix_v2.py", "role": "supporting"},
+        {"id": "forecast_matrix_v3", "path": "src/features/build_forecasting_matrix_v3.py", "role": "canonical"}
+      ]
+    },
+    {
+      "id": "gap_filling",
+      "runbook": "workflows/latest/02_gap_filling.md",
+      "entrypoints": [
+        {"id": "gapfill_experiment_record", "path": "notebooks/03c_gap_filling_revisited/temp_gap_filling_pipeline.ipynb", "role": "canonical"},
+        {"id": "tabicl_model", "path": "src/models/gapfill_tabicl.py", "role": "canonical"},
+        {"id": "tabicl_continuous_fill", "path": "src/data/build_fch4_gapfilled_tabicl.py", "role": "canonical"},
+        {"id": "tabicl_native_uq", "path": "notebooks/03c_gap_filling_revisited/export_latest_tabicl_uq_chains.py", "role": "supporting"},
+        {"id": "tabicl_calibrated_uq", "path": "notebooks/03c_gap_filling_revisited/export_tabiclv2_solo_calibrated_uq.py", "role": "canonical"},
+        {"id": "observed_tsa", "path": "notebooks/03c_gap_filling_revisited/export_observed_tsa_appendix.py", "role": "supporting"}
+      ]
+    },
+    {
+      "id": "forecasting",
+      "runbook": "workflows/latest/03_forecasting.md",
+      "entrypoints": [
+        {"id": "foundation_screen", "path": "notebooks/05_benchmarking/B17_foundation_screen.py", "role": "supporting"},
+        {"id": "direct_structure", "path": "notebooks/05_benchmarking/B18_direct_structure.py", "role": "canonical"},
+        {"id": "spike_correction", "path": "notebooks/05_benchmarking/B18_spike_models.py", "role": "canonical"},
+        {"id": "forecast_evaluation", "path": "notebooks/05_benchmarking/B18_evaluate_and_plot.py", "role": "supporting"},
+        {"id": "blend_validation", "path": "notebooks/05_benchmarking/B18_blend_validation.py", "role": "validation"},
+        {"id": "final_forecast", "path": "notebooks/05_benchmarking/B18_final_triple_chain.py", "role": "canonical"},
+        {"id": "spike_timing", "path": "notebooks/05_benchmarking/B18_spike_timing_plots.py", "role": "supporting"}
+      ]
+    },
+    {
+      "id": "interpretability_uq",
+      "runbook": "workflows/latest/04_interpretability_uq.md",
+      "entrypoints": [
+        {"id": "permutation_sensitivity", "path": "notebooks/06_interpretability_uq/i03b_champion_interpretability_b18.py", "role": "canonical"},
+        {"id": "permutation_plots", "path": "notebooks/06_interpretability_uq/i03b_plots.py", "role": "supporting"},
+        {"id": "forecast_uq", "path": "notebooks/06_interpretability_uq/u08_champion_uq_b18.py", "role": "canonical"},
+        {"id": "forecast_uq_plots", "path": "notebooks/06_interpretability_uq/u08_fanchart_plots.py", "role": "supporting"},
+        {"id": "scenario_uq", "path": "notebooks/06_interpretability_uq/u05b_scenario_uq_b18.py", "role": "canonical"},
+        {"id": "cqr_calibration", "path": "notebooks/06_interpretability_uq/u06b_u07b_cqr_b18.py", "role": "canonical"},
+        {"id": "cqr_plots", "path": "notebooks/06_interpretability_uq/u06b_u07b_plots.py", "role": "supporting"},
+        {"id": "report_cqr_gallery", "path": "notebooks/06_interpretability_uq/u06c_report_cqr_gallery.py", "role": "supporting"}
+      ]
+    },
+    {
+      "id": "scenario_projection",
+      "runbook": "workflows/latest/05_scenario_projection.md",
+      "entrypoints": [
+        {"id": "bias_correct_climate", "path": "src/features/build_bias_corrected_cmip6.py", "role": "canonical"},
+        {"id": "scenario_model_gate", "path": "notebooks/07_scenario_analysis/s03d_solo_trend_check.py", "role": "validation"},
+        {"id": "scenario_engine", "path": "notebooks/07_scenario_analysis/s06b_direct_regression_engine.py", "role": "canonical"},
+        {"id": "scenario_grid", "path": "notebooks/07_scenario_analysis/s06b_master_runner.py", "role": "canonical"},
+        {"id": "regulation_ceiling_fix", "path": "notebooks/07_scenario_analysis/s06b_lit_ceil_fix.py", "role": "canonical"},
+        {"id": "livestock_daily_subset", "path": "notebooks/07_scenario_analysis/s06b_livestock_v2_daily_chains_subset.py", "role": "supporting"},
+        {"id": "practice_daily_subset", "path": "notebooks/07_scenario_analysis/s06b_practices_daily_chains_subset.py", "role": "supporting"},
+        {"id": "livestock_plots", "path": "notebooks/07_scenario_analysis/s06b_livestock_v2_daily_chains_plots.py", "role": "supporting"},
+        {"id": "practice_plots", "path": "notebooks/07_scenario_analysis/s06b_practices_daily_chains_plots.py", "role": "supporting"},
+        {"id": "annual_ch4", "path": "notebooks/07_scenario_analysis/s06b_annual_ch4_generation.py", "role": "canonical"}
+      ]
+    },
+    {
+      "id": "report",
+      "runbook": "workflows/latest/06_report.md",
+      "entrypoints": [
+        {"id": "report_source", "path": "report/Report.tex", "role": "canonical"},
+        {"id": "models_appendix", "path": "report/Appendices/B_Models.tex", "role": "canonical"},
+        {"id": "report_pdf", "path": "report/Report.pdf", "role": "canonical"}
+      ]
+    }
+  ]
+}

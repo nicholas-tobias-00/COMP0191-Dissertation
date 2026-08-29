@@ -4023,3 +4023,34 @@ S-06b.
 `results/s06b_annual_ch4_*.csv`; 66 new figures across
 `results/figures/{i03b_*,u08_fancharts,u05b_fancharts,u06_cqr,u07_lsu_cqr,s06b_summary,
 s06b_annual_ch4}/`.
+
+### D-109 -- 2026-08-29 -- Additive canonical workflow layer and repository README
+
+The repository had accumulated a complete but difficult-to-navigate experiment history: promoted
+methods, negative controls, plotting utilities, and superseded notebooks lived together in the
+numbered stage directories, while no root `README.md` identified the current runnable path. A
+second issue was that `/report/` was broadly ignored, so the newly split chapter and appendix
+sources would not be included in a normal Git update.
+
+**Decision:** preserve every historical experiment in place and add `workflows/latest/` as the
+canonical navigation layer. Do not clone or rename the large notebooks into scattered `latest_*`
+copies, because those copies would immediately create two potential sources of truth. The new
+layer contains short ordered runbooks, a machine-readable `manifest.json`, and a lightweight
+validator. It distinguishes production references, benchmark-best methods, supporting tools, and
+validation-only experiments. The root `README.md` points to this layer and to `BEST_RESULTS.md`,
+`CONTEXT.md`, `DECISIONS.md`, the data dictionary, and the compiled report.
+
+The manifest records 6 stages and 44 current entry points: data preparation; TabICLv2-solo gap
+filling and calibrated UQ; the three-component direct TabPFN forecast; B18-specific
+interpretability/CQR; S-06b Direct TabICLv2 scenario projection; and the dissertation build. The
+validator confirms that all referenced source files and runbooks exist without executing expensive
+models. All 39 referenced Python entry points were separately parsed successfully.
+
+**Git boundary:** `.gitignore` receives narrow additive exceptions for current report chapter
+sources, split appendices, report outlines, and report-facing figures. Large local data,
+`results/figures`, historical report backups, caches, and generated CSV archives remain excluded.
+No modelling output or champion score changes under this decision.
+
+**Files:** `README.md`; `workflows/latest/{README.md,manifest.json,validate.py,01_data_preparation.md,
+02_gap_filling.md,03_forecasting.md,04_interpretability_uq.md,05_scenario_projection.md,
+06_report.md}`; `.gitignore`.

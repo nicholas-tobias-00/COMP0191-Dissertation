@@ -1,0 +1,273 @@
+\chapter{Scenario Projection} \label{Chap6}
+\section{CMIP6-Derived Climate Scenarios}
+
+% Future weather conditions were obtained from the transient climate dataset developed by \cite{semenov2025transient}. The dataset uses the LARS-WG 8.0 stochastic weather 
+% generator to downscale projections from five CMIP6 Global Climate Models for representative locations across Great Britain, including North Wyke. It provides daily 
+% minimum and maximum air temperature, precipitation and solar radiation from 2020 to 2090. This study uses the North Wyke simulations under two emissions pathways: the 
+% intermediate SSP2-4.5 pathway and the very-high-emissions SSP5-8.5 pathway. Although the source dataset extends to 2090, the present analysis is restricted to 2050.
+
+% The source dataset contains 100 stochastic realisations for each GCM--SSP combination. To retain variation between climate models while keeping the scenario experiment 
+% computationally tractable, ten realisations were selected from each of the five GCMs. This produced 50 climate trajectories under each pathway and 100 trajectories 
+% overall. Each trajectory contains four directly simulated variables: daily minimum temperature, maximum temperature, precipitation and solar radiation.
+
+% These data differ substantially from the historical NWFP dataset used to develop the forecasting model. The NWFP data comprise tower- and catchment-level observations 
+% derived from multiple monitoring systems, whereas the simulated climate data provide site-level daily weather trajectories shared across the three towers. They do not 
+% contain FCH\textsubscript{4}, soil conditions, hydrological measurements, livestock records or field-management events. Consequently, the scenario model was restricted to 
+% predictors that could either be obtained directly from the climate simulations or reconstructed consistently from the historical record.
+
+% \begin{table}[htbp]
+% \centering
+% \small
+% \renewcommand{\arraystretch}{1.15}
+% \begin{tabularx}{\textwidth}{lXX}
+% \toprule
+% Property & Historical NWFP data & Simulated climate data \\
+% \midrule
+% Data source
+% & Instrumental observations
+% & LARS-WG simulations derived from five CMIP6 GCMs \\
+
+% Temporal resolution
+% & Hourly observations aggregated to daily values
+% & Daily simulations \\
+
+% Spatial representation
+% & Tower- and catchment-specific
+% & Site-level North Wyke climate \\
+
+% Study period
+% & Historical record ending in 2024
+% & Future trajectories extending to 2050 \\
+
+% Climate pathways
+% & Not applicable
+% & SSP2-4.5 and SSP5-8.5 \\
+
+% Available variables
+% & Meteorological, soil, hydrological, livestock, management and flux variables
+% & Minimum temperature, maximum temperature, precipitation and solar radiation \\
+
+% FCH\textsubscript{4}
+% & Observed or gap-filled target
+% & Not available; projected by the model \\
+% \bottomrule
+% \end{tabularx}
+% \caption{Comparison between the historical NWFP observations and the simulated climate data used for scenario projection.}
+% \label{tab:historical_scenario_comparison}
+% \end{table}
+
+% Before constructing the scenario predictor frames, the four simulated climate variables were standardised against the local NWFP climate record. Because the climate 
+% trajectories represent the North Wyke site rather than individual tower locations, Tower~4 was used as the common observational reference owing to its comparatively 
+% complete meteorological record. Separate correction factors were estimated for each GCM using its near-term SSP2-4.5 simulations from 2020--2030.
+
+% Additive offsets were applied to minimum and maximum temperature, while multiplicative factors were applied to precipitation and solar radiation. The latter preserves 
+% non-negative values and is more appropriate for ratio-scale variables. The resulting correction for each GCM was applied unchanged to both SSP2-4.5 and SSP5-8.5. This 
+% aligned the simulated variables with the local climate baseline without removing the relative differences between GCMs or emissions pathways.
+
+% The corrected variables were subsequently mapped to the forecasting data structure. Mean air temperature was calculated from the corrected daily minimum and maximum 
+% temperatures, precipitation was retained as a daily total, and solar radiation was converted from MJ\,m\textsuperscript{-2}\,day\textsuperscript{-1} to mean 
+% W\,m\textsuperscript{-2}. Calendar and historically derived farm-management predictors were then added to form the scenario-compatible input dataset.
+
+Future weather conditions were obtained from the transient climate dataset developed by \cite{semenov2025transient}. It provides daily simulations of minimum and maximum air temperature, precipitation
+and solar radiation for North Wyke from 2020 to 2090, generated using five CMIP6 Global Climate Models. This study selected ten realisations per GCM under SSP2-4.5 and SSP5-8.5, producing 100 climate
+trajectories, and restricted the projection horizon to 2050.
+
+Unlike the historical NWFP data, these simulations provide site-level daily weather rather than tower- and catchment-specific observations. They contain neither FCH\textsubscript{4} nor the soil,
+hydrological, livestock and management measurements available historically. The scenario model was therefore restricted to predictors that could be obtained from the climate simulations or reconstructed
+consistently from the NWFP record. Variables unavailable from CMIP6 were reconstructed from historical NWFP
+  seasonality. Livestock densities were represented using tower-specific
+  day-of-year seasonal mean, while grazing and fertiliser variables were derived
+  from historical presence and event patterns. These profiles were repeated
+  across future years and modified according to each scenario.
+
+The four simulated climate variables were bias-corrected against the local NWFP record using Tower~4 as the common reference. Per-GCM correction factors were estimated from the 2020--2030 SSP2-4.5
+simulations: additive offsets were applied to minimum and maximum temperature, while multiplicative factors were applied to precipitation and solar radiation. The same corrections were applied under both
+pathways to preserve their relative differences. Mean temperature was subsequently derived from the corrected minimum and maximum values, and solar radiation was converted from
+MJ\,m\textsuperscript{-2}\,day\textsuperscript{-1} to W\,m\textsuperscript{-2}.
+
+Table~\ref{tab:climate_standardisation} reports the resulting correction factors. Raw simulations were cooler than the local record by 1.81--2.71$^\circ$C for daily minimum temperature and
+2.60--3.56$^\circ$C for daily maximum temperature. Solar radiation required a modest upward adjustment of 3.4--8.3\%, whereas precipitation was reduced to 22.5--24.0\% of its raw value, indicating that
+the uncorrected simulations were approximately 4.2--4.4 times wetter than the NWFP reference.
+
+\begin{table}[htbp]
+\centering
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{lrrrr}
+\toprule
+GCM & $\Delta T_{\min}$ ($^\circ$C) & $\Delta T_{\max}$ ($^\circ$C) &
+SWIN ratio & Precipitation ratio \\
+\midrule
+ACCESS-ESM1-5   & 1.81 & 2.60 & 1.034 & 0.225 \\
+CNRM-CM6-1      & 2.26 & 3.09 & 1.083 & 0.229 \\
+HadGEM3-GC31-LL & 1.97 & 2.79 & 1.044 & 0.236 \\
+MPI-ESM1-2-LR   & 2.71 & 3.56 & 1.060 & 0.226 \\
+MRI-ESM2-0      & 2.29 & 3.03 & 1.043 & 0.240 \\
+\bottomrule
+\end{tabular}
+\caption{Per-GCM correction factors used to standardise the simulated climate variables against the Tower~4 NWFP reference. Temperature offsets were added to raw simulated values; solar-radiation and
+precipitation ratios were multiplied by raw simulated values.}
+\label{tab:climate_standardisation}
+\end{table}
+
+\section{Results}
+
+\subsection{Less Informed Model Creation}
+
+This chapter's scenario model uses this dissertation's best forecasting model but restricted to
+the 13 features that CMIP6 climate scenario can actually supply (climate drivers, calendar
+encodings, livestock density, management practices) rather than the full
+52-feature configuration used elsewhere in this dissertation (Chapter~\ref{Chap5}). This
+restriction carries an accuracy cost that has been quantified:
+
+\begin{table}[h]
+\centering
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{lcc}
+\toprule
+Configuration & Feature count & MASE (seasonal mean) \\
+\midrule
+Full-feature model (Chapter~\ref{Chap5}) & 52 & 0.6908 \\
+\textbf{Restricted model} & \textbf{13} & \textbf{0.7383} \\
+\bottomrule
+\end{tabular}
+\caption{Accuracy cost of restricting the feature set to what CMIP6
+climate scenario can supply. MASE scaled against the day-of-year seasonal mean baseline.}
+\label{tab:sp_less_informed}
+\end{table}
+
+A restricted model is created using only the features available from the simulated climate
+dataset. This model has a 6.9\% increase in MASE relative to the full-feature model (MASE
+0.7383 vs.\ 0.6908), but remains sufficiently accurate for a projection task. This restricted
+model is used for the inference task in the sections that follow.
+
+% Restricting the feature set to only what a genuine climate scenario can supply carries a small,
+% quantifiable accuracy cost: a real-anchor backtest found the direct-regression, per-tower,
+% trend-augmented configuration recovers most of that cost (MASE 0.738, vs.\ 0.7405 for this
+% dissertation's full-feature TabICLv2 configuration and 0.760 for a superseded one-shot engine) -- a
+% $\sim$0.3\% cost rather than the superseded engine's 2.5\%. The trend covariate's own training range
+% is $\sim$2.7$\times$ shorter than the horizon it is queried to (2050); a direct sanity check found it
+% saturates to a bounded, plausible value rather than diverging when queried decades past its training
+% maximum, unlike SARIMAX's known explosive extrapolation behaviour under a comparable stress test.
+
+\subsection{Livestock Density Sensitivity}
+
+Livestock density was varied along a four-level ladder: the historical baseline; half of the
+baseline density; a policy-informed reference level of 2.5~LSU\,ha\textsuperscript{-1}; and each
+tower's own historical maximum. The reference level is drawn from UK Countryside Stewardship
+guidance for non-Severely Disadvantaged Area land \cite{defra2022stewardship}.
+
+Reported scenario responses are mean percentage changes in annual predicted
+FCH\textsubscript{4} relative to the matched baseline. They are averaged across the five GCMs and
+ten selected realisations per GCM.
+
+\begin{table}[h]
+\centering
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{llrrr}
+\toprule
+SSP & Livestock level & T2 & T4 & T9 \\
+\midrule
+SSP2-4.5 & Half (0.5$\times$), all species & $-27.5\%$ & $-14.9\%$ & $-26.9\%$ \\
+SSP2-4.5 & Government reference (2.5~LSU/ha) & $+4.6\%$ & $+0.9\%$ & $-2.6\%$ \\
+SSP2-4.5 & Own historical maximum, all species & $+101.2\%$ & $+138.3\%$ & $+184.3\%$ \\
+\midrule
+SSP5-8.5 & Half (0.5$\times$), all species & $-27.2\%$ & $-15.0\%$ & $-26.9\%$ \\
+SSP5-8.5 & Government reference (2.5~LSU/ha) & $+4.6\%$ & $+0.9\%$ & $-2.6\%$ \\
+SSP5-8.5 & Own historical maximum, all species & $+99.7\%$ & $+138.1\%$ & $+181.9\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Mean percentage change in annual predicted FCH\textsubscript{4} relative to the matched
+baseline livestock scenario, averaged across five GCMs and ten realisations per GCM.}
+\label{tab:livestock_scenario_results}
+\end{table}
+
+  Livestock density produced the largest modelled response in the scenario grid.
+  Halving stocking density reduced predicted annual FCH\textsubscript{4} by
+  15--28\%, while raising it to each tower's historical maximum increased
+  predicted flux by 100--184\%. The policy-informed reference level of
+  2.5~LSU\,ha\textsuperscript{-1} was close to the historical baseline at T2 and
+  T4, but below the baseline at T9, producing only small changes. Responses at
+  each livestock level were similar under SSP2-4.5 and SSP5-8.5, indicating that
+  the modelled sensitivity to livestock density was comparatively stable across
+  the two climate pathways. Illustrative monthly trajectories are provided in
+  Appendix Figures~\ref{fig:app_sp_livestock_trajectory_ssp245}
+  and~\ref{fig:app_sp_livestock_trajectory_ssp585}.
+
+% Tower 9's negative response at the literature-ceiling rung reflects that its real historical stocking
+% density already exceeds that ceiling -- consistent with NWFP's identity as an intensively-managed
+% research platform. At the "own historical maximum" rung, Tower 2's response ($+98.7\%$) is decisively
+% weaker than Towers 4 or 9's ($+137.8\%$, $+182.9\%$), consistent with Tower 2's established
+% livestock-blindness (Chapters~\ref{Chap4},~\ref{Chap5}) -- independently confirmed here for a fourth
+% time, under a different model and climate driver source. In absolute annual generation terms, Tower
+% 9's own-historical-max scenario reaches 260.7 kg~ha\textsuperscript{-1}~yr\textsuperscript{-1},
+% nearly three times its baseline (27.7/72.4/92.2 kg~ha\textsuperscript{-1}~yr\textsuperscript{-1} at
+% T2/T4/T9 respectively).
+
+\FloatBarrier
+
+\subsection{Grazing and Fertiliser Sensitivity}
+
+\begin{table}[h]
+\centering
+\small
+\renewcommand{\arraystretch}{1.1}
+\begin{tabular}{llrrr}
+\toprule
+SSP & Intervention & T2 & T4 & T9 \\
+\midrule
+SSP2-4.5 & Extend grazing season by 4 weeks & $-3.8\%$ & $+19.9\%$ & $+20.0\%$ \\
+SSP2-4.5 & Fertiliser frequency $+50\%$ & $-8.4\%$ & $\approx 0.0\%$ & $\approx 0.0\%$ \\
+SSP2-4.5 & Fertiliser rate $+50\%$ & $-1.7\%$ & $-2.0\%$ & $\approx 0.0\%$ \\
+\midrule
+SSP5-8.5 & Extend grazing season by 4 weeks & $-3.7\%$ & $+19.9\%$ & $+19.9\%$ \\
+SSP5-8.5 & Fertiliser frequency $+50\%$ & $-8.2\%$ & $-0.1\%$ & $\approx 0.0\%$ \\
+SSP5-8.5 & Fertiliser rate $+50\%$ & $-1.7\%$ & $-2.0\%$ & $\approx 0.0\%$ \\
+\bottomrule
+\end{tabular}
+\caption{Mean percentage change in annual predicted FCH\textsubscript{4} relative to the matched
+historical scenario, averaged across five GCMs and ten realisations per GCM.}
+\label{tab:management_scenario_results}
+\end{table}
+
+  Extending the grazing season by four weeks increased predicted annual
+  FCH\textsubscript{4} by approximately 20\% at T4 and T9, whereas T2 produced a
+  small negative response of approximately 4\%. Fertiliser interventions produced
+  smaller and less consistent responses: increasing application frequency reduced
+  predicted flux by approximately 8\% at T2 but had little effect at T4 and T9,
+  while increasing the application rate changed predictions by no more than 2\%.
+  The similarity between SSP2-4.5 and SSP5-8.5 indicates that these modelled
+  management sensitivities were stable across the two climate pathways.
+  Illustrative trajectories are provided in Appendix
+  Figures~\ref{fig:app_sp_grazing_trajectory_ssp245}--%
+  \ref{fig:app_sp_fertilizer_trajectory_ssp585}.
+
+% Extending the grazing season by four weeks increases FCH\textsubscript{4} substantially at T4/T9
+% ($\approx+20\%$), while T2's response is small and negative ($-3.7\%$ to $-3.8\%$), consistent
+% with its muted livestock sensitivity. Fertiliser interventions are comparatively minor, changing
+% predicted FCH\textsubscript{4} by at most 8.4\% (T2) and no more than 2\% at T4/T9. As with the
+% livestock ladder, the SSP pathway makes almost no difference here -- management practice, not
+% climate divergence, drives the response. Trajectories under both pathways are in Appendix
+% Figures~\ref{fig:app_sp_grazing_trajectory_ssp245}--\ref{fig:app_sp_fertilizer_trajectory_ssp585}.
+
+% Extending the grazing season produces a real, monotonic increase at Towers 4 and 9; Tower 2's small
+% and sign-inconsistent response is consistent with its established livestock-blindness rather than a
+% genuinely different underlying finding. Fertiliser perturbations produce a small, sign-inconsistent
+% effect at every tower, consistent with this project's standing conclusion that fertiliser timing
+% carries little independent signal once livestock density is already present. The SSP2-4.5 vs.\
+% SSP5-8.5 pathway divergence is small relative to every management perturbation above throughout most
+% of the horizon.
+
+% \section{Limitations} \label{sp:lim}
+
+% Three limitations apply specifically to this chapter's projections, beyond the general absence of
+% ground truth. First, TabICLv2's extrapolation behaviour under genuine distribution shift (livestock
+% density, climate drivers) has not been formally stress-tested to the standard applied to the
+% production forecasting ensemble; the livestock-ladder sweep is a behavioural probe, not a controlled
+% extrapolation test with any ground truth to check against. Second, no diagnostic available to this
+% dissertation can detect a smooth-but-confidently-wrong extrapolation: historical PICP measures
+% calibration only at real, historically-anchored points and cannot be computed for a genuine future
+% scenario. Third, the CMIP6-vs-NWFP historical climate mismatch is corrected for but not eliminated as
+% a source of residual uncertainty in every downstream scenario result.
